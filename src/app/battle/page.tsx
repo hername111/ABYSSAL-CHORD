@@ -997,7 +997,10 @@ export default function BattleArena() {
       }, 300);
     }
     
-    // 移除打出的手牌
+    // 移除打出的手牌，并加入弃牌堆（除非是消耗牌）
+    if (!selectedCard.exhaust) {
+      setDiscardPile(prev => [...prev, selectedCard]);
+    }
     setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
     setSelectedCardUid(null);
     
@@ -1133,7 +1136,13 @@ export default function BattleArena() {
         }, 800);
       }
       
-      // 重置回合 - 不清空手牌
+      // 结束回合：将手牌加入弃牌堆（除了保留牌）
+      const cardsToDiscard = hand.filter(c => !c.retain);
+      const cardsToKeep = hand.filter(c => c.retain);
+      setDiscardPile(prev => [...prev, ...cardsToDiscard]);
+      setHand(cardsToKeep);
+      
+      // 重置回合
       setTurn(prev => prev + 1);
       // 仅重置本回合护甲（易碎护甲）
       setPlayerState(prev => ({ ...prev, armor: 0 }));
