@@ -1,10 +1,9 @@
 "use client";
 
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { X, Sword, Shield } from "lucide-react";
 import { Card } from "@/lib/cards";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
 
 interface CardDetailModalProps {
   card: Card | null;
@@ -12,33 +11,6 @@ interface CardDetailModalProps {
 }
 
 export default function CardDetailModal({ card, onClose }: CardDetailModalProps) {
-  const [playCount, setPlayCount] = useState(0);
-  const attackControls = useAnimation();
-  const defenseControls = useAnimation();
-
-  useEffect(() => {
-    if (card) {
-      setPlayCount(0);
-    }
-  }, [card]);
-
-  // 自动循环播放动画
-  useEffect(() => {
-    if (!card) return;
-
-    const intervalId = setInterval(() => {
-      const isAttack = card.type === "attack";
-      const controls = isAttack ? attackControls : defenseControls;
-      
-      // 触发动画
-      controls.start("visible").then(() => {
-        controls.set("hidden");
-      });
-    }, 3500); // 3.5秒循环一次
-
-    return () => clearInterval(intervalId);
-  }, [card, attackControls, defenseControls]);
-
   if (!card) return null;
 
   const getCardTypeColor = (type: string) => {
@@ -98,8 +70,8 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
               <X className="w-7 h-7" />
             </button>
 
-            {/* Main Grid - Left: Content, Right: Visual Preview */}
-            <div className="grid lg:grid-cols-2 min-h-[600px]">
+            {/* Main Grid - Left: Content, Right: Visual Preview (Larger) */}
+            <div className="grid lg:grid-cols-[40%,60%] min-h-[600px]">
               {/* Left Column - Content */}
               <div className="p-8 lg:p-10 flex flex-col border-r border-sonic-purple/20">
                 {/* Header */}
@@ -210,39 +182,41 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
                 </div>
               </div>
 
-              {/* Right Column - Visual Preview */}
+              {/* Right Column - Visual Preview (Holographic Display) */}
               <div className="p-8 lg:p-10 flex flex-col">
-                {/* Visual Preview Box */}
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-sonic-purple mb-4">技能视觉效果预览</h3>
+                {/* Visual Preview Box - Larger, Darker, Holographic */}
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-sonic-purple mb-4">全息技能预览</h3>
                   
-                  {/* Preview Area - Dark Purple Background with Inset Shadow */}
-                  <div 
-                    className="relative bg-gradient-to-br from-sonic-purple/20 via-card-darker to-sonic-purple/10 rounded-xl p-8 border border-sonic-purple/30 shadow-[inset_0_4px_20px_rgba(0,0,0,0.6)] min-h-[300px] flex items-center justify-center overflow-hidden"
+                  {/* Preview Area - Holographic Display */}
+                  <motion.div
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative bg-gradient-to-br from-sonic-purple/15 via-black to-sonic-purple/20 rounded-xl p-8 border-2 border-sonic-purple/40 shadow-[inset_0_8px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(139,92,246,0.15)] min-h-[450px] flex items-center justify-center overflow-hidden"
                   >
+                    {/* Scanning Line Effect */}
+                    <motion.div
+                      className="absolute inset-0 pointer-events-none"
+                      animate={{
+                        background: [
+                          "linear-gradient(transparent 0%, transparent 49%, rgba(139,92,246,0.1) 50%, transparent 51%, transparent 100%)",
+                        ],
+                        y: ["0%", "100%"],
+                      }}
+                      transition={{
+                        duration: 2.5,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      style={{ backgroundSize: "100% 8px" }}
+                    />
+                    
                     {isAttack ? (
-                      <AttackAnimation controls={attackControls} />
+                      <AttackAnimation />
                     ) : (
-                      <DefenseAnimation controls={defenseControls} />
+                      <DefenseAnimation />
                     )}
-                  </div>
-                </div>
-
-                {/* Replay Button (Hidden but Still Functional) */}
-                <div className="mt-auto">
-                  <button
-                    onClick={() => {
-                      const controls = isAttack ? attackControls : defenseControls;
-                      controls.start("visible").then(() => {
-                        controls.set("hidden");
-                      });
-                    }}
-                    className="w-full py-4 px-6 bg-sonic-purple/20 hover:bg-sonic-purple/30 border border-sonic-purple/50 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 group"
-                  >
-                    <span className="font-bold text-lg text-slate-200">
-                      播放动效 (Replay Effect)
-                    </span>
-                  </button>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -253,41 +227,38 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
   );
 }
 
-// Attack Animation Component
-function AttackAnimation({ controls }: { controls: any }) {
+// Attack Animation Component - Infinite Repeat
+function AttackAnimation() {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
-      {/* Red Pulse Background */}
+      {/* Red Pulse Background - Infinite */}
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={controls}
-        variants={{
-          hidden: { scale: 0.8, opacity: 0 },
-          visible: {
-            scale: [0.8, 1.3, 1],
-            opacity: [0, 0.4, 0],
-            transition: { duration: 0.6, ease: "easeInOut" }
-          }
+        animate={{
+          scale: [0.8, 1.3, 0.8],
+          opacity: [0, 0.4, 0],
+        }}
+        transition={{
+          duration: 0.6,
+          repeat: Infinity,
+          repeatDelay: 3,
+          ease: "easeInOut",
         }}
         className="absolute inset-0 bg-danger-red/30 rounded-full blur-3xl"
       />
       
-      {/* Sword Icon - Move Right & Shake */}
+      {/* Sword Icon - Move Right & Shake - Infinite */}
       <motion.div
-        initial={{ x: -40, opacity: 0, rotate: -15 }}
-        animate={controls}
-        variants={{
-          hidden: { x: -40, opacity: 0, rotate: -15 },
-          visible: {
-            x: [ -40, 0, 30, 20, 35 ],
-            opacity: [0, 1, 1, 1, 1],
-            rotate: [ -15, 0, 45, 30, 50 ],
-            transition: {
-              duration: 0.6,
-              times: [0, 0.3, 0.5, 0.7, 1],
-              ease: "easeInOut"
-            }
-          }
+        animate={{
+          x: [-40, 0, 30, 20, 35, -40],
+          opacity: [0, 1, 1, 1, 1, 0],
+          rotate: [-15, 0, 45, 30, 50, -15],
+        }}
+        transition={{
+          duration: 2.4,
+          times: [0, 0.1, 0.2, 0.25, 0.3, 1],
+          repeat: Infinity,
+          repeatDelay: 1.2,
+          ease: "easeInOut",
         }}
         className="relative z-10"
       >
@@ -297,8 +268,8 @@ function AttackAnimation({ controls }: { controls: any }) {
   );
 }
 
-// Defense Animation Component
-function DefenseAnimation({ controls }: { controls: any }) {
+// Defense Animation Component - Infinite Repeat
+function DefenseAnimation() {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       {/* Circular Ripples - Continuous */}
@@ -312,10 +283,10 @@ function DefenseAnimation({ controls }: { controls: any }) {
               opacity: 0,
             }}
             transition={{
-              duration: 1,
+              duration: 1.5,
               repeat: Infinity,
-              delay: i * 0.3,
-              ease: "easeOut"
+              delay: i * 0.4,
+              ease: "easeOut",
             }}
             className="absolute border-2 border-armor-blue/60 rounded-full"
             style={{
@@ -326,20 +297,18 @@ function DefenseAnimation({ controls }: { controls: any }) {
         ))}
       </div>
       
-      {/* Shield Icon - Expand from Center */}
+      {/* Shield Icon - Expand from Center - Infinite */}
       <motion.div
-        initial={{ scale: 0.3, opacity: 0 }}
-        animate={controls}
-        variants={{
-          hidden: { scale: 0.3, opacity: 0 },
-          visible: {
-            scale: [0.3, 1.2, 1],
-            opacity: [0, 1, 1],
-            transition: {
-              duration: 0.6,
-              ease: "easeInOut"
-            }
-          }
+        animate={{
+          scale: [0.3, 1.2, 1, 0.3],
+          opacity: [0, 1, 1, 0],
+        }}
+        transition={{
+          duration: 2.4,
+          times: [0, 0.25, 0.5, 1],
+          repeat: Infinity,
+          repeatDelay: 1.2,
+          ease: "easeInOut",
         }}
         className="relative z-10"
       >
