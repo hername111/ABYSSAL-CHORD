@@ -911,27 +911,22 @@ export default function BattleArena() {
     let totalDamage = 0;
     let armorGain = 0;
     
-    // 统一的伤害计算方法 - 强制生效污染度增伤乘区 + 阶段增益
+    // 统一的伤害计算方法 - 只保留固定数值加成
     const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
       // 获取当前阶段配置
       const phaseConfig = getPollutionLevel(globalPollution);
       
-      // 核心机制1：每 10 点污染值，增加 10% 伤害
-      const damageMultiplier = 1 + (globalPollution / 100);
-      const pollutionMultipliedDamage = Math.floor(baseDamage * damageMultiplier);
-      
-      // 核心机制2：强制应用阶段伤害增益
-      const finalDamage = pollutionMultipliedDamage + phaseConfig.damageBonus;
+      // 核心机制：只应用阶段固定数值伤害增益
+      const finalDamage = baseDamage + phaseConfig.damageBonus;
       
       return finalDamage;
     };
     
-    // 1. 强制挂载污染度增伤公式 + 阶段增益
+    // 1. 只使用阶段固定数值加成
     const baseDamage = selectedCard.baseDamage || 0;
     // 必须且只能使用统一的伤害计算方法
     const phaseConfig = getPollutionLevel(pollutionLevel);
     const finalDamage = calculateActualDamage(baseDamage, pollutionLevel);
-    const pollutionBonus = finalDamage - baseDamage - phaseConfig.damageBonus;
     
     // 2. 处理护甲获得
     armorGain = selectedCard.baseArmor || 0;
@@ -943,7 +938,6 @@ export default function BattleArena() {
     if (selectedCard.type === "attack" && finalDamage > 0) {
       const parts: string[] = [];
       parts.push(`基础伤害 ${baseDamage} 点`);
-      if (pollutionBonus > 0) parts.push(`污染加成 ${pollutionBonus} 点`);
       if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
       
       aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}，总计造成 ${finalDamage} 点伤害！`;
@@ -1071,17 +1065,13 @@ export default function BattleArena() {
         const attackMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
         setDialogMessages(prev => [...prev, attackMsg]);
         
-        // 统一的伤害计算方法 - 强制生效污染度增伤乘区 + 阶段增益
+        // 统一的伤害计算方法 - 只保留固定数值加成
         const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
           // 获取当前阶段配置
           const phaseConfig = getPollutionLevel(globalPollution);
           
-          // 核心机制1：每 10 点污染值，增加 10% 伤害
-          const damageMultiplier = 1 + (globalPollution / 100);
-          const pollutionMultipliedDamage = Math.floor(baseDamage * damageMultiplier);
-          
-          // 核心机制2：强制应用阶段伤害增益
-          const finalDamage = pollutionMultipliedDamage + phaseConfig.damageBonus;
+          // 核心机制：只应用阶段固定数值伤害增益
+          const finalDamage = baseDamage + phaseConfig.damageBonus;
           
           return finalDamage;
         };
@@ -1089,7 +1079,6 @@ export default function BattleArena() {
         const baseEnemyDamage = currentIntention.value;
         const finalEnemyDamage = calculateActualDamage(baseEnemyDamage, pollutionLevel);
         const enemyPhaseConfig = getPollutionLevel(pollutionLevel);
-        const enemyPollutionBonus = finalEnemyDamage - baseEnemyDamage - enemyPhaseConfig.damageBonus;
         
         await new Promise(resolve => setTimeout(resolve, 200));
         setShowRedFlash(false);
