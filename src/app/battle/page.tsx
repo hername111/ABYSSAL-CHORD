@@ -772,11 +772,11 @@ export default function BattleArena() {
 
       {/* 手牌容器 - 动态扇形布局 */}
       <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
-        <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
+        <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
               key={card.id}
-              className="absolute bottom-0 left-1/2 -translate-x-1/2"
+              className="relative"
               style={{ transformOrigin: "bottom center" }}
             >
               <HandCard
