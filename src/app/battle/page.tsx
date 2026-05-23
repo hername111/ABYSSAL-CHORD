@@ -18,6 +18,7 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
+  Target,
 } from "lucide-react";
 import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,23 @@ const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
 // 敌人意图类型枚举
 type IntentType = "ATTACK" | "DEFEND" | "BUFF" | "DEBUFF";
+
+// 状态效果类型
+type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN";
+
+interface StatusEffect {
+  type: StatusEffectType;
+  stacks: number;
+}
+
+// 实体状态类型
+interface EntityState {
+  hp: number;
+  maxHp: number;
+  armor: number;
+  buffs: StatusEffect[];
+  debuffs: StatusEffect[];
+}
 
 // 简化的敌人行为类型
 type SimpleEnemyBehavior = {
@@ -224,6 +242,128 @@ const EnemyStatPanel = ({
   );
 };
 
+// 通用的实体状态面板组件 - 同时用于玩家和敌人
+const EntityStatusPanel = ({
+  entity,
+  isEnemy = false,
+  intentType,
+  intentValue,
+}: {
+  entity: EntityState;
+  isEnemy?: boolean;
+  intentType?: IntentType;
+  intentValue?: number;
+}) => {
+  // 获取状态效果的图标和颜色
+  const getStatusEffectIcon = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return <Target className="w-4 h-4" />;
+      case "WEAK": return <TrendingDown className="w-4 h-4" />;
+      case "POISON": return <Skull className="w-4 h-4" />;
+      case "STRENGTH": return <TrendingUp className="w-4 h-4" />;
+      case "THORN": return <ShieldIcon className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusEffectColor = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return "text-yellow-400 bg-yellow-400/20 border-yellow-400/50";
+      case "WEAK": return "text-blue-400 bg-blue-400/20 border-blue-400/50";
+      case "POISON": return "text-green-400 bg-green-400/20 border-green-400/50";
+      case "STRENGTH": return "text-red-400 bg-red-400/20 border-red-400/50";
+      case "THORN": return "text-purple-400 bg-purple-400/20 border-purple-400/50";
+    }
+  };
+
+  const getStatusEffectName = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return "易伤";
+      case "WEAK": return "虚弱";
+      case "POISON": return "中毒";
+      case "STRENGTH": return "力量";
+      case "THORN": return "荆棘";
+    }
+  };
+
+  const getIntentColor = () => {
+    switch (intentType) {
+      case "ATTACK": return "#ef4444";
+      case "DEFEND": return "#3b82f6";
+      case "BUFF": return "#a855f7";
+      case "DEBUFF": return "#f97316";
+      default: return "#ef4444";
+    }
+  };
+
+  const getIntentText = () => {
+    switch (intentType) {
+      case "ATTACK": return `${intentValue} 伤害`;
+      case "DEFEND": return `${intentValue} 护甲`;
+      case "BUFF": return `污染 +${intentValue}`;
+      case "DEBUFF": return `削弱玩家`;
+      default: return `${intentValue} 伤害`;
+    }
+  };
+
+  const allStatusEffects = [...entity.buffs, ...entity.debuffs];
+
+  return (
+    <div className="w-48 space-y-2">
+      {/* 敌人意图指示器 - 仅敌人显示 */}
+      {isEnemy && intentType && (
+        <div className="bg-black/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-sonic-purple/50">
+          <div className="flex items-center gap-2">
+            {intentType === "ATTACK" && <Swords className="w-5 h-5" style={{ color: getIntentColor() }} />}
+            {intentType === "DEFEND" && <Shield className="w-5 h-5" style={{ color: getIntentColor() }} />}
+            {intentType === "BUFF" && <Sparkles className="w-5 h-5" style={{ color: getIntentColor() }} />}
+            {intentType === "DEBUFF" && <TrendingDown className="w-5 h-5" style={{ color: getIntentColor() }} />}
+            <span className="text-sm text-slate-200">{getIntentText()}</span>
+          </div>
+        </div>
+      )}
+
+      {/* HP条 - 前面叠加护甲 */}
+      <div className="space-y-1">
+        {/* 护甲显示 - 如果有护甲，显示在HP条上方 */}
+        {entity.armor > 0 && (
+          <div className="flex items-center gap-2 bg-blue-500/20 px-2 py-1 rounded-lg border border-blue-500/50">
+            <Shield className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-bold text-blue-400">{entity.armor}</span>
+          </div>
+        )}
+
+        {/* HP条 */}
+        <StatBox 
+          name="HP" 
+          current={entity.hp} 
+          max={entity.maxHp} 
+          color="#ef4444" 
+          showIcon={false}
+        />
+      </div>
+
+      {/* 状态栏 - buffs 和 debuffs */}
+      {allStatusEffects.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {allStatusEffects.map((effect, index) => (
+            <div 
+              key={`${effect.type}-${index}`}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-md border text-xs",
+                getStatusEffectColor(effect.type)
+              )}
+              title={`${getStatusEffectName(effect.type)} x${effect.stacks}`}
+            >
+              {getStatusEffectIcon(effect.type)}
+              <span>x{effect.stacks}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // 伤害数字组件
 const DamageNumber = ({ damage, x, y, color }: { damage: number; x: number; y: number; color: string }) => {
   return (
@@ -370,14 +510,26 @@ export default function BattleArena() {
   // 游戏状态
   const [turn, setTurn] = useState(1);
   const [pollutionLevel, setPollutionLevel] = useState(0);
-  const [playerHp, setPlayerHp] = useState(80);
-  const [playerMaxHp] = useState(80);
-  const [playerArmor, setPlayerArmor] = useState(0);
+  
+  // 玩家实体状态
+  const [playerState, setPlayerState] = useState<EntityState>({
+    hp: 80,
+    maxHp: 80,
+    armor: 0,
+    buffs: [],
+    debuffs: []
+  });
   const [playerAp, setPlayerAp] = useState(3);
   const [playerMaxAp] = useState(3);
-  const [enemyHp, setEnemyHp] = useState(50);
-  const [enemyMaxHp] = useState(50);
-  const [enemyArmor, setEnemyArmor] = useState(0);
+  
+  // 敌人实体状态
+  const [enemyState, setEnemyState] = useState<EntityState>({
+    hp: 50,
+    maxHp: 50,
+    armor: 0,
+    buffs: [],
+    debuffs: []
+  });
   const [hand, setHand] = useState<CardWithUid[]>(
     addUidsToCards(INITIAL_HAND_CARDS)
   );
@@ -485,6 +637,67 @@ export default function BattleArena() {
     setDiscardPile(currentDiscard);
   };
 
+  // 统一的伤害与护甲结算函数
+  const takeDamage = (target: "player" | "enemy", damage: number) => {
+    if (target === "player") {
+      let actualDamage = damage;
+      
+      // 优先扣除护甲
+      if (playerState.armor > 0) {
+        if (playerState.armor >= damage) {
+          setPlayerState(prev => ({ ...prev, armor: prev.armor - damage }));
+          actualDamage = 0;
+        } else {
+          actualDamage = damage - playerState.armor;
+          setPlayerState(prev => ({ ...prev, armor: 0 }));
+        }
+      }
+      
+      // 扣除生命值
+      if (actualDamage > 0) {
+        setPlayerState(prev => {
+          const newHp = Math.max(0, prev.hp - actualDamage);
+          // 生死判定
+          setTimeout(() => {
+            if (newHp <= 0) {
+              setGameOver(true);
+              setGameResult('defeat');
+            }
+          }, 100);
+          return { ...prev, hp: newHp };
+        });
+      }
+    } else {
+      let actualDamage = damage;
+      
+      // 优先扣除护甲
+      if (enemyState.armor > 0) {
+        if (enemyState.armor >= damage) {
+          setEnemyState(prev => ({ ...prev, armor: prev.armor - damage }));
+          actualDamage = 0;
+        } else {
+          actualDamage = damage - enemyState.armor;
+          setEnemyState(prev => ({ ...prev, armor: 0 }));
+        }
+      }
+      
+      // 扣除生命值
+      if (actualDamage > 0) {
+        setEnemyState(prev => {
+          const newHp = Math.max(0, prev.hp - actualDamage);
+          // 生死判定
+          setTimeout(() => {
+            if (newHp <= 0) {
+              setGameOver(true);
+              setGameResult('victory');
+            }
+          }, 100);
+          return { ...prev, hp: newHp };
+        });
+      }
+    }
+  };
+
   // 回合开始逻辑
   const startTurn = () => {
     // 恢复玩家的能量值至满状态
@@ -498,10 +711,10 @@ export default function BattleArena() {
 
   // 生死判定
   const checkGameOver = () => {
-    if (playerHp <= 0) {
+    if (playerState.hp <= 0) {
       setGameOver(true);
       setGameResult('defeat');
-    } else if (enemyHp <= 0) {
+    } else if (enemyState.hp <= 0) {
       setGameOver(true);
       setGameResult('victory');
     }
@@ -515,11 +728,21 @@ export default function BattleArena() {
     // 重置所有状态
     setTurn(1);
     setPollutionLevel(0);
-    setPlayerHp(80);
-    setPlayerArmor(0);
+    setPlayerState({
+      hp: 80,
+      maxHp: 80,
+      armor: 0,
+      buffs: [],
+      debuffs: []
+    });
     setPlayerAp(3);
-    setEnemyHp(50);
-    setEnemyArmor(0);
+    setEnemyState({
+      hp: 50,
+      maxHp: 50,
+      armor: 0,
+      buffs: [],
+      debuffs: []
+    });
     setHand(addUidsToCards(INITIAL_HAND_CARDS));
     setSelectedCardUid(null);
     setCurrentIntention(getSimpleEnemyIntention());
@@ -602,17 +825,10 @@ export default function BattleArena() {
       // 伤害数字
       setTimeout(() => {
         setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 200, y: 250, color: "text-danger-red" }]);
-        setEnemyHp(prev => {
-          const newHp = Math.max(0, prev - damage);
-          // 生死判定
-          setTimeout(() => {
-            if (newHp <= 0) {
-              setGameOver(true);
-              setGameResult('victory');
-            }
-          }, 100);
-          return newHp;
-        });
+        
+        // 使用统一的伤害结算函数
+        takeDamage("enemy", damage);
+        
         setTimeout(() => setIsEnemyHit(false), 500);
         setTimeout(() => setShowSonicWave(false), 500);
         setTimeout(() => setIsAttacking(false), 600);
@@ -629,7 +845,7 @@ export default function BattleArena() {
       setDialogMessages(prev => [...prev, msg]);
       
       setTimeout(() => {
-        setPlayerArmor(prev => prev + armor);
+        setPlayerState(prev => ({ ...prev, armor: prev.armor + armor }));
         setTimeout(() => setIsDefending(false), 600);
         setTimeout(() => {
           setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
@@ -682,31 +898,8 @@ export default function BattleArena() {
       if (damage > 0) {
         setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 100, y: 400, color: "text-danger-red" }]);
         
-        // 计算实际伤害（扣除护甲）
-        let actualDamage = damage;
-        if (playerArmor > 0) {
-          if (playerArmor >= damage) {
-            setPlayerArmor(prev => prev - damage);
-            actualDamage = 0;
-          } else {
-            actualDamage = damage - playerArmor;
-            setPlayerArmor(0);
-          }
-        }
-        
-        if (actualDamage > 0) {
-          setPlayerHp(prev => {
-            const newHp = Math.max(0, prev - actualDamage);
-            // 生死判定
-            setTimeout(() => {
-              if (newHp <= 0) {
-                setGameOver(true);
-                setGameResult('defeat');
-              }
-            }, 100);
-            return newHp;
-          });
-        }
+        // 使用统一的伤害结算函数
+        takeDamage("player", damage);
       }
       
       setTimeout(() => setIsPlayerHit(false), 500);
@@ -720,7 +913,8 @@ export default function BattleArena() {
       
       // 重置回合 - 不清空手牌
       setTurn(prev => prev + 1);
-      setPlayerArmor(0); // 仅重置本回合护甲（易碎护甲）
+      // 仅重置本回合护甲（易碎护甲）
+      setPlayerState(prev => ({ ...prev, armor: 0 }));
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
       
@@ -822,35 +1016,18 @@ export default function BattleArena() {
         </motion.div>
         
         {/* 玩家状态条 */}
-        <div className="mt-4 w-40 space-y-2">
-          {/* HP条 */}
-          <StatBox 
-            name="HP" 
-            current={playerHp} 
-            max={playerMaxHp} 
-            color="#ef4444" 
-            showIcon={false}
-          />
+        <div className="mt-4 w-64">
+          <EntityStatusPanel entity={playerState} />
           
-          {/* 护甲和AP */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <StatBox 
-                name="护甲" 
-                current={playerArmor} 
-                color="#3b82f6" 
-                icon={Shield}
-              />
-            </div>
-            <div className="flex-1">
-              <StatBox 
-                name="AP" 
-                current={playerAp} 
-                max={playerMaxAp} 
-                color="#8b5cf6" 
-                icon={Zap}
-              />
-            </div>
+          {/* AP条 */}
+          <div className="mt-2">
+            <StatBox 
+              name="AP" 
+              current={playerAp} 
+              max={playerMaxAp} 
+              color="#8b5cf6" 
+              icon={Zap}
+            />
           </div>
         </div>
       </div>
@@ -957,12 +1134,11 @@ export default function BattleArena() {
             )}
           </div>
           
-          {/* 敌人状态面板 - 放置在敌人正下方 */}
+          {/* 敌人状态面板 - 使用通用的 EntityStatusPanel */}
           <div className="absolute -bottom-44 left-1/2 -translate-x-1/2">
-            <EnemyStatPanel 
-              hp={enemyHp}
-              maxHp={enemyMaxHp}
-              armor={enemyArmor}
+            <EntityStatusPanel 
+              entity={enemyState} 
+              isEnemy={true}
               intentType={currentIntention.intentType}
               intentValue={currentIntention.value}
             />
