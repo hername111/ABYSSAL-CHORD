@@ -10,15 +10,19 @@ import {
   Sparkles,
   Send,
   RotateCcw,
-  Volume2,
   User,
   Crosshair,
   ArrowRight,
+  BookOpen,
+  X,
+  AlertTriangle,
+  ScrollText,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, zhongLvCards } from "@/lib/cards";
-import { enemies } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -298,6 +302,141 @@ const TypewriterText = ({ text, isTyping }: { text: string; isTyping: boolean })
   return <span>{displayText}</span>;
 };
 
+// 战术手册侧边抽屉
+const TacticalManualDrawer = ({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) => {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* 背景遮罩 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            onClick={onClose}
+          />
+
+          {/* 侧边抽屉 */}
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 h-full w-96 bg-card-darker/95 backdrop-blur-xl border-l border-slate-700/50 shadow-2xl z-50 flex flex-col"
+          >
+            {/* 抽屉头部 */}
+            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-sonic-purple" />
+                <h2 className="text-lg font-bold text-slate-200">战术手册</h2>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-slate-200">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Tabs 内容 */}
+            <div className="flex-1 overflow-auto p-4">
+              <Tabs defaultValue="rules" className="w-full">
+                <TabsList className="w-full grid grid-cols-3 mb-4">
+                  <TabsTrigger value="rules">规则</TabsTrigger>
+                  <TabsTrigger value="cards">卡牌</TabsTrigger>
+                  <TabsTrigger value="pollution">污染</TabsTrigger>
+                </TabsList>
+
+                {/* 规则Tab */}
+                <TabsContent value="rules" className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-bold text-sonic-purple flex items-center gap-2">
+                      <ScrollText className="h-4 w-4" />
+                      回合流程
+                    </h3>
+                    <div className="bg-slate-900/50 rounded-lg p-3 text-sm text-slate-400 space-y-1">
+                      <p>1. 回合开始：触发 Buff</p>
+                      <p>2. 掷骰：决定怪物意图</p>
+                      <p>3. 抽牌与出牌：玩家行动</p>
+                      <p>4. 怪物行动：结算怪物攻击</p>
+                      <p>5. 弃牌重置：进入下一回合</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-bold text-danger-red flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      关键机制
+                    </h3>
+                    <div className="bg-slate-900/50 rounded-lg p-3 text-sm text-slate-400 space-y-1">
+                      <p><span className="text-danger-red">声爆 Debuff</span>：每层回合结束时造成 1 点穿透伤害</p>
+                      <p><span className="text-armor-blue">护甲</span>：优先抵扣伤害，回合结束清零</p>
+                      <p><span className="text-sonic-purple">污染度</span>：每回合自动+1，怪物获得 Buff</p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* 卡牌Tab */}
+                <TabsContent value="cards" className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-300 mb-3">钟律卡牌库</h3>
+                  <div className="space-y-2 max-h-96 overflow-auto">
+                    {zhongLvCards.map((card) => (
+                      <div key={card.id} className="bg-slate-900/50 rounded-lg p-3 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-slate-200">{card.name}</span>
+                          <span className="text-sonic-purple font-bold">{card.cost}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            card.type === "attack" ? "bg-danger-red/20 text-danger-red" :
+                            card.type === "skill" ? "bg-armor-blue/20 text-armor-blue" :
+                            "bg-gold/20 text-gold"
+                          )}>
+                            {card.type === "attack" ? "攻击" : card.type === "skill" ? "技能" : "能力"}
+                          </span>
+                          <span className="text-slate-500 text-xs">{card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}</span>
+                        </div>
+                        <p className="text-slate-400 text-xs">{card.effect}</p>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* 污染Tab */}
+                <TabsContent value="pollution" className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-300 mb-3">污染度等级说明</h3>
+                  <div className="space-y-2">
+                    {[
+                      { level: "寂静期", range: "0-5", color: "text-purify-green", effect: "无额外效果" },
+                      { level: "低鸣期", range: "6-12", color: "text-yellow-500", effect: "所有畸变体攻击伤害 +2" },
+                      { level: "共振期", range: "13-20", color: "text-orange-500", effect: "攻击伤害 +4，怪物每回合获得 3 护甲" },
+                      { level: "咆哮期", range: "21-28", color: "text-danger-red", effect: "攻击伤害 +6，玩家每回合受到 3 点穿透伤害" },
+                      { level: "终焉和弦", range: "29-30", color: "text-sonic-purple", effect: "攻击伤害 +10，玩家每回合受到 5 点穿透，再增污染游戏失败" },
+                    ].map((item, i) => (
+                      <div key={i} className="bg-slate-900/50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={cn("font-bold", item.color)}>{item.level}</span>
+                          <span className="text-slate-400 text-sm">{item.range}</span>
+                        </div>
+                        <p className="text-slate-400 text-xs">{item.effect}</p>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
+
 // 卡牌组件
 const BattleCard = ({
   card,
@@ -440,12 +579,13 @@ export default function BattleArena() {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // 动画状态
   const [playerAnimType, setPlayerAnimType] = useState<"attack" | "defend" | null>(null);
   const [playerAnimating, setPlayerAnimating] = useState(false);
   const [enemyHit, setEnemyHit] = useState(false);
-  const [armorBounce, setArmorBounce] = useState(false);
 
   // 选择卡牌
   const handleCardSelect = (card: Card) => {
@@ -510,7 +650,6 @@ export default function BattleArena() {
     } else if (selectedCard.type === "skill") {
       setPlayerAnimType("defend");
       setPlayerAnimating(true);
-      setArmorBounce(true);
 
       setTimeout(() => {
         const armor = selectedCard.baseArmor || 5;
@@ -535,7 +674,6 @@ export default function BattleArena() {
         setTimeout(() => {
           setPlayerAnimating(false);
           setPlayerAnimType(null);
-          setArmorBounce(false);
           setIsProcessing(false);
         }, 600);
       }, 300);
@@ -600,88 +738,6 @@ export default function BattleArena() {
     }, 1000);
   };
 
-  // 发送消息给AI裁判
-  const handleSendMessage = async () => {
-    if (!userInput.trim()) return;
-
-    const messageText = userInput;
-    setUserInput("");
-    setDialogMessages((prev) => [
-      ...prev,
-      { id: Date.now(), text: `你: ${messageText}`, isTyping: false },
-    ]);
-
-    try {
-      const response = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: messageText }],
-        }),
-      });
-
-      if (!response.ok) throw new Error("API请求失败");
-
-      const reader = response.body?.getReader();
-      if (!reader) return;
-
-      let aiMessage = "";
-      const decoder = new TextDecoder();
-      const messageId = Date.now();
-
-      setDialogMessages((prev) => [
-        ...prev,
-        { id: messageId, text: "", isTyping: true },
-      ]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((line) => line.trim());
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                aiMessage += data.content;
-                setDialogMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === messageId ? { ...m, text: aiMessage } : m
-                  )
-                );
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
-          }
-        }
-      }
-
-      setDialogMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, isTyping: false } : m
-        )
-      );
-    } catch (error) {
-      console.error("AI裁判连接失败:", error);
-      setDialogMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          text: "AI裁判暂时连接失败，请稍后再试。",
-          isTyping: false,
-        },
-      ]);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSendMessage();
-  };
-
   return (
     <div className="min-h-screen w-full flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0a0f]">
       {/* 背景声波动画 */}
@@ -709,16 +765,30 @@ export default function BattleArena() {
 
       {/* 顶部状态栏 */}
       <div className="relative z-10 flex justify-between items-start p-4">
-        {/* 返回按钮 */}
-        <Link href="/" className="opacity-60 hover:opacity-100 transition-opacity">
-          <Button variant="ghost" className="text-slate-400 hover:text-slate-200">
-            <RotateCcw className="h-4 w-4 mr-2" />
-            返回菜单
+        {/* 左上角：退出按钮 */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowExitConfirm(true)}
+            className="opacity-50 hover:opacity-100 transition-opacity"
+          >
+            <RotateCcw className="h-5 w-5 text-slate-400 hover:text-slate-200" />
           </Button>
-        </Link>
+        </div>
 
         {/* 污染刻度尺 */}
         <PollutionScale current={pollutionLevel} />
+
+        {/* 右上角：战术手册按钮 */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsManualOpen(true)}
+          className="opacity-70 hover:opacity-100 transition-opacity"
+        >
+          <BookOpen className="h-5 w-5 text-slate-400 hover:text-sonic-purple" />
+        </Button>
       </div>
 
       {/* 战斗舞台 - 上中下三层布局 */}
@@ -798,45 +868,87 @@ export default function BattleArena() {
       {/* AI 裁判对话框 */}
       <div className="absolute left-6 bottom-6 z-30 w-80">
         <div className="bg-black/60 backdrop-blur-md rounded-xl border border-slate-700/50 shadow-2xl overflow-hidden">
-          {/* 标题栏 */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700/30 bg-card-darker/50">
-            <Volume2 className="h-4 w-4 text-sonic-purple animate-pulse" />
+          <div className="p-3 border-b border-slate-700/50 flex items-center gap-2">
+            <ScrollText className="h-4 w-4 text-sonic-purple" />
             <span className="text-sm font-medium text-slate-300">AI 裁判</span>
           </div>
 
-          {/* 消息区域 */}
-          <div className="h-32 overflow-y-auto p-4 space-y-3">
-            {dialogMessages.slice(-4).map((msg) => (
-              <div key={msg.id} className="text-sm text-slate-300 leading-relaxed">
-                <TypewriterText text={msg.text} isTyping={msg.isTyping} />
+          <div className="h-32 overflow-auto p-3 space-y-2">
+            {dialogMessages.slice(-3).map((msg) => (
+              <div key={msg.id} className="text-sm">
+                <span className="text-slate-300">
+                  <TypewriterText text={msg.text} isTyping={msg.isTyping} />
+                </span>
                 {msg.isTyping && (
-                  <span className="inline-block w-2 h-4 bg-sonic-purple ml-1 animate-pulse align-middle" />
+                  <span className="inline-block w-2 h-4 ml-1 bg-sonic-purple animate-pulse align-middle" />
                 )}
               </div>
             ))}
           </div>
 
-          {/* 输入区域 */}
-          <div className="p-3 border-t border-slate-700/30 bg-card-darker/30">
-            <div className="flex gap-2">
-              <Input
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="询问规则..."
-                className="bg-slate-800/50 border-slate-700/50 text-sm"
-              />
-              <Button
-                size="icon"
-                onClick={handleSendMessage}
-                className="bg-sonic-purple hover:bg-sonic-purple/80"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="p-3 border-t border-slate-700/50 flex gap-2">
+            <Input
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="向 AI 裁判提问..."
+              className="bg-slate-900/50 border-slate-700/50 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && setUserInput("")}
+            />
+            <Button size="icon" disabled={!userInput.trim()} className="bg-sonic-purple hover:bg-sonic-purple/80">
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* 战术手册抽屉 */}
+      <TacticalManualDrawer
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
+      />
+
+      {/* 退出确认弹窗 */}
+      <AnimatePresence>
+        {showExitConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center"
+              onClick={() => setShowExitConfirm(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card-darker border border-slate-700/50 rounded-xl p-6 shadow-2xl w-80"
+            >
+              <h3 className="text-lg font-bold text-slate-200 mb-2 flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-danger-red" />
+                确认退出？
+              </h3>
+              <p className="text-sm text-slate-400 mb-6">
+                当前战斗进度将会丢失，确定要返回主菜单吗？
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowExitConfirm(false)}
+                  className="flex-1"
+                >
+                  继续战斗
+                </Button>
+                <Link href="/" className="flex-1">
+                  <Button className="flex-1 bg-danger-red hover:bg-danger-red/80">
+                    退出
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
