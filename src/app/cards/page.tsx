@@ -238,7 +238,7 @@ function Section({ title, subtitle, cards }: { title: string; subtitle: string; 
           {cards.length} 张
         </Badge>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card, i) => (
           <CardItem key={`${card.id}-${i}`} card={card} />
         ))}
