@@ -193,7 +193,7 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
                   <motion.div
                     animate={{ opacity: [0.3, 0.6, 0.3] }}
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="relative bg-gradient-to-br from-sonic-purple/15 via-black to-sonic-purple/20 rounded-lg p-6 border-2 border-sonic-purple/40 shadow-[inset_0_6px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(139,92,246,0.12)] min-h-[320px] flex items-center justify-center overflow-hidden"
+                    className="relative bg-gradient-to-br from-sonic-purple/15 via-black to-sonic-purple/20 rounded-lg p-6 border-2 border-sonic-purple/40 shadow-[inset_0_6px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(139,92,246,0.12)] min-h-[320px] flex items-center justify-center border border-red-500"
                   >
                     {/* Scanning Line Effect */}
                     <motion.div
@@ -231,7 +231,7 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
 // Attack Animation Component - Infinite Repeat
 function AttackAnimation() {
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div className="relative w-full h-full flex items-center justify-center border border-yellow-500">
       {/* Red Pulse Background - Infinite */}
       <motion.div
         animate={{
@@ -261,7 +261,7 @@ function AttackAnimation() {
           repeatDelay: 1.2,
           ease: "easeInOut",
         }}
-        className="relative z-10"
+        className="relative z-20 flex items-center justify-center border border-blue-500"
       >
         <Sword className="w-16 h-16 text-danger-red drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]" />
       </motion.div>
@@ -272,7 +272,7 @@ function AttackAnimation() {
 // Defense Animation Component - Infinite Repeat
 function DefenseAnimation() {
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div className="relative w-full h-full flex items-center justify-center border border-yellow-500">
       {/* Circular Ripples - Continuous */}
       <div className="absolute inset-0 flex items-center justify-center">
         {[0, 1, 2].map((i) => (
@@ -311,7 +311,7 @@ function DefenseAnimation() {
           repeatDelay: 1.2,
           ease: "easeInOut",
         }}
-        className="relative z-10"
+        className="relative z-20 flex items-center justify-center border border-blue-500"
       >
         <Shield className="w-20 h-20 text-armor-blue drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
       </motion.div>
