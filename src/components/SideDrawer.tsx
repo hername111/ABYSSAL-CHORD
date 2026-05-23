@@ -214,6 +214,48 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                             </div>
                             <p>带有此词缀的卡牌，打出后移出本局战斗，不进入弃牌堆。通常效果较强</p>
                           </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-danger-red mb-1">
+                              自伤
+                            </div>
+                            <p>卡牌对玩家自身造成的伤害。触发"痛觉回响"等能力的机制</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              历史记录追溯
+                            </div>
+                            <p>根据本回合已打出的牌数动态计算收益。例如"谐波叠加"，每打出一张牌额外获得护甲</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-armor-blue mb-1">
+                              护甲溢出检测
+                            </div>
+                            <p>获得护甲后立即检测总护甲值是否超过阈值，溢出部分转化为伤害。例如"共振壁垒"</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-yellow-500 mb-1">
+                              条件伤害翻倍
+                            </div>
+                            <p>满足特定条件时伤害翻倍。例如"反馈回路"，本回合已受到自伤则伤害翻倍</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              免费再打一次
+                            </div>
+                            <p>打出后不消耗行动力，可以立即再打一张牌。例如"反馈回路"的额外效果</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-orange-500 mb-1">
+                              失去生命值获得增益
+                            </div>
+                            <p>主动失去部分生命值，换取强大的即时增益。例如"断弦极限"，失去10点生命获得行动力和伤害加成</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-red-500 mb-1">
+                              下一张攻击牌伤害加成
+                            </div>
+                            <p>将增益暂时存储，在下一张攻击牌打出时附加到伤害中，然后清零。例如"断弦极限"和"痛觉回响"</p>
+                          </div>
                         </div>
                         <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
                           🔑 关键机制
@@ -236,6 +278,24 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                               手牌烧毁
                             </div>
                             <p>手牌已满（5张）时，新抽到的牌会被直接烧毁移出</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-yellow-500 mb-1">
+                              能力牌永久激活
+                            </div>
+                            <p>能力牌打出后不进入弃牌堆，而是永久注册到能力列表中，在本局战斗中持续生效</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              事件监听机制
+                            </div>
+                            <p>能力牌通过监听不同的战斗事件来触发效果：回合开始、获得护甲、受到自伤等</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              本回合状态追踪
+                            </div>
+                            <p>系统追踪本回合已打出的牌数、已受到的自伤等临时状态，用于条件卡牌效果</p>
                           </div>
                         </div>
                       </TabsContent>
