@@ -77,17 +77,16 @@ export default function MainMenu() {
             </Button>
           </Link>
 
-          {/* 局域网联机按钮（暂未开放） */}
-          <Button
-            disabled
-            className="px-10 py-6 bg-slate-800/50 text-slate-500 text-lg font-medium rounded-xl border border-slate-700/50 cursor-not-allowed"
-          >
-            <Users className="w-6 h-6 mr-3 opacity-50" />
-            局域网联机
-            <span className="ml-3 text-xs bg-slate-700/50 px-2 py-1 rounded">
-              暂未开放
-            </span>
-          </Button>
+          {/* 局域网联机按钮 */}
+          <Link href="/lobby">
+            <Button
+              className="group relative px-10 py-6 bg-slate-800/50 text-slate-300 text-lg font-medium rounded-xl border border-slate-700/50 hover:bg-slate-700/50 hover:text-white hover:border-slate-600/50 transition-all"
+            >
+              <Users className="w-6 h-6 mr-3 group-hover:scale-110 transition-transform" />
+              局域网联机
+              <div className="absolute inset-0 rounded-xl ring-1 ring-slate-700/30 group-hover:ring-slate-600/50 transition-all" />
+            </Button>
+          </Link>
         </motion.div>
       </div>
     </div>
