@@ -30,8 +30,11 @@ export default function LobbyPage() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isGameStarting, setIsGameStarting] = useState(false);
   
   const connRef = useRef<ReturnType<typeof createWsConnection> | null>(null);
+  const currentRoomIdRef = useRef<string | null>(null);
+  const currentPlayerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!playerName) {
@@ -44,14 +47,20 @@ export default function LobbyPage() {
       
       switch (msg.type) {
         case 'room-created':
-          setCurrentRoomId((msg.payload as { roomId: string; playerId: string }).roomId);
-          setCurrentPlayerId((msg.payload as { roomId: string; playerId: string }).playerId);
+          const roomCreatedData = msg.payload as { roomId: string; playerId: string };
+          setCurrentRoomId(roomCreatedData.roomId);
+          setCurrentPlayerId(roomCreatedData.playerId);
+          currentRoomIdRef.current = roomCreatedData.roomId;
+          currentPlayerIdRef.current = roomCreatedData.playerId;
           setError(null);
           break;
           
         case 'room-joined':
-          setCurrentRoomId((msg.payload as { roomId: string; playerId: string }).roomId);
-          setCurrentPlayerId((msg.payload as { roomId: string; playerId: string }).playerId);
+          const roomJoinedData = msg.payload as { roomId: string; playerId: string };
+          setCurrentRoomId(roomJoinedData.roomId);
+          setCurrentPlayerId(roomJoinedData.playerId);
+          currentRoomIdRef.current = roomJoinedData.roomId;
+          currentPlayerIdRef.current = roomJoinedData.playerId;
           setError(null);
           break;
           
@@ -60,9 +69,14 @@ export default function LobbyPage() {
           break;
           
         case 'game-started':
-          // Navigate to multiplayer battle page
-          if (currentRoomId && currentPlayerId) {
-            router.push(`/multiplayer?roomId=${currentRoomId}&playerId=${currentPlayerId}`);
+          // Lock interface and navigate to multiplayer battle page
+          setIsGameStarting(true);
+          
+          const roomId = currentRoomIdRef.current;
+          const playerId = currentPlayerIdRef.current;
+          
+          if (roomId && playerId) {
+            router.push(`/multiplayer?roomId=${roomId}&playerId=${playerId}&playerName=${encodeURIComponent(playerName)}`);
           }
           break;
           
@@ -275,24 +289,29 @@ export default function LobbyPage() {
             <Button
               onClick={leaveRoom}
               variant="ghost"
-              className="px-8 py-6 bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/50 rounded-xl"
+              disabled={isGameStarting}
+              className="px-8 py-6 bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               离开房间
             </Button>
             
             <Button
               onClick={toggleReady}
-              className={`px-12 py-6 text-white text-xl font-bold rounded-xl shadow-[0_0_40px_rgba(139,92,246,0.4)] transition-all duration-300 hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] hover:scale-105 ${
+              disabled={isGameStarting}
+              className={`px-12 py-6 text-white text-xl font-bold rounded-xl shadow-[0_0_40px_rgba(139,92,246,0.4)] transition-all duration-300 hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
                 roomState.players.find(p => p.id === currentPlayerId)?.isReady
                   ? 'bg-gradient-to-r from-purify-green to-purify-green/70 hover:from-purify-green/90 hover:to-purify-green/60'
                   : 'bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60'
               }`}
             >
               <Play className="w-8 h-8 mr-3" />
-              {roomState.players.find(p => p.id === currentPlayerId)?.isReady
-                ? '取消准备'
-                : '准备就绪'
-              }
+              {isGameStarting ? (
+                '游戏开始中...'
+              ) : roomState.players.find(p => p.id === currentPlayerId)?.isReady ? (
+                '取消准备'
+              ) : (
+                '准备就绪'
+              )}
             </Button>
           </motion.div>
 

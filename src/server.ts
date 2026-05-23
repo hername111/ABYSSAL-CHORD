@@ -57,6 +57,22 @@ function broadcastToRoom(roomId: string, message: any) {
   });
 }
 
+// Check game start conditions and start game if met
+function checkAndStartGame(roomId: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.isGameStarted) return;
+  
+  const players = Array.from(room.players.values());
+  
+  // 发车条件：至少2人，且所有人都准备好
+  if (players.length >= 2 && players.every(p => p.isReady)) {
+    room.isGameStarted = true;
+    broadcastToRoom(roomId, {
+      type: 'game-started'
+    });
+  }
+}
+
 // ─── WS 路由注册（与 SKILL.md 通用模式一致）────────
 const wssMap = new Map<string, WebSocketServer>();
 
@@ -126,6 +142,9 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           // Broadcast room state to all players in the room
           broadcastRoomState(roomId);
+          
+          // Check if game can start
+          checkAndStartGame(roomId);
           break;
         }
 
@@ -171,6 +190,9 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           // Broadcast room state to all players in the room
           broadcastRoomState(roomId);
+          
+          // Check if game can start
+          checkAndStartGame(roomId);
           break;
         }
 
@@ -185,17 +207,11 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           player.isReady = !player.isReady;
           
-          // Check if all players are ready (at least 2 players)
-          const readyPlayers = Array.from(room.players.values()).filter(p => p.isReady);
-          if (readyPlayers.length >= 2 && readyPlayers.length === room.players.size) {
-            room.isGameStarted = true;
-            broadcastToRoom(currentRoomId, {
-              type: 'game-started'
-            });
-          }
-          
           // Broadcast room state to all players in the room
           broadcastRoomState(currentRoomId);
+          
+          // Check if game can start
+          checkAndStartGame(currentRoomId);
           break;
         }
 
@@ -213,6 +229,9 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           } else {
             // Broadcast room state to remaining players
             broadcastRoomState(currentRoomId);
+            
+            // Check if game can start (though unlikely after player leaves)
+            checkAndStartGame(currentRoomId);
           }
           
           currentRoomId = null;
