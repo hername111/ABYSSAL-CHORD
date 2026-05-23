@@ -794,6 +794,18 @@ export default function BattleArena() {
     setTimeLeft(30);
   };
 
+  // AI裁判消息辅助函数
+  const addJudgeMessage = (text: string, typing: boolean = false) => {
+    setDialogMessages(prev => [...prev, { id: Date.now(), text, isTyping: typing }]);
+    if (typing) {
+      setTimeout(() => {
+        setDialogMessages(prev => prev.map(msg => 
+          msg.isTyping ? { ...msg, isTyping: false } : msg
+        ));
+      }, 500);
+    }
+  };
+
   // 抽牌与爆牌逻辑 - 逐张抽，满手牌烧毁
   const drawCard = (amount: number) => {
     let currentDeck = [...deck];
@@ -1421,6 +1433,11 @@ export default function BattleArena() {
       setPlayerState(prev => ({ ...prev, armor: Math.max(0, prev.armor - armorLost) }));
     }
     
+    // 添加AI裁判解释
+    if (aiMessage) {
+      addJudgeMessage(aiMessage);
+    }
+    
     setTimeout(() => {
       setIsProcessing(false);
     }, 1000);
@@ -1859,35 +1876,25 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* AI裁判区 - 左侧边抽屉式 */}
-      <div className="fixed left-4 top-[30%] z-30">
-        <div className="group">
-          {/* 收起状态 - 只显示图标 */}
-          <div className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-sonic-purple/30 cursor-pointer hover:border-sonic-purple/60 transition-all">
-            <BookOpen className="w-5 h-5 text-sonic-purple" />
-          </div>
-          
-          {/* 展开状态 - 显示完整面板 */}
-          <div className="absolute left-full top-0 ml-2 hidden group-hover:block">
-            <div className="bg-black/80 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 w-64 shadow-2xl">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-lg text-slate-200">AI 裁判</span>
-              </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {dialogMessages.slice(-4).map(msg => (
-                  <div key={msg.id} className="text-sm text-slate-300">
-                    {msg.isTyping ? (
-                      <span className="animate-pulse">{msg.text}</span>
-                    ) : (
-                      msg.text
-                    )}
-                  </div>
-                ))}
-              </div>
+      {/* AI裁判区 - 固定展开面板 */}
+      <div className="fixed left-4 top-[15%] z-30">
+        <div className="bg-black/85 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 w-72 shadow-2xl">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
+            <span className="font-bold text-lg text-slate-200">AI 裁判</span>
+          </div>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {dialogMessages.slice(-6).map(msg => (
+              <div key={msg.id} className="text-sm text-slate-300 border-l-2 border-sonic-purple/50 pl-2">
+                {msg.isTyping ? (
+                  <span className="animate-pulse">{msg.text}</span>
+                ) : (
+                  msg.text
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
