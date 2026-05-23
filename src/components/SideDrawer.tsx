@@ -161,13 +161,13 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                             <div className="font-bold text-danger-red mb-1">
                               声爆 Debuff
                             </div>
-                            <p>敌人行动之前受到层数×2的伤害，然后清除声爆状态</p>
+                            <p>玩家打出带有声爆属性的卡牌时，给敌人施加声爆状态。敌人行动之前，声爆效果触发，每层造成2点伤害，然后清除声爆状态</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-armor-blue mb-1">
                               护甲
                             </div>
-                            <p>优先抵挡伤害，一直保留到被敌人攻击消耗掉</p>
+                            <p>优先抵挡伤害，一直保留到被敌人攻击消耗掉。回合结束时不会清空护甲</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-gold mb-1">
@@ -187,11 +187,41 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                             </div>
                             <p>抽牌堆用完时，将弃牌堆洗入抽牌堆，继续抽牌</p>
                           </div>
+                        </div>
+                        
+                        <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
+                          ☠️ 污染刻度尺
+                        </h3>
+                        <div className="space-y-3 text-sm text-slate-300">
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-purify-green mb-1">
+                              寂静期（0-15%）
+                            </div>
+                            <p>敌人攻击伤害+0</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              低鸣期（16-40%）
+                            </div>
+                            <p>敌人攻击伤害+2</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              共振期（41-70%）
+                            </div>
+                            <p>敌人攻击伤害+4，敌人回合开始获得3点护甲</p>
+                          </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-danger-red mb-1">
-                              污染阶段
+                              咆哮期（71-90%）
                             </div>
-                            <p>污染度增加时，敌人获得相应的伤害加成、护甲和穿透伤害</p>
+                            <p>敌人攻击伤害+6，敌人回合开始获得5点护甲，玩家回合开始受到3点穿透伤害</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-danger-red mb-1">
+                              终焉和弦（91-100%）
+                            </div>
+                            <p>敌人攻击伤害+10，玩家回合开始受到5点穿透伤害</p>
                           </div>
                         </div>
                       </TabsContent>
