@@ -1,108 +1,77 @@
-// 多人对战WebSocket客户端
-import { createWsConnection as createBaseWsConnection, type WsMessage } from '../ws-client';
-import type {
-  MultiplayerGameState,
-  MultiplayerPlayer,
-  MultiplayerWsMessage,
-  GameStateUpdatePayload,
-  PlayerJoinPayload,
-  PlayerLeavePayload,
-  PlayerReadyPayload,
-  TurnStartPayload,
-  TurnEndPayload,
-  CardPlayPayload,
-  TargetSelectPayload,
-  GameEndPayload,
-} from './types';
+// 多人对战 WebSocket 客户端
+import { createWsConnection } from '@/lib/ws-client';
+import type { MultiplayerGameState } from './types';
 
 interface MultiplayerWsOptions {
   roomId: string;
   playerId: string;
-  onGameStateUpdate?: (state: MultiplayerGameState) => void;
-  onPlayerJoin?: (player: MultiplayerPlayer) => void;
-  onPlayerLeave?: (playerId: string) => void;
-  onTurnStart?: (payload: TurnStartPayload) => void;
-  onTurnEnd?: (payload: TurnEndPayload) => void;
-  onGameEnd?: (payload: GameEndPayload) => void;
+  playerName?: string;
+  onGameStateUpdate?: (gameState: MultiplayerGameState) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  onError?: (error: string) => void;
 }
 
-export function createMultiplayerWsConnection(opts: MultiplayerWsOptions) {
-  const {
-    roomId,
-    playerId,
-    onGameStateUpdate,
-    onPlayerJoin,
-    onPlayerLeave,
-    onTurnStart,
-    onTurnEnd,
-    onGameEnd,
-    onOpen,
-    onClose,
-  } = opts;
+export function createMultiplayerWsConnection(options: MultiplayerWsOptions) {
+  const { roomId, playerId, playerName, onGameStateUpdate, onOpen, onClose, onError } = options;
 
-  const connection = createBaseWsConnection({
-    path: `/ws/multiplayer/${roomId}`,
-    onMessage: (msg: WsMessage) => {
+  const conn = createWsConnection({
+    path: '/ws/multiplayer',
+    onOpen: () => {
+      console.log('Multiplayer WebSocket connected');
+      // 加入游戏
+      conn.send({
+        type: 'game:join',
+        payload: {
+          roomId,
+          playerId,
+          playerName: playerName || 'Player',
+        },
+      });
+      onOpen?.();
+    },
+    onMessage: (msg) => {
+      console.log('Received multiplayer message:', msg);
+      
       switch (msg.type) {
         case 'game:state':
-          onGameStateUpdate?.((msg.payload as GameStateUpdatePayload).gameState);
+          onGameStateUpdate?.((msg.payload as { gameState: MultiplayerGameState }).gameState);
           break;
-        case 'player:join':
-          onPlayerJoin?.((msg.payload as PlayerJoinPayload).player);
-          break;
-        case 'player:leave':
-          onPlayerLeave?.((msg.payload as PlayerLeavePayload).playerId);
-          break;
-        case 'turn:start':
-          onTurnStart?.(msg.payload as TurnStartPayload);
-          break;
-        case 'turn:end':
-          onTurnEnd?.(msg.payload as TurnEndPayload);
-          break;
-        case 'game:end':
-          onGameEnd?.(msg.payload as GameEndPayload);
+        case 'error':
+          onError?.((msg.payload as { message: string }).message);
           break;
       }
     },
-    onOpen,
-    onClose,
+    onClose: () => {
+      console.log('Multiplayer WebSocket closed');
+      onClose?.();
+    },
   });
 
   return {
-    send: connection.send,
-    close: connection.close,
+    ...conn,
     
-    // 发送玩家就绪状态
-    sendReady: (isReady: boolean) => {
-      connection.send({
-        type: 'player:ready',
-        payload: { playerId, isReady } as PlayerReadyPayload,
-      });
-    },
-    
-    // 结束回合
-    sendEndTurn: () => {
-      connection.send({
-        type: 'turn:end',
-        payload: { playerId } as TurnEndPayload,
-      });
-    },
-    
-    // 打出卡牌
+    // 发送打出卡牌
     sendPlayCard: (cardId: string, targetId?: string) => {
-      connection.send({
+      conn.send({
         type: 'card:play',
-        payload: { playerId, cardId, targetId } as CardPlayPayload,
+        payload: { cardId, targetId },
       });
     },
     
-    // 选择目标
+    // 发送选择目标
     sendSelectTarget: (targetId: string) => {
-      connection.send({
+      conn.send({
         type: 'target:select',
-        payload: { playerId, targetId } as TargetSelectPayload,
+        payload: { targetId },
+      });
+    },
+    
+    // 发送结束回合
+    sendEndTurn: () => {
+      conn.send({
+        type: 'turn:end',
+        payload: {},
       });
     },
   };

@@ -4,6 +4,8 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
+import { createInitialGameState, createMultiplayerPlayer, handlePlayCard, nextPlayer, drawCards, discardCard } from './lib/multiplayer/gameLogic';
+import type { MultiplayerGameState, MultiplayerPlayer } from './lib/multiplayer/types';
 
 const dev = process.env.COZE_PROJECT_ENV !== 'PROD';
 const hostname = process.env.HOSTNAME || 'localhost';
@@ -28,6 +30,15 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
+
+// Multiplayer game state management
+interface GameRoom {
+  id: string;
+  gameState: MultiplayerGameState;
+  playerWsMap: Map<string, WebSocket>;
+}
+
+const gameRooms = new Map<string, GameRoom>();
 
 // Generate random room ID
 function generateRoomId(): string {
@@ -70,6 +81,7 @@ function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
 // ─── 注册端点 & 绑定业务逻辑 ──────────────────────
 // 设置 WebSocket 处理器
 const lobbyWss = registerWsEndpoint('/ws/lobby');
+const multiplayerWss = registerWsEndpoint('/ws/multiplayer');
 
 lobbyWss.on('connection', (ws: WebSocket) => {
   console.log('New client connected to lobby');
@@ -250,6 +262,188 @@ lobbyWss.on('connection', (ws: WebSocket) => {
         roomId: room.id,
         players,
         isGameStarted: room.isGameStarted
+      }
+    });
+  }
+});
+
+// 多人对战 WebSocket 处理
+multiplayerWss.on('connection', (ws: WebSocket) => {
+  console.log('New client connected to multiplayer');
+  let currentRoomId: string | null = null;
+  let currentPlayerId: string | null = null;
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString());
+      console.log('Received multiplayer message:', msg);
+
+      switch (msg.type) {
+        case 'game:join': {
+          const roomId = msg.payload.roomId;
+          const playerId = msg.payload.playerId;
+          const playerName = msg.payload.playerName;
+          
+          let gameRoom = gameRooms.get(roomId);
+          
+          if (!gameRoom) {
+            // 创建新游戏房间
+            const lobbyRoom = rooms.get(roomId);
+            if (!lobbyRoom) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                payload: { message: 'Room not found' }
+              }));
+              break;
+            }
+            
+            // 创建玩家列表
+            const players: MultiplayerPlayer[] = Array.from(lobbyRoom.players.values()).map((p, index) => {
+              const mpPlayer = createMultiplayerPlayer(p.id, p.name);
+              if (index === 0) {
+                mpPlayer.isCurrentTurn = true;
+              }
+              return mpPlayer;
+            });
+            
+            // 创建初始游戏状态
+            const gameState = createInitialGameState(roomId, players);
+            
+            // 创建游戏房间
+            gameRoom = {
+              id: roomId,
+              gameState,
+              playerWsMap: new Map(),
+            };
+            
+            gameRooms.set(roomId, gameRoom);
+          }
+          
+          // 添加玩家到游戏房间
+          gameRoom.playerWsMap.set(playerId, ws);
+          currentRoomId = roomId;
+          currentPlayerId = playerId;
+          
+          // 发送游戏状态给玩家
+          ws.send(JSON.stringify({
+            type: 'game:state',
+            payload: { gameState: gameRoom.gameState }
+          }));
+          
+          break;
+        }
+        
+        case 'card:play': {
+          if (!currentRoomId || !currentPlayerId) break;
+          
+          const gameRoom = gameRooms.get(currentRoomId);
+          if (!gameRoom) break;
+          
+          const cardId = msg.payload.cardId;
+          const targetId = msg.payload.targetId;
+          
+          // 验证是否是当前玩家的回合
+          const currentPlayer = gameRoom.gameState.players[gameRoom.gameState.currentPlayerIndex];
+          if (currentPlayer.id !== currentPlayerId) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              payload: { message: 'Not your turn' }
+            }));
+            break;
+          }
+          
+          // 处理打出卡牌
+          gameRoom.gameState = handlePlayCard(
+            gameRoom.gameState,
+            currentPlayerId,
+            cardId,
+            targetId
+          );
+          
+          // 广播游戏状态给所有玩家
+          broadcastGameState(currentRoomId);
+          break;
+        }
+        
+        case 'target:select': {
+          if (!currentRoomId || !currentPlayerId) break;
+          
+          const gameRoom = gameRooms.get(currentRoomId);
+          if (!gameRoom) break;
+          
+          const targetId = msg.payload.targetId;
+          
+          // 如果有待处理的卡牌，则执行
+          if (gameRoom.gameState.pendingCardId) {
+            gameRoom.gameState = handlePlayCard(
+              gameRoom.gameState,
+              currentPlayerId,
+              gameRoom.gameState.pendingCardId,
+              targetId
+            );
+            
+            // 广播游戏状态给所有玩家
+            broadcastGameState(currentRoomId);
+          }
+          break;
+        }
+        
+        case 'turn:end': {
+          if (!currentRoomId || !currentPlayerId) break;
+          
+          const gameRoom = gameRooms.get(currentRoomId);
+          if (!gameRoom) break;
+          
+          // 验证是否是当前玩家的回合
+          const currentPlayer = gameRoom.gameState.players[gameRoom.gameState.currentPlayerIndex];
+          if (currentPlayer.id !== currentPlayerId) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              payload: { message: 'Not your turn' }
+            }));
+            break;
+          }
+          
+          // 切换到下一个玩家
+          gameRoom.gameState = nextPlayer(gameRoom.gameState);
+          
+          // 广播游戏状态给所有玩家
+          broadcastGameState(currentRoomId);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error processing multiplayer message:', error);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('Multiplayer client disconnected');
+    
+    if (currentRoomId && currentPlayerId) {
+      const gameRoom = gameRooms.get(currentRoomId);
+      if (gameRoom) {
+        gameRoom.playerWsMap.delete(currentPlayerId);
+        
+        // 如果房间为空，删除它
+        if (gameRoom.playerWsMap.size === 0) {
+          gameRooms.delete(currentRoomId);
+        }
+      }
+    }
+  });
+
+  // 广播游戏状态给所有玩家
+  function broadcastGameState(roomId: string) {
+    const gameRoom = gameRooms.get(roomId);
+    if (!gameRoom) return;
+    
+    gameRoom.playerWsMap.forEach((playerWs, playerId) => {
+      if (playerWs.readyState === WebSocket.OPEN) {
+        playerWs.send(JSON.stringify({
+          type: 'game:state',
+          payload: { gameState: gameRoom.gameState }
+        }));
       }
     });
   }

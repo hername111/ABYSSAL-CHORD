@@ -12,6 +12,15 @@ export interface MultiplayerPlayer {
   pollutionLevel: number;
 }
 
+export interface ActionLog {
+  id: string;
+  timestamp: number;
+  playerId: string;
+  playerName: string;
+  action: string;
+  details?: string;
+}
+
 export interface MultiplayerGameState {
   roomId: string;
   players: MultiplayerPlayer[];
@@ -21,10 +30,17 @@ export interface MultiplayerGameState {
   selectedTargetId: string | null;
   isSelectingTarget: boolean;
   pendingCardId: string | null;
+  
+  // 公共牌库机制
+  sharedDeck: string[];
+  sharedDiscard: string[];
+  
+  // 动作日志
+  actionLogs: ActionLog[];
 }
 
 export interface MultiplayerWsMessage {
-  type: 'game:start' | 'game:state' | 'player:join' | 'player:leave' | 'player:ready' | 'turn:start' | 'turn:end' | 'card:play' | 'target:select' | 'game:end';
+  type: 'game:start' | 'game:state' | 'player:join' | 'player:leave' | 'player:ready' | 'turn:start' | 'turn:end' | 'card:play' | 'target:select' | 'game:end' | 'deck:shuffle' | 'action:log';
   payload: unknown;
 }
 
@@ -76,4 +92,14 @@ export interface TargetSelectPayload {
 // 游戏结束消息
 export interface GameEndPayload {
   winnerId: string;
+}
+
+// 洗牌消息
+export interface DeckShufflePayload {
+  message: string;
+}
+
+// 动作日志消息
+export interface ActionLogPayload {
+  log: ActionLog;
 }
