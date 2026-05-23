@@ -1255,7 +1255,7 @@ export default function BattleArena() {
       </div>
 
       {/* 敌人角色 - 固定在右侧顶部 */}
-      <div className="fixed top-1/4 right-10 z-30">
+      <div className="fixed top-1/4 right-8 z-30">
         <motion.div
           className="relative"
           animate={{
