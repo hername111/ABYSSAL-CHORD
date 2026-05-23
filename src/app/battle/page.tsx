@@ -670,8 +670,20 @@ export default function BattleArena() {
     buffs: [],
     debuffs: []
   });
+  // 测试牌组：包含所有新添加的卡牌类型
+  const testDeck = [
+    // 低频堡垒流技能牌
+    ...zhongLvCards.filter(c => ['zl-fortress-01', 'zl-fortress-02', 'zl-fortress-03'].includes(c.id)),
+    // 过载冲击流技能牌
+    ...zhongLvCards.filter(c => ['zl-overload-01', 'zl-overload-02', 'zl-overload-03'].includes(c.id)),
+    // 全部能力牌
+    ...zhongLvCards.filter(c => ['zl-ability-01', 'zl-ability-02', 'zl-ability-03', 'zl-ability-04'].includes(c.id)),
+    // 基础牌
+    ...zhongLvCards.filter(c => ['zl-basic-01', 'zl-basic-01', 'zl-basic-01', 'zl-basic-02', 'zl-basic-02', 'zl-basic-02', 'zl-basic-03', 'zl-basic-04'].includes(c.id)),
+  ];
+  
   const [hand, setHand] = useState<CardWithUid[]>(
-    addUidsToCards(INITIAL_HAND_CARDS)
+    addUidsToCards(testDeck.slice(0, 5))
   );
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(getSimpleEnemyIntention());
@@ -699,7 +711,7 @@ export default function BattleArena() {
   
   // 牌库、弃牌堆和游戏结束状态
   const [deck, setDeck] = useState<CardWithUid[]>(
-    addUidsToCards([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS])
+    addUidsToCards(testDeck.slice(5))
   );
   const [discardPile, setDiscardPile] = useState<CardWithUid[]>([]);
   const [gameOver, setGameOver] = useState(false);
