@@ -154,15 +154,50 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           </div>
                         </div>
                         <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
-                          🔑 关键机制
+                          🃏 卡牌属性词缀
                         </h3>
                         <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-danger-red mb-1">
-                              声爆 Debuff
+                              +N 污染点
                             </div>
-                            <p>玩家打出带有声爆属性的卡牌时，给敌人施加声爆状态。敌人行动之前，声爆效果触发，每层造成2点伤害，然后清除声爆状态</p>
+                            <p>打出该卡牌时，全局污染度增加N点（对应污染刻度尺的百分比）。污染度越高，敌人攻击伤害加成越大</p>
                           </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-purify-green mb-1">
+                              -N 污染点
+                            </div>
+                            <p>打出该卡牌时，全局污染度降低N点。降低污染度可以削弱敌人的伤害加成</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              +N 声爆
+                            </div>
+                            <p>给敌人施加N层声爆状态。敌人行动之前，声爆触发，每层造成2点伤害，然后清除声爆状态</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-armor-blue mb-1">
+                              +N 护甲
+                            </div>
+                            <p>获得N点护甲。护甲优先抵挡伤害，一直保留到被敌人攻击消耗掉</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              保留（Retain）
+                            </div>
+                            <p>带有此词缀的卡牌，回合结束时不会被弃置，保留在手牌中，可以积攒后打出</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              消耗（Exhaust）
+                            </div>
+                            <p>带有此词缀的卡牌，打出后移出本局战斗，不进入弃牌堆。通常效果较强</p>
+                          </div>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
+                          🔑 关键机制
+                        </h3>
+                        <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-armor-blue mb-1">
                               护甲
@@ -170,58 +205,16 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                             <p>优先抵挡伤害，一直保留到被敌人攻击消耗掉。回合结束时不会清空护甲</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-gold mb-1">
-                              保留（Retain）
-                            </div>
-                            <p>带有此词缀的卡牌，回合结束时不会被弃置，保留在手牌中</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-purify-green mb-1">
-                              消耗（Exhaust）
-                            </div>
-                            <p>带有此词缀的卡牌，打出后移出本局战斗，不进入弃牌堆</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
                               抽牌洗牌
                             </div>
                             <p>抽牌堆用完时，将弃牌堆洗入抽牌堆，继续抽牌</p>
                           </div>
-                        </div>
-                        
-                        <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
-                          ☠️ 污染刻度尺
-                        </h3>
-                        <div className="space-y-3 text-sm text-slate-300">
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-purify-green mb-1">
-                              寂静期（0-15%）
-                            </div>
-                            <p>敌人攻击伤害+0</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-gold mb-1">
-                              低鸣期（16-40%）
-                            </div>
-                            <p>敌人攻击伤害+2</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-sonic-purple mb-1">
-                              共振期（41-70%）
-                            </div>
-                            <p>敌人攻击伤害+4，敌人回合开始获得3点护甲</p>
-                          </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-danger-red mb-1">
-                              咆哮期（71-90%）
+                              手牌烧毁
                             </div>
-                            <p>敌人攻击伤害+6，敌人回合开始获得5点护甲，玩家回合开始受到3点穿透伤害</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-danger-red mb-1">
-                              终焉和弦（91-100%）
-                            </div>
-                            <p>敌人攻击伤害+10，玩家回合开始受到5点穿透伤害</p>
+                            <p>手牌已满（5张）时，新抽到的牌会被直接烧毁移出</p>
                           </div>
                         </div>
                       </TabsContent>
