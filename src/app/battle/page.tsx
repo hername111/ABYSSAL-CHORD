@@ -639,26 +639,21 @@ export default function BattleArena() {
     setDiscardPile(currentDiscard);
   };
 
-  // 统一的伤害与护甲结算函数 - 修复护甲无效问题
-  const takeDamage = (target: "player" | "enemy", damage: number) => {
+  // 统一的伤害与护甲结算函数 - 严格按照4步执行
+  const takeDamage = (target: "player" | "enemy", amount: number) => {
     if (target === "player") {
       setPlayerState(prev => {
-        let actualDamage = damage;
-        let newArmor = prev.armor;
+        // 第1步：获取目标当前的护甲值
+        const targetArmor = prev.armor;
         
-        // 优先扣除护甲 - 使用prev确保状态一致
-        if (prev.armor > 0) {
-          if (prev.armor >= damage) {
-            newArmor = prev.armor - damage;
-            actualDamage = 0;
-          } else {
-            actualDamage = damage - prev.armor;
-            newArmor = 0;
-          }
-        }
+        // 第2步：计算穿透护甲后的实际伤害
+        const trueDamage = Math.max(0, amount - targetArmor);
         
-        // 扣除生命值
-        const newHp = Math.max(0, prev.hp - actualDamage);
+        // 第3步：更新目标护甲值
+        const newArmor = Math.max(0, targetArmor - amount);
+        
+        // 第4步：更新目标生命值
+        const newHp = Math.max(0, prev.hp - trueDamage);
         
         // 生死判定
         setTimeout(() => {
@@ -672,22 +667,17 @@ export default function BattleArena() {
       });
     } else {
       setEnemyState(prev => {
-        let actualDamage = damage;
-        let newArmor = prev.armor;
+        // 第1步：获取目标当前的护甲值
+        const targetArmor = prev.armor;
         
-        // 优先扣除护甲 - 使用prev确保状态一致
-        if (prev.armor > 0) {
-          if (prev.armor >= damage) {
-            newArmor = prev.armor - damage;
-            actualDamage = 0;
-          } else {
-            actualDamage = damage - prev.armor;
-            newArmor = 0;
-          }
-        }
+        // 第2步：计算穿透护甲后的实际伤害
+        const trueDamage = Math.max(0, amount - targetArmor);
         
-        // 扣除生命值
-        const newHp = Math.max(0, prev.hp - actualDamage);
+        // 第3步：更新目标护甲值
+        const newArmor = Math.max(0, targetArmor - amount);
+        
+        // 第4步：更新目标生命值
+        const newHp = Math.max(0, prev.hp - trueDamage);
         
         // 生死判定
         setTimeout(() => {
@@ -798,7 +788,7 @@ export default function BattleArena() {
     setShowEnergyWarning(false);
   };
   
-  // 打出卡牌
+  // 打出卡牌 - 结构化卡牌效果路由
   const handlePlayCard = () => {
     if (!selectedCardUid || isProcessing) return;
     
@@ -814,24 +804,56 @@ export default function BattleArena() {
     const effectType = selectedCard.type === "attack" ? "attack" : "skill";
     setShowCardPlayEffect({ show: true, type: effectType });
     
-    // 根据卡牌类型触发动画
-    if (selectedCard.type === "attack") {
+    // ========== 结构化卡牌效果路由 ==========
+    let aiMessage = "";
+    let totalDamage = 0;
+    let armorGain = 0;
+    let purificationGain = 0;
+    
+    // 1. 处理污染值增加伤害机制
+    const baseDamage = selectedCard.baseDamage || 0;
+    const pollutionBonus = Math.floor(baseDamage * (pollutionLevel / 100));
+    const finalDamage = baseDamage + pollutionBonus;
+    
+    // 2. 处理护甲获得
+    armorGain = selectedCard.baseArmor || 0;
+    
+    // 3. 处理净化（降低污染度）
+    purificationGain = selectedCard.purification || 0;
+    
+    // 构建AI消息
+    if (selectedCard.type === "attack" && finalDamage > 0) {
+      if (pollutionBonus > 0) {
+        aiMessage = `你打出了【${selectedCard.name}】，基础伤害 ${baseDamage} 点，污染加成 ${pollutionBonus} 点，总计造成 ${finalDamage} 点伤害！`;
+      } else {
+        aiMessage = `你打出了【${selectedCard.name}】，造成了 ${finalDamage} 点伤害！`;
+      }
+      totalDamage = finalDamage;
+    } else if (selectedCard.type === "skill") {
+      const parts: string[] = [];
+      if (armorGain > 0) parts.push(`获得 ${armorGain} 点护甲`);
+      if (purificationGain > 0) parts.push(`降低 ${purificationGain} 点污染度`);
+      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
+    } else {
+      aiMessage = `你使用了【${selectedCard.name}】！`;
+    }
+    
+    // AI裁判台词
+    const msg = { id: Date.now(), text: aiMessage, isTyping: true };
+    setDialogMessages(prev => [...prev, msg]);
+    
+    // 根据卡牌类型触发动画和效果
+    if (selectedCard.type === "attack" && totalDamage > 0) {
       setIsAttacking(true);
       setTimeout(() => setShowSonicWave(true), 150);
       setTimeout(() => setIsEnemyHit(true), 300);
       
-      const damage = selectedCard.baseDamage || 5;
-      
-      // AI裁判台词
-      const msg = { id: Date.now(), text: `你打出了【${selectedCard.name}】，造成了 ${damage} 点伤害！`, isTyping: true };
-      setDialogMessages(prev => [...prev, msg]);
-      
       // 伤害数字
       setTimeout(() => {
-        setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 200, y: 250, color: "text-danger-red" }]);
+        setDamageNumbers(prev => [...prev, { id: Date.now(), damage: totalDamage, x: 200, y: 250, color: "text-danger-red" }]);
         
         // 使用统一的伤害结算函数
-        takeDamage("enemy", damage);
+        takeDamage("enemy", totalDamage);
         
         setTimeout(() => setIsEnemyHit(false), 500);
         setTimeout(() => setShowSonicWave(false), 500);
@@ -842,14 +864,18 @@ export default function BattleArena() {
       }, 300);
     } else if (selectedCard.type === "skill") {
       setIsDefending(true);
-      const armor = selectedCard.baseArmor || 5;
-      
-      // AI裁判台词
-      const msg = { id: Date.now(), text: `你使用了【${selectedCard.name}】，获得了 ${armor} 点护甲！`, isTyping: true };
-      setDialogMessages(prev => [...prev, msg]);
       
       setTimeout(() => {
-        setPlayerState(prev => ({ ...prev, armor: prev.armor + armor }));
+        // 应用护甲效果
+        if (armorGain > 0) {
+          setPlayerState(prev => ({ ...prev, armor: prev.armor + armorGain }));
+        }
+        
+        // 应用净化效果
+        if (purificationGain > 0) {
+          setPollutionLevel(prev => Math.max(0, prev - purificationGain));
+        }
+        
         setTimeout(() => setIsDefending(false), 600);
         setTimeout(() => {
           setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
