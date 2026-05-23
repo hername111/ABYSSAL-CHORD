@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { zhongLvCards, cardTypeConfig, archetypeConfig, targetConfig, type Card, type CardType, type CardArchetype, INITIAL_HAND_CARDS } from '@/lib/cards';
+import { zhongLvCards, cardTypeConfig, archetypeConfig, targetConfig, type Card, type CardType, type CardArchetype } from '@/lib/cards';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card as UICard, CardContent, CardHeader } from '@/components/ui/card';
@@ -193,10 +193,7 @@ export default function CardsPage() {
   const [typeFilter, setTypeFilter] = useState<CardType | 'all'>('all');
   const [archFilter, setArchFilter] = useState<CardArchetype | 'all'>('all');
 
-  // 使用和游戏中一样的卡牌数据（INITIAL_HAND_CARDS × 3）
-  const gameDeckCards = [...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS];
-  
-  const filteredCards = gameDeckCards.filter(card => {
+  const filteredCards = zhongLvCards.filter(card => {
     if (typeFilter !== 'all' && card.type !== typeFilter) return false;
     if (archFilter !== 'all' && card.archetype !== archFilter) return false;
     return true;
@@ -214,7 +211,7 @@ export default function CardsPage() {
         <h1 className="font-display text-3xl font-bold tracking-wide">
           <span className="text-sonic-purple">CARD</span> LIBRARY
         </h1>
-        <p className="text-muted-foreground mt-1">钟律 · 重装和弦师 — 21 张专属卡牌</p>
+        <p className="text-muted-foreground mt-1">钟律 · 重装和弦师 — 20 张专属卡牌</p>
       </div>
 
       {/* 筛选器 */}
@@ -245,7 +242,7 @@ export default function CardsPage() {
 
       {/* 卡牌统计 */}
       <div className="mb-6 flex items-center gap-4 text-xs text-muted-foreground">
-        <span>显示 {filteredCards.length} / {gameDeckCards.length} 张</span>
+        <span>显示 {filteredCards.length} / {zhongLvCards.length} 张</span>
         <span>·</span>
         <span>1 AP = 5 伤害 / 5 护甲（基准线）</span>
       </div>
