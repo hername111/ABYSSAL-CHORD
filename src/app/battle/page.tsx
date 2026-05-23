@@ -1876,25 +1876,35 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* AI裁判区 - 固定展开面板 */}
-      <div className="fixed left-4 top-[15%] z-30">
-        <div className="bg-black/85 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 w-72 shadow-2xl">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg text-slate-200">AI 裁判</span>
-          </div>
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {dialogMessages.slice(-6).map(msg => (
-              <div key={msg.id} className="text-sm text-slate-300 border-l-2 border-sonic-purple/50 pl-2">
-                {msg.isTyping ? (
-                  <span className="animate-pulse">{msg.text}</span>
-                ) : (
-                  msg.text
-                )}
+      {/* AI裁判区 - 鼠标悬停展开 */}
+      <div 
+        className="fixed left-4 top-[30%] z-30 group"
+      >
+        {/* 提示图标 */}
+        <div className="w-12 h-12 bg-sonic-purple rounded-full flex items-center justify-center mb-2 shadow-lg group-hover:scale-110 transition-transform cursor-pointer">
+          <BookOpen className="w-6 h-6 text-white" />
+        </div>
+        
+        {/* 展开面板 */}
+        <div className="opacity-0 -translate-x-full group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+          <div className="bg-black/85 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 w-72 shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white" />
               </div>
-            ))}
+              <span className="font-bold text-lg text-slate-200">AI 裁判</span>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {[...dialogMessages].reverse().slice(0, 6).map(msg => (
+                <div key={msg.id} className="text-sm text-slate-300 border-l-2 border-sonic-purple/50 pl-2">
+                  {msg.isTyping ? (
+                    <span className="animate-pulse">{msg.text}</span>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
