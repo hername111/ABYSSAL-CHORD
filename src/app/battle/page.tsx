@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 // 全局常量
-const MAX_HAND_SIZE = 10; // 手牌上限严格限制为 10 张
+const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
 const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
 // 简化的敌人行为类型
