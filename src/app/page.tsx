@@ -2,13 +2,25 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Skull, Zap, Gamepad2, Waves } from "lucide-react";
+import { Skull, Zap, Gamepad2, Waves, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function MainMenu() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
+      {/* 右上角幽灵图鉴按钮 */}
+      <div className="absolute top-6 right-6 z-20">
+        <Link href="/cards" className="group">
+          <div className="flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity duration-300">
+            <BookOpen className="h-5 w-5 text-slate-400 group-hover:text-sonic-purple transition-colors" />
+            <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+              游戏图鉴
+            </span>
+          </div>
+        </Link>
+      </div>
+
       {/* 背景声波动画 */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0a0f]">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

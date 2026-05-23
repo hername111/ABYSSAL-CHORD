@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
   Shield,
@@ -9,10 +9,11 @@ import {
   Skull,
   Sparkles,
   Send,
-  X,
-  Play,
   RotateCcw,
   Volume2,
+  User,
+  Crosshair,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,14 +39,14 @@ function getSimpleEnemyIntention(): SimpleEnemyBehavior {
     { description: "次声冲撞 - 造成 6 点伤害", damage: 6 },
     { description: "撕裂嘶鸣 - 造成 4 点伤害，附加 2 层声爆", damage: 4, sonicBlast: 2 },
     { description: "声波蓄积 - 获得 8 点护甲，污染度 +1", armor: 8, pollution: 1 },
-    { description: "共振增幅 - 本回合伤害 +3", damage: 9 }, // 6+3
+    { description: "共振增幅 - 本回合伤害 +3", damage: 9 },
     { description: "低频感染 - 全体造成 3 点伤害，附加 1 层声爆", damage: 3, sonicBlast: 1 },
   ];
   return behaviors[roll - 1];
 }
 
-// 使用真实卡牌数据，选取前 5 张
-const INITIAL_HAND_CARDS: Card[] = zhongLvCards.slice(0, 5);
+// 使用真实卡牌数据，选取前 6 张
+const INITIAL_HAND_CARDS: Card[] = zhongLvCards.slice(0, 6);
 
 // 污染刻度尺组件
 const PollutionScale = ({ current = 0 }: { current: number }) => {
@@ -98,481 +99,740 @@ const PollutionScale = ({ current = 0 }: { current: number }) => {
 
 // 敌人意图组件
 const EnemyIntention = ({ behavior }: { behavior: SimpleEnemyBehavior }) => {
-  const getIntentionIcon = () => {
-    if (behavior.damage) return <Skull className="h-5 w-5 text-danger-red" />;
-    if (behavior.armor) return <Shield className="h-5 w-5 text-armor-blue" />;
-    if (behavior.sonicBlast)
-      return <Sparkles className="h-5 w-5 text-sonic-purple" />;
-    return <Volume2 className="h-5 w-5 text-slate-400" />;
-  };
-
   return (
-    <div className="flex items-center gap-2 bg-card-darker/90 rounded-lg px-3 py-2 border border-slate-700/50">
-      {getIntentionIcon()}
-      <span className="text-sm text-slate-200 font-medium">
-        {behavior.description}
-      </span>
+    <div className="flex items-center gap-2 bg-card-darker/80 rounded-lg px-3 py-2 border border-slate-700/50">
+      <Crosshair className="h-4 w-4 text-sonic-purple" />
+      <span className="text-sm text-slate-300">{behavior.description}</span>
     </div>
   );
 };
 
+// 角色Avatar组件
+const PlayerAvatar = ({
+  isAnimating,
+  animType,
+}: {
+  isAnimating: boolean;
+  animType: "attack" | "defend" | null;
+}) => {
+  return (
+    <div className="relative">
+      <motion.div
+        className="w-32 h-32 bg-gradient-to-br from-sonic-purple/30 to-purify-green/30 rounded-2xl flex items-center justify-center border-2 border-sonic-purple/50 shadow-xl shadow-sonic-purple/20"
+        animate={
+          isAnimating && animType === "attack"
+            ? { x: [0, 30, 0] }
+            : isAnimating && animType === "defend"
+            ? { scale: [1, 1.15, 1] }
+            : {}
+        }
+        transition={{
+          duration: 0.4,
+          ease: "easeOut",
+        }}
+      >
+        <User className="h-16 w-16 text-sonic-purple" />
+        {isAnimating && animType === "defend" && (
+          <motion.div
+            className="absolute inset-0 rounded-2xl border-4 border-armor-blue"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1.2, opacity: [0.8, 0] }}
+            transition={{ duration: 0.6 }}
+          />
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+// 敌人Avatar组件
+const EnemyAvatar = ({
+  isHit,
+  name,
+}: {
+  isHit: boolean;
+  name: string;
+}) => {
+  return (
+    <div className="relative">
+      <motion.div
+        className={cn(
+          "w-32 h-32 bg-gradient-to-br from-danger-red/30 to-sonic-purple/30 rounded-2xl flex items-center justify-center border-2 border-danger-red/50 shadow-xl shadow-danger-red/20",
+          isHit && "bg-danger-red/60"
+        )}
+        animate={
+          isHit
+            ? {
+                x: [0, -8, 8, -8, 8, 0],
+                scale: [1, 1.05, 1],
+              }
+            : {}
+        }
+        transition={{ duration: 0.5 }}
+      >
+        <Skull className="h-16 w-16 text-danger-red" />
+      </motion.div>
+      <div className="text-center mt-2">
+        <span className="text-sm font-bold text-slate-300">{name}</span>
+      </div>
+    </div>
+  );
+};
+
+// 玩家状态条组件
+const PlayerStatusBar = ({
+  hp,
+  maxHp,
+  armor,
+  ap,
+  maxAp,
+}: {
+  hp: number;
+  maxHp: number;
+  armor: number;
+  ap: number;
+  maxAp: number;
+}) => {
+  const hpPercent = (hp / maxHp) * 100;
+  const apPercent = (ap / maxAp) * 100;
+
+  return (
+    <div className="flex flex-col gap-3 w-48">
+      {/* HP条 */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-sm">
+          <Heart className="h-4 w-4 text-danger-red" />
+          <span className="text-slate-300">
+            {hp} / {maxHp}
+          </span>
+        </div>
+        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
+            initial={{ width: "100%" }}
+            animate={{ width: `${hpPercent}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      </div>
+
+      {/* 护甲 */}
+      <div className="flex items-center gap-2">
+        <Shield className="h-4 w-4 text-armor-blue" />
+        <span className="text-sm text-slate-300">
+          <span className="text-lg font-bold text-armor-blue">{armor}</span>
+          <span className="text-slate-500 ml-1">护甲</span>
+        </span>
+      </div>
+
+      {/* AP条 */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-sm">
+          <Zap className="h-4 w-4 text-sonic-purple" />
+          <span className="text-slate-300">
+            {ap} / {maxAp} 行动力
+          </span>
+        </div>
+        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-sonic-purple to-gold"
+            initial={{ width: "100%" }}
+            animate={{ width: `${apPercent}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 怪物状态条组件
+const EnemyStatusBar = ({ hp, maxHp, armor }: { hp: number; maxHp: number; armor: number }) => {
+  const hpPercent = (hp / maxHp) * 100;
+
+  return (
+    <div className="flex flex-col gap-2 w-48">
+      {/* HP条 */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-300">
+            {hp} / {maxHp}
+          </span>
+          {armor > 0 && (
+            <span className="text-sm text-armor-blue font-bold">
+              {armor} 护甲
+            </span>
+          )}
+        </div>
+        <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
+            initial={{ width: "100%" }}
+            animate={{ width: `${hpPercent}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 打字机效果组件
+const TypewriterText = ({ text, isTyping }: { text: string; isTyping: boolean }) => {
+  const [displayText, setDisplayText] = useState("");
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (isTyping && index < text.length) {
+      const timer = setTimeout(() => {
+        setDisplayText(text.slice(0, index + 1));
+        setIndex(index + 1);
+      }, 30);
+      return () => clearTimeout(timer);
+    } else if (!isTyping) {
+      setDisplayText(text);
+      setIndex(text.length);
+    }
+  }, [isTyping, index, text]);
+
+  return <span>{displayText}</span>;
+};
+
 // 卡牌组件
-const GameCard = ({
+const BattleCard = ({
   card,
-  selected,
+  isSelected,
+  canPlay,
   onSelect,
-  disabled,
+  index,
 }: {
   card: Card;
-  selected: boolean;
-  onSelect: () => void;
-  disabled: boolean;
+  isSelected: boolean;
+  canPlay: boolean;
+  onSelect: (card: Card) => void;
+  index: number;
 }) => {
-  const getCardTypeColor = (type: string) => {
+  const getCardBorderColor = (type: string) => {
     switch (type) {
-      case 'attack':
-        return "border-danger-red bg-gradient-to-br from-danger-red/20 to-card-darker";
-      case 'skill':
-        return "border-armor-blue bg-gradient-to-br from-armor-blue/20 to-card-darker";
-      case 'ability':
-        return "border-gold bg-gradient-to-br from-gold/20 to-card-darker";
+      case "attack":
+        return "border-danger-red/70 hover:border-danger-red shadow-danger-red/20";
+      case "skill":
+        return "border-armor-blue/70 hover:border-armor-blue shadow-armor-blue/20";
+      case "ability":
+        return "border-gold/70 hover:border-gold shadow-gold/20";
       default:
-        return "border-slate-600 bg-gradient-to-br from-slate-800/20 to-card-darker";
+        return "border-slate-600/70 hover:border-slate-400";
     }
   };
 
-  const getCardTypeName = (type: string) => {
+  const getCardBgColor = (type: string) => {
     switch (type) {
-      case 'attack':
-        return "攻击";
-      case 'skill':
-        return "技能";
-      case 'ability':
-        return "能力";
+      case "attack":
+        return "from-danger-red/15 to-danger-red/5";
+      case "skill":
+        return "from-armor-blue/15 to-armor-blue/5";
+      case "ability":
+        return "from-gold/15 to-gold/5";
       default:
-        return "卡牌";
-    }
-  };
-
-  const getTargetLabel = (target: string) => {
-    switch (target) {
-      case 'single':
-        return "单体";
-      case 'self':
-        return "自身";
-      case 'aoe':
-        return "群体";
-      default:
-        return "目标";
+        return "from-slate-700/30 to-slate-800/30";
     }
   };
 
   return (
     <motion.div
-      whileHover={!disabled ? { y: -16, scale: 1.08 } : {}}
-      whileTap={!disabled ? { scale: 0.95 } : {}}
+      initial={{ y: 100, opacity: 0 }}
+      animate={{
+        y: isSelected ? -32 : 0,
+        x: isSelected ? 0 : 0,
+        opacity: canPlay || isSelected ? 1 : 0.5,
+        scale: isSelected ? 1.15 : 1,
+        zIndex: isSelected ? 50 : index,
+      }}
+      whileHover={{ y: -16, scale: 1.08, zIndex: 50 }}
+      transition={{ duration: 0.25, type: "spring", stiffness: 300, damping: 20 }}
       className={cn(
-        "relative w-36 h-52 rounded-xl cursor-pointer transition-all duration-300",
-        getCardTypeColor(card.type),
-        selected
-          ? "ring-4 ring-sonic-purple shadow-2xl shadow-sonic-purple/40"
-          : "shadow-lg",
-        disabled && "opacity-50 cursor-not-allowed"
+        "relative w-40 h-56 rounded-xl border-2 cursor-pointer transition-all",
+        getCardBorderColor(card.type),
+        canPlay && "hover:shadow-xl"
       )}
-      onClick={() => !disabled && onSelect()}
+      onClick={() => canPlay && onSelect(card)}
     >
-      {/* 费用标记 */}
-      <div className="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-sonic-purple flex items-center justify-center text-xl font-bold text-white border-2 border-sonic-purple/50 shadow-lg">
-        {card.cost}
+      {/* 卡牌背景 */}
+      <div className={cn("absolute inset-0 rounded-xl bg-gradient-to-br", getCardBgColor(card.type))} />
+
+      {/* 选中发光效果 */}
+      {isSelected && (
+        <motion.div
+          className="absolute inset-[-4px] rounded-2xl"
+          style={{
+            boxShadow:
+              card.type === "attack"
+                ? "0 0 20px 8px rgba(239, 68, 68, 0.4)"
+                : card.type === "skill"
+                ? "0 0 20px 8px rgba(59, 130, 246, 0.4)"
+                : "0 0 20px 8px rgba(234, 179, 8, 0.4)",
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        />
+      )}
+
+      {/* 费用 */}
+      <div className="absolute top-2 left-2 w-8 h-8 rounded-full bg-sonic-purple/90 flex items-center justify-center border border-sonic-purple/50 shadow-lg">
+        <span className="text-lg font-bold text-white">{card.cost}</span>
       </div>
 
       {/* 卡牌内容 */}
-      <div className="p-4 pt-6 h-full flex flex-col">
-        <div className="text-xs font-medium text-slate-400 mb-1">
-          {getCardTypeName(card.type)} · {getTargetLabel(card.target)}
-        </div>
-        <h3 className="text-lg font-bold text-slate-100 mb-2 leading-tight">
+      <div className="relative h-full flex flex-col p-3 pt-10">
+        {/* 卡牌名称 */}
+        <h3 className="text-sm font-bold text-slate-200 mb-2 text-center leading-tight">
           {card.name}
         </h3>
-        <div className="flex-1 bg-black/30 rounded-lg p-2 text-xs text-slate-300 leading-relaxed">
-          {card.effect}
+
+        {/* 类型标签 */}
+        <div className="flex justify-center mb-2">
+          <span
+            className={cn(
+              "text-xs px-2 py-0.5 rounded-full font-medium",
+              card.type === "attack" && "bg-danger-red/20 text-danger-red",
+              card.type === "skill" && "bg-armor-blue/20 text-armor-blue",
+              card.type === "ability" && "bg-gold/20 text-gold"
+            )}
+          >
+            {card.type === "attack"
+              ? "攻击"
+              : card.type === "skill"
+              ? "技能"
+              : "能力"}
+          </span>
+        </div>
+
+        {/* 效果描述 */}
+        <div className="flex-1 overflow-hidden">
+          <p className="text-xs text-slate-400 leading-relaxed line-clamp-6">
+            {card.effect}
+          </p>
         </div>
       </div>
     </motion.div>
   );
 };
 
-// 主对战界面
 export default function BattleArena() {
-  const [playerHP, setPlayerHP] = useState(80);
-  const [playerMaxHP] = useState(80);
+  // 游戏状态
+  const [playerHp, setPlayerHp] = useState(80);
+  const [playerMaxHp] = useState(80);
   const [playerArmor, setPlayerArmor] = useState(0);
-  const [playerAP, setPlayerAP] = useState(3);
-  const [maxAP] = useState(3);
-  const [pollution, setPollution] = useState(3);
-  const [hand, setHand] = useState<Card[]>([...INITIAL_HAND_CARDS]);
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [enemyHP, setEnemyHP] = useState(18);
-  const [enemyMaxHP] = useState(18);
+  const [playerAp, setPlayerAp] = useState(3);
+  const [playerMaxAp] = useState(3);
+  const [enemyHp, setEnemyHp] = useState(40);
+  const [enemyMaxHp] = useState(40);
   const [enemyArmor, setEnemyArmor] = useState(0);
-  const [currentEnemy] = useState(enemies[0]);
+  const [pollutionLevel, setPollutionLevel] = useState(3);
+  const [turn, setTurn] = useState(1);
+  const [hand, setHand] = useState<Card[]>(INITIAL_HAND_CARDS);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(
     getSimpleEnemyIntention()
   );
-  const [dialogMessages, setDialogMessages] = useState<string[]>([
-    "欢迎来到回响裂谷，调音师。嘶鸣游荡者正在向你逼近...",
+  const [dialogMessages, setDialogMessages] = useState([
+    { id: 1, text: "战斗开始！嘶鸣游荡者正在向你逼近...", isTyping: false },
   ]);
   const [userInput, setUserInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [turnPhase, setTurnPhase] = useState<"player" | "enemy">("player");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // 自动滚动对话框
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [dialogMessages]);
+  // 动画状态
+  const [playerAnimType, setPlayerAnimType] = useState<"attack" | "defend" | null>(null);
+  const [playerAnimating, setPlayerAnimating] = useState(false);
+  const [enemyHit, setEnemyHit] = useState(false);
+  const [armorBounce, setArmorBounce] = useState(false);
 
-  // 添加消息
-  const addMessage = (msg: string) => {
-    setDialogMessages((prev) => [...prev, msg]);
+  // 选择卡牌
+  const handleCardSelect = (card: Card) => {
+    if (selectedCard?.id === card.id) {
+      setSelectedCard(null);
+    } else if (card.cost <= playerAp) {
+      setSelectedCard(card);
+    }
   };
 
-  // 处理发送消息
-  const handleSendMessage = () => {
-    if (!userInput.trim()) return;
-    addMessage(`> ${userInput}`);
-    setTimeout(() => {
-      addMessage("AI 裁判正在思考...");
-    }, 500);
-    setUserInput("");
-  };
-
-  // 处理打牌
+  // 使用卡牌
   const handlePlayCard = () => {
     if (!selectedCard) return;
-    if (playerAP < selectedCard.cost) return;
 
-    setPlayerAP((prev) => prev - selectedCard.cost);
-    setHand((prev) => prev.filter((c) => c.id !== selectedCard.id));
-
-    let msg = `你打出了【${selectedCard.name}】`;
-
-    // 简化效果处理
-    if (selectedCard.baseDamage) {
-      const damage = selectedCard.baseDamage;
-      const effectiveDamage = Math.max(0, damage - enemyArmor);
-      setEnemyHP((prev) => Math.max(0, prev - effectiveDamage));
-      setEnemyArmor(0);
-      msg += `，造成了 ${effectiveDamage} 点伤害！`;
-    }
-    if (selectedCard.baseArmor !== undefined) {
-      const armor = selectedCard.baseArmor;
-      setPlayerArmor((prev) => prev + armor);
-      msg += `，获得了 ${armor} 点护甲！`;
-    }
-    if (selectedCard.purification !== undefined) {
-      const purification = selectedCard.purification;
-      setPollution((prev) => Math.max(0, prev - purification));
-      msg += `，污染度降低了 ${purification}！`;
-    }
-
-    addMessage(msg);
+    setIsProcessing(true);
     setSelectedCard(null);
 
-    // 如果手牌打完，进入敌人回合
-    if (hand.length <= 1) {
+    // 消耗AP
+    setPlayerAp((prev) => prev - selectedCard.cost);
+
+    // 移除打出的手牌
+    setHand((prev) => prev.filter((c) => c.id !== selectedCard.id));
+
+    // 判断卡牌类型并触发对应动画
+    if (selectedCard.type === "attack") {
+      setPlayerAnimType("attack");
+      setPlayerAnimating(true);
+
       setTimeout(() => {
-        setTurnPhase("enemy");
-        handleEnemyTurn();
-      }, 1000);
+        const damage = selectedCard.baseDamage || 5;
+        setEnemyHit(true);
+
+        // 伤害结算
+        if (enemyArmor > 0) {
+          if (damage <= enemyArmor) {
+            setEnemyArmor((prev) => prev - damage);
+          } else {
+            const remainingDamage = damage - enemyArmor;
+            setEnemyArmor(0);
+            setEnemyHp((prev) => Math.max(0, prev - remainingDamage));
+          }
+        } else {
+          setEnemyHp((prev) => Math.max(0, prev - damage));
+        }
+
+        setDialogMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            text: `你打出【${selectedCard.name}】，造成了 ${damage} 点伤害！`,
+            isTyping: true,
+          },
+        ]);
+
+        setTimeout(() => {
+          setPlayerAnimating(false);
+          setPlayerAnimType(null);
+          setEnemyHit(false);
+          setIsProcessing(false);
+        }, 600);
+      }, 300);
+    } else if (selectedCard.type === "skill") {
+      setPlayerAnimType("defend");
+      setPlayerAnimating(true);
+      setArmorBounce(true);
+
+      setTimeout(() => {
+        const armor = selectedCard.baseArmor || 5;
+        const purify = selectedCard.purification || 0;
+
+        setPlayerArmor((prev) => prev + armor);
+        if (purify > 0) {
+          setPollutionLevel((prev) => Math.max(0, prev - purify));
+        }
+
+        setDialogMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            text: `你打出【${selectedCard.name}】，获得了 ${armor} 点护甲${
+              purify > 0 ? `，污染度下降 ${purify}` : ""
+            }！`,
+            isTyping: true,
+          },
+        ]);
+
+        setTimeout(() => {
+          setPlayerAnimating(false);
+          setPlayerAnimType(null);
+          setArmorBounce(false);
+          setIsProcessing(false);
+        }, 600);
+      }, 300);
     }
   };
 
-  // 处理敌人回合
-  const handleEnemyTurn = () => {
-    addMessage("--- 敌人回合 ---");
+  // 结束回合
+  const handleEndTurn = () => {
+    setIsProcessing(true);
 
+    // 敌人行动
+    const { damage = 0, armor = 0, pollution = 0 } = currentIntention;
+
+    if (damage > 0) {
+      if (playerArmor > 0) {
+        if (damage <= playerArmor) {
+          setPlayerArmor((prev) => prev - damage);
+        } else {
+          const remainingDamage = damage - playerArmor;
+          setPlayerArmor(0);
+          setPlayerHp((prev) => Math.max(0, prev - remainingDamage));
+        }
+      } else {
+        setPlayerHp((prev) => Math.max(0, prev - damage));
+      }
+
+      setDialogMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          text: `嘶鸣游荡者发动攻击！你受到了 ${damage} 点伤害！`,
+          isTyping: true,
+        },
+      ]);
+    }
+
+    if (armor > 0) {
+      setEnemyArmor((prev) => prev + armor);
+    }
+
+    if (pollution > 0) {
+      setPollutionLevel((prev) => Math.min(30, prev + pollution));
+    }
+
+    // 新回合重置
     setTimeout(() => {
-      let msg = `${currentEnemy.name} 行动了！`;
+      setTurn((prev) => prev + 1);
+      setPlayerAp(playerMaxAp);
+      setPlayerArmor(0);
+      setCurrentIntention(getSimpleEnemyIntention());
+      setHand(INITIAL_HAND_CARDS.slice(0, 6));
+      setIsProcessing(false);
 
-      if (currentIntention.damage) {
-        const damage = currentIntention.damage;
-        const effectiveDamage = Math.max(0, damage - playerArmor);
-        setPlayerHP((prev) => Math.max(0, prev - effectiveDamage));
-        setPlayerArmor(0);
-        msg += ` 造成了 ${effectiveDamage} 点伤害！`;
-      }
-      if (currentIntention.armor !== undefined) {
-        const armor = currentIntention.armor;
-        setEnemyArmor((prev) => prev + armor);
-        msg += ` 获得了 ${armor} 点护甲！`;
-      }
-      if (currentIntention.pollution !== undefined) {
-        const pollution = currentIntention.pollution;
-        setPollution((prev) => Math.min(30, prev + pollution));
-        msg += ` 污染度上升了 ${pollution}！`;
-      }
-
-      addMessage(msg);
-
-      // 回玩家回合
-      setTimeout(() => {
-        setTurnPhase("player");
-        setPlayerAP(maxAP);
-        setPollution((prev) => Math.min(30, prev + 1));
-        setHand([...INITIAL_HAND_CARDS]);
-        setCurrentIntention(getSimpleEnemyIntention());
-        addMessage("--- 你的回合 ---");
-      }, 1500);
+      setDialogMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          text: `第 ${turn + 1} 回合开始！`,
+          isTyping: true,
+        },
+      ]);
     }, 1000);
   };
 
-  // 重新掷骰
-  const rerollIntention = () => {
-    setCurrentIntention(getSimpleEnemyIntention());
-    addMessage("重新掷骰确定敌人意图...");
+  // 发送消息给AI裁判
+  const handleSendMessage = async () => {
+    if (!userInput.trim()) return;
+
+    const messageText = userInput;
+    setUserInput("");
+    setDialogMessages((prev) => [
+      ...prev,
+      { id: Date.now(), text: `你: ${messageText}`, isTyping: false },
+    ]);
+
+    try {
+      const response = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: messageText }],
+        }),
+      });
+
+      if (!response.ok) throw new Error("API请求失败");
+
+      const reader = response.body?.getReader();
+      if (!reader) return;
+
+      let aiMessage = "";
+      const decoder = new TextDecoder();
+      const messageId = Date.now();
+
+      setDialogMessages((prev) => [
+        ...prev,
+        { id: messageId, text: "", isTyping: true },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter((line) => line.trim());
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                aiMessage += data.content;
+                setDialogMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === messageId ? { ...m, text: aiMessage } : m
+                  )
+                );
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      setDialogMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, isTyping: false } : m
+        )
+      );
+    } catch (error) {
+      console.error("AI裁判连接失败:", error);
+      setDialogMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          text: "AI裁判暂时连接失败，请稍后再试。",
+          isTyping: false,
+        },
+      ]);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSendMessage();
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0a0f] via-[#0f0f1a] to-[#0a0a0f] flex flex-col overflow-hidden relative">
-      {/* 返回按钮 */}
-      <div className="absolute top-4 left-4 z-50">
-        <Link href="/">
-          <Button
-            variant="ghost"
-            className="text-slate-400 hover:text-white hover:bg-slate-800/50"
-          >
-            <X className="mr-2 h-4 w-4" />
-            返回主菜单
+    <div className="min-h-screen w-full flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0a0f]">
+      {/* 背景声波动画 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(3)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-sonic-purple/15"
+            style={{
+              width: `${400 + i * 300}px`,
+              height: `${400 + i * 300}px`,
+            }}
+            animate={{
+              scale: [1, 1.08, 1],
+              opacity: [0.3, 0.1, 0.3],
+            }}
+            transition={{
+              duration: 5 + i * 0.8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* 顶部状态栏 */}
+      <div className="relative z-10 flex justify-between items-start p-4">
+        {/* 返回按钮 */}
+        <Link href="/" className="opacity-60 hover:opacity-100 transition-opacity">
+          <Button variant="ghost" className="text-slate-400 hover:text-slate-200">
+            <RotateCcw className="h-4 w-4 mr-2" />
+            返回菜单
           </Button>
         </Link>
+
+        {/* 污染刻度尺 */}
+        <PollutionScale current={pollutionLevel} />
       </div>
 
-      {/* 上层：状态栏与敌人区 */}
-      <div className="flex-1 flex flex-col items-center justify-start pt-8 px-4 relative">
-        {/* 污染刻度尺（右上角） */}
-        <div className="absolute top-4 right-4">
-          <PollutionScale current={pollution} />
-        </div>
-
-        {/* 敌人意图 */}
-        <div className="mb-4">
+      {/* 战斗舞台 - 上中下三层布局 */}
+      <div className="flex-1 relative z-10 flex flex-col">
+        {/* 上层：敌人区 */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <EnemyIntention behavior={currentIntention} />
+
+          <div className="flex flex-col items-center gap-2">
+            <EnemyAvatar isHit={enemyHit} name="嘶鸣游荡者" />
+            <EnemyStatusBar hp={enemyHp} maxHp={enemyMaxHp} armor={enemyArmor} />
+          </div>
         </div>
 
-        {/* 敌人区域 */}
-        <motion.div
-          className="flex flex-col items-center"
-          animate={turnPhase === "enemy" ? { x: [0, -10, 10, -10, 0] } : {}}
-          transition={{ duration: 0.5 }}
-        >
-          {/* 敌人头像/模型 */}
-          <div className="w-40 h-40 rounded-full bg-gradient-to-br from-danger-red/30 to-sonic-purple/30 flex items-center justify-center border-2 border-danger-red/50 shadow-xl shadow-danger-red/20 mb-4">
-            <Skull className="h-20 w-20 text-danger-red" />
+        {/* 中层：玩家区与敌人区之间的空白地带 */}
+        <div className="h-16"></div>
+
+        {/* 下层：玩家区 */}
+        <div className="flex items-end justify-center gap-12 pb-8">
+          <div className="flex flex-col items-center gap-4">
+            <PlayerAvatar isAnimating={playerAnimating} animType={playerAnimType} />
+            <PlayerStatusBar
+              hp={playerHp}
+              maxHp={playerMaxHp}
+              armor={playerArmor}
+              ap={playerAp}
+              maxAp={playerMaxAp}
+            />
           </div>
 
-          {/* 敌人血条 */}
-          <div className="w-64">
-            <div className="flex justify-between mb-1">
-              <span className="text-lg font-bold text-slate-200">
-                {currentEnemy.name}
-              </span>
-              <span className="text-lg font-bold text-danger-red">
-                {enemyHP} / {enemyMaxHP}
-                {enemyArmor > 0 && (
-                  <span className="text-armor-blue ml-2">
-                    (+{enemyArmor} 护甲)
-                  </span>
-                )}
-              </span>
+          <div className="flex flex-col items-center gap-3">
+            <div className="text-center">
+              <span className="text-slate-400 text-sm">第</span>
+              <span className="text-sonic-purple text-2xl font-bold mx-2">{turn}</span>
+              <span className="text-slate-400 text-sm">回合</span>
             </div>
-            <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-              <div
-                className="h-full bg-gradient-to-r from-danger-red to-danger-red/70 transition-all duration-500"
-                style={{ width: `${(enemyHP / enemyMaxHP) * 100}%` }}
+            {selectedCard && (
+              <Button
+                onClick={handlePlayCard}
+                disabled={isProcessing}
+                className="bg-gradient-to-r from-sonic-purple to-purify-green hover:from-sonic-purple/80 hover:to-purify-green/80 text-white border border-sonic-purple/50 shadow-lg shadow-sonic-purple/30"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                使用卡牌
+              </Button>
+            )}
+            <Button
+              onClick={handleEndTurn}
+              disabled={isProcessing}
+              variant="secondary"
+              className="bg-card-darker/80 border border-slate-700/50"
+            >
+              <ArrowRight className="mr-2 h-4 w-4" />
+              结束回合
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 手牌区 */}
+      <div className="relative z-20 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/95 to-transparent pt-8 pb-4 border-t border-slate-800/30">
+        <div className="flex justify-center items-end gap-[-20px] px-8 h-64 overflow-visible">
+          {hand.map((card, index) => (
+            <div key={card.id} className="relative" style={{ marginLeft: index > 0 ? "-32px" : "0" }}>
+              <BattleCard
+                card={card}
+                isSelected={selectedCard?.id === card.id}
+                canPlay={card.cost <= playerAp && !isProcessing}
+                onSelect={handleCardSelect}
+                index={index}
               />
             </div>
-          </div>
-
-          {/* 重新掷骰按钮 */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={rerollIntention}
-            className="mt-2 text-slate-400 hover:text-sonic-purple"
-          >
-            <RotateCcw className="mr-1 h-3 w-3" />
-            重新掷骰
-          </Button>
-        </motion.div>
+          ))}
+        </div>
       </div>
 
-      {/* 中层：玩家状态区 */}
-      <div className="flex items-center justify-center py-6 px-4">
-        <motion.div
-          className="flex items-center gap-6 bg-card-darker/60 rounded-2xl p-6 border border-slate-700/50"
-          animate={turnPhase === "player" ? { scale: [1, 1.02, 1] } : {}}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          {/* 角色头像 */}
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-sonic-purple/30 to-purify-green/30 flex items-center justify-center border-2 border-sonic-purple/50 shadow-lg">
-            <Sparkles className="h-12 w-12 text-sonic-purple" />
+      {/* AI 裁判对话框 */}
+      <div className="absolute left-6 bottom-6 z-30 w-80">
+        <div className="bg-black/60 backdrop-blur-md rounded-xl border border-slate-700/50 shadow-2xl overflow-hidden">
+          {/* 标题栏 */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700/30 bg-card-darker/50">
+            <Volume2 className="h-4 w-4 text-sonic-purple animate-pulse" />
+            <span className="text-sm font-medium text-slate-300">AI 裁判</span>
           </div>
 
-          {/* 状态数值 */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <Heart className="h-6 w-6 text-danger-red" />
-              <div className="w-40">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">生命值</span>
-                  <span className="text-danger-red font-bold">
-                    {playerHP} / {playerMaxHP}
-                  </span>
-                </div>
-                <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-danger-red to-danger-red/70 transition-all duration-300"
-                    style={{ width: `${(playerHP / playerMaxHP) * 100}%` }}
-                  />
-                </div>
+          {/* 消息区域 */}
+          <div className="h-32 overflow-y-auto p-4 space-y-3">
+            {dialogMessages.slice(-4).map((msg) => (
+              <div key={msg.id} className="text-sm text-slate-300 leading-relaxed">
+                <TypewriterText text={msg.text} isTyping={msg.isTyping} />
+                {msg.isTyping && (
+                  <span className="inline-block w-2 h-4 bg-sonic-purple ml-1 animate-pulse align-middle" />
+                )}
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 text-armor-blue" />
-              <div className="w-40">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">护甲</span>
-                  <span className="text-armor-blue font-bold">{playerArmor}</span>
-                </div>
-                <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-armor-blue to-armor-blue/70"
-                    style={{ width: `${Math.min(100, playerArmor * 5)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Zap className="h-6 w-6 text-gold" />
-              <div className="w-40">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">行动力</span>
-                  <span className="text-gold font-bold">
-                    {playerAP} / {maxAP}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  {[...Array(maxAP)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-8 h-8 rounded-full transition-all duration-300",
-                        i < playerAP
-                          ? "bg-gradient-to-br from-gold to-gold/60 border-2 border-gold/50"
-                          : "bg-slate-800 border-2 border-slate-700"
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* 回合指示器 */}
-          <div
-            className={cn(
-              "px-4 py-2 rounded-lg font-bold text-lg",
-              turnPhase === "player"
-                ? "bg-purify-green/20 text-purify-green border border-purify-green/50"
-                : "bg-danger-red/20 text-danger-red border border-danger-red/50"
-            )}
-          >
-            {turnPhase === "player" ? "你的回合" : "敌人回合"}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 下层：手牌区与AI裁判对话框 */}
-      <div className="h-[40%] bg-gradient-to-t from-[#0a0a0f] via-[#0d0d15] to-transparent border-t border-slate-800/50">
-        <div className="h-full flex">
-          {/* AI 裁判对话框（左侧） */}
-          <div className="w-80 h-full bg-card-darker/40 border-r border-slate-800/50 flex flex-col">
-            <div className="p-3 border-b border-slate-800/50 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-sonic-purple" />
-              <span className="font-medium text-slate-200">AI 裁判</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {dialogMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    "text-sm p-2 rounded-lg",
-                    msg.startsWith(">")
-                      ? "bg-sonic-purple/20 text-slate-200"
-                      : msg.startsWith("---")
-                      ? "bg-slate-800/50 text-slate-400 font-medium text-center"
-                      : "bg-card-darker/60 text-slate-300"
-                  )}
-                >
-                  {msg}
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="p-3 border-t border-slate-800/50">
-              <div className="flex gap-2">
-                <Input
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                  placeholder="向AI裁判提问..."
-                  className="bg-slate-900/50 border-slate-700 text-sm"
-                />
-                <Button
-                  size="icon"
-                  onClick={handleSendMessage}
-                  className="bg-sonic-purple hover:bg-sonic-purple/80"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* 手牌展示区（右侧） */}
-          <div className="flex-1 flex flex-col p-4">
-            {/* 手牌上方控制区 */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-slate-400 text-sm">
-                手牌 ({hand.length} 张)
-              </span>
-              {selectedCard && (
-                <Button
-                  onClick={handlePlayCard}
-                  disabled={playerAP < selectedCard.cost}
-                  className="bg-gradient-to-r from-sonic-purple to-purify-green hover:from-sonic-purple/80 hover:to-purify-green/80 text-white font-bold"
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  使用【{selectedCard.name}】
-                </Button>
-              )}
-            </div>
-
-            {/* 手牌横向排列 */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex gap-4 items-end pb-8">
-                {hand.map((card) => (
-                  <GameCard
-                    key={card.id}
-                    card={card}
-                    selected={selectedCard?.id === card.id}
-                    onSelect={() => setSelectedCard(card)}
-                    disabled={playerAP < card.cost || turnPhase !== "player"}
-                  />
-                ))}
-              </div>
+          {/* 输入区域 */}
+          <div className="p-3 border-t border-slate-700/30 bg-card-darker/30">
+            <div className="flex gap-2">
+              <Input
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="询问规则..."
+                className="bg-slate-800/50 border-slate-700/50 text-sm"
+              />
+              <Button
+                size="icon"
+                onClick={handleSendMessage}
+                className="bg-sonic-purple hover:bg-sonic-purple/80"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
