@@ -115,18 +115,14 @@ const HandCard = ({
   total, 
   isSelected, 
   onSelect, 
-  onPlay,
-  canPlay,
-  playerAp 
+  canPlay 
 }: { 
   card: Card; 
   index: number; 
   total: number; 
   isSelected: boolean; 
   onSelect: (card: Card) => void;
-  onPlay: () => void;
   canPlay: boolean;
-  playerAp: number;
 }) => {
   const middleIndex = (total - 1) / 2;
   const distanceFromMiddle = index - middleIndex;
@@ -151,82 +147,60 @@ const HandCard = ({
   };
 
   return (
-    <div className="relative">
-      <motion.div
-        className={cn(
-          "relative cursor-pointer transition-all duration-300",
-          !canPlay && "opacity-50 cursor-not-allowed"
-        )}
-        style={{
-          transformOrigin: "bottom center",
-        }}
-        initial={{ y: 100, opacity: 0, rotate: rotationAngle }}
-        animate={{
-          y: 0,
-          opacity: 1,
-          rotate: isSelected ? 0 : rotationAngle,
-          scale: isSelected ? 1.15 : 1,
-          zIndex: isSelected ? 50 : 20 + Math.abs(distanceFromMiddle),
-        }}
-        whileHover={canPlay ? {
-          y: -32,
-          scale: 1.1,
-          zIndex: 50,
-        } : {}}
-        onClick={() => canPlay && onSelect(card)}
-        transition={{
-          type: "spring",
-          stiffness: 100,
-          damping: 15,
-          delay: index * 0.1,
-        }}
-      >
-        <div className={cn(
-          "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg transition-all duration-300",
-          getBgColor(card.type),
-          getBorderColor(card.type),
-          isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
-        )}>
-          {/* 费用 */}
-          <div className="absolute -top-2 -left-2 w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-sonic-purple/50">
-            {card.cost}
-          </div>
-          
-          {/* 卡牌内容 */}
-          <div className="p-3 h-full flex flex-col">
-            <h3 className="text-sm font-bold text-slate-100 mb-1 truncate">
-              {card.name}
-            </h3>
-            <p className="text-xs text-slate-400 mb-2">
-              {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
-            </p>
-            <div className="flex-1 text-xs text-slate-300 leading-relaxed">
-              {card.effect}
-            </div>
+    <motion.div
+      className={cn(
+        "relative cursor-pointer transition-all duration-300",
+        !canPlay && "opacity-50 cursor-not-allowed"
+      )}
+      style={{
+        transformOrigin: "bottom center",
+      }}
+      initial={{ y: 100, opacity: 0, rotate: rotationAngle }}
+      animate={{
+        y: 0,
+        opacity: 1,
+        rotate: isSelected ? 0 : rotationAngle,
+        scale: isSelected ? 1.15 : 1,
+        zIndex: isSelected ? 50 : 20 + Math.abs(distanceFromMiddle),
+      }}
+      whileHover={canPlay ? {
+        y: -20,
+        scale: 1.1,
+        zIndex: 50,
+      } : {}}
+      onClick={() => canPlay && onSelect(card)}
+      transition={{
+        type: "spring",
+        stiffness: 100,
+        damping: 15,
+        delay: index * 0.1,
+      }}
+    >
+      <div className={cn(
+        "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg transition-all duration-300",
+        getBgColor(card.type),
+        getBorderColor(card.type),
+        isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
+      )}>
+        {/* 费用 */}
+        <div className="absolute -top-2 -left-2 w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-sonic-purple/50">
+          {card.cost}
+        </div>
+        
+        {/* 卡牌内容 */}
+        <div className="p-3 h-full flex flex-col">
+          <h3 className="text-sm font-bold text-slate-100 mb-1 truncate">
+            {card.name}
+          </h3>
+          <p className="text-xs text-slate-400 mb-2">
+            {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
+          </p>
+          <div className="flex-1 text-xs text-slate-300 leading-relaxed">
+            {card.effect}
           </div>
         </div>
-      </motion.div>
-
-      {/* 绝对定位的使用卡牌按钮 */}
-      <AnimatePresence>
-        {isSelected && canPlay && (
-          <motion.div
-            className="absolute -top-16 left-1/2 -translate-x-1/2 z-50"
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <Button
-              onClick={onPlay}
-              className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold text-lg"
-            >
-              使用卡牌
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      </div>
+    </motion.div>
   );
 };
 
@@ -455,7 +429,7 @@ export default function BattleArena() {
   };
 
   return (
-    <div className="min-h-screen bg-abyss text-slate-200 relative overflow-hidden">
+    <div className="min-h-screen bg-abyss text-slate-200 relative overflow-hidden pb-32">
       {/* 背景声波动画 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-sonic-purple/10 rounded-full animate-pulse" />
@@ -691,31 +665,27 @@ export default function BattleArena() {
         </div>
       </div>
 
-      {/* 卡牌互动区 - 固定在底部上方，专门用来渲染扇形卡牌 */}
-      <div className="fixed bottom-24 left-0 right-0 z-40">
-        <div className="relative h-64 flex justify-center items-end pb-8">
-          <div className="relative flex items-end justify-center">
-            {hand.map((card, index) => (
-              <HandCard
-                key={card.id}
-                card={card}
-                index={index}
-                total={hand.length}
-                isSelected={selectedCard === card}
-                onSelect={handleCardSelect}
-                onPlay={handlePlayCard}
-                canPlay={card.cost <= playerAp && !isProcessing}
-                playerAp={playerAp}
-              />
-            ))}
-          </div>
+      {/* 手牌容器 - 固定在按钮栏上方 */}
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex justify-center items-end h-64 z-40">
+        <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
+          {hand.map((card, index) => (
+            <HandCard
+              key={card.id}
+              card={card}
+              index={index}
+              total={hand.length}
+              isSelected={selectedCard === card}
+              onSelect={handleCardSelect}
+              canPlay={card.cost <= playerAp && !isProcessing}
+            />
+          ))}
         </div>
       </div>
 
-      {/* 底部固定区 - 专门放置结束回合按钮 */}
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 to-transparent z-50">
-        {/* 倒计时进度条 - 在按钮上方 */}
-        <div className="absolute top-0 left-0 right-0 px-4 pt-2">
+      {/* 统一按钮控制台 - 包含倒计时和按钮 */}
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center items-center gap-4 z-50">
+        {/* 倒计时进度条容器 */}
+        <div className="absolute bottom-full left-0 right-0 mb-2">
           <div className="max-w-md mx-auto">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-slate-400 font-bold">回合时间</span>
@@ -741,21 +711,30 @@ export default function BattleArena() {
             </div>
           </div>
         </div>
-        
-        <div className="flex justify-center items-center h-full pt-6">
+
+        {/* 使用卡牌按钮 - 条件渲染 */}
+        {selectedCard && selectedCard.cost <= playerAp && !isProcessing && (
           <Button
-            onClick={handleEndTurn}
-            disabled={isProcessing}
-            className={cn(
-              "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
-              isProcessing 
-                ? "bg-slate-700 cursor-not-allowed"
-                : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
-            )}
+            onClick={handlePlayCard}
+            className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
           >
-            {isProcessing ? "处理中..." : "结束回合"}
+            使用卡牌
           </Button>
-        </div>
+        )}
+
+        {/* 结束回合按钮 */}
+        <Button
+          onClick={handleEndTurn}
+          disabled={isProcessing}
+          className={cn(
+            "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
+            isProcessing 
+              ? "bg-slate-700 cursor-not-allowed"
+              : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
+          )}
+        >
+          {isProcessing ? "处理中..." : "结束回合"}
+        </Button>
       </div>
 
       {/* 退出确认弹窗 */}
