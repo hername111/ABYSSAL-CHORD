@@ -7,17 +7,10 @@ import {
   Shield,
   Zap,
   Skull,
-  Sparkles,
-  Send,
   RotateCcw,
-  BookOpen,
   X,
-  AlertTriangle,
-  ScrollText,
-  Sword,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -425,141 +418,6 @@ const TypewriterText = ({ text, isTyping }: { text: string; isTyping: boolean })
   return <span>{displayText}</span>;
 };
 
-// 战术手册侧边抽屉
-const TacticalManualDrawer = ({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* 背景遮罩 */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            onClick={onClose}
-          />
-
-          {/* 侧边抽屉 */}
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-96 bg-card-darker/95 backdrop-blur-xl border-l border-slate-700/50 shadow-2xl z-50 flex flex-col"
-          >
-            {/* 抽屉头部 */}
-            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-sonic-purple" />
-                <h2 className="text-lg font-bold text-slate-200">战术手册</h2>
-              </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-slate-200">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Tabs 内容 */}
-            <div className="flex-1 overflow-auto p-4">
-              <Tabs defaultValue="rules" className="w-full">
-                <TabsList className="w-full grid grid-cols-3 mb-4">
-                  <TabsTrigger value="rules">规则</TabsTrigger>
-                  <TabsTrigger value="cards">卡牌</TabsTrigger>
-                  <TabsTrigger value="pollution">污染</TabsTrigger>
-                </TabsList>
-
-                {/* 规则Tab */}
-                <TabsContent value="rules" className="space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-bold text-sonic-purple flex items-center gap-2">
-                      <ScrollText className="h-4 w-4" />
-                      回合流程
-                    </h3>
-                    <div className="bg-slate-900/50 rounded-lg p-3 text-sm text-slate-400 space-y-1">
-                      <p>1. 回合开始：触发 Buff</p>
-                      <p>2. 掷骰：决定怪物意图</p>
-                      <p>3. 抽牌与出牌：玩家行动</p>
-                      <p>4. 怪物行动：结算怪物攻击</p>
-                      <p>5. 弃牌重置：进入下一回合</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-bold text-danger-red flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      关键机制
-                    </h3>
-                    <div className="bg-slate-900/50 rounded-lg p-3 text-sm text-slate-400 space-y-1">
-                      <p><span className="text-danger-red">声爆 Debuff</span>：每层回合结束时造成 1 点穿透伤害</p>
-                      <p><span className="text-armor-blue">护甲</span>：优先抵扣伤害，回合结束清零</p>
-                      <p><span className="text-sonic-purple">污染度</span>：每回合自动+1，怪物获得 Buff</p>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* 卡牌Tab */}
-                <TabsContent value="cards" className="space-y-3">
-                  <h3 className="text-sm font-bold text-slate-300 mb-3">钟律卡牌库</h3>
-                  <div className="space-y-2 max-h-96 overflow-auto">
-                    {zhongLvCards.map((card) => (
-                      <div key={card.id} className="bg-slate-900/50 rounded-lg p-3 text-sm">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-slate-200">{card.name}</span>
-                          <span className="text-sonic-purple font-bold">{card.cost}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={cn(
-                            "text-xs px-2 py-0.5 rounded-full",
-                            card.type === "attack" ? "bg-danger-red/20 text-danger-red" :
-                            card.type === "skill" ? "bg-armor-blue/20 text-armor-blue" :
-                            "bg-gold/20 text-gold"
-                          )}>
-                            {card.type === "attack" ? "攻击" : card.type === "skill" ? "技能" : "能力"}
-                          </span>
-                          <span className="text-slate-500 text-xs">{card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}</span>
-                        </div>
-                        <p className="text-slate-400 text-xs">{card.effect}</p>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                {/* 污染Tab */}
-                <TabsContent value="pollution" className="space-y-3">
-                  <h3 className="text-sm font-bold text-slate-300 mb-3">污染度等级说明</h3>
-                  <div className="space-y-2">
-                    {[
-                      { level: "寂静期", range: "0-5", color: "text-purify-green", effect: "无额外效果" },
-                      { level: "低鸣期", range: "6-12", color: "text-yellow-500", effect: "所有畸变体攻击伤害 +2" },
-                      { level: "共振期", range: "13-20", color: "text-orange-500", effect: "攻击伤害 +4，怪物每回合获得 3 护甲" },
-                      { level: "咆哮期", range: "21-28", color: "text-danger-red", effect: "攻击伤害 +6，玩家每回合受到 3 点穿透伤害" },
-                      { level: "终焉和弦", range: "29-30", color: "text-sonic-purple", effect: "攻击伤害 +10，玩家每回合受到 5 点穿透，再增污染游戏失败" },
-                    ].map((item, i) => (
-                      <div key={i} className="bg-slate-900/50 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={cn("font-bold", item.color)}>{item.level}</span>
-                          <span className="text-slate-400 text-sm">{item.range}</span>
-                        </div>
-                        <p className="text-slate-400 text-xs">{item.effect}</p>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-};
-
 // 卡牌组件
 const BattleCard = ({
   card,
@@ -700,7 +558,6 @@ export default function BattleArena() {
   const [dialogMessages, setDialogMessages] = useState([
     { id: 1, text: "战斗开始！嘶鸣游荡者正在向你逼近...", isTyping: false },
   ]);
-  const [isManualOpen, setIsManualOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // 动画状态
@@ -728,216 +585,168 @@ export default function BattleArena() {
     setSelectedCard(null);
 
     // 消耗AP
-    setPlayerAp((prev) => prev - selectedCard.cost);
+    setPlayerAp(prev => prev - selectedCard.cost);
 
-    // 移除打出的手牌
-    setHand((prev) => prev.filter((c) => c.id !== selectedCard.id));
+    // 从手牌移除
+    setHand(prev => prev.filter(c => c.id !== selectedCard.id));
 
-    // 判断卡牌类型并触发对应动画
+    // 添加对话消息
+    const newMessage = { id: Date.now(), text: `你打出了【${selectedCard.name}】！`, isTyping: true };
+    setDialogMessages(prev => [...prev, newMessage]);
+
+    // 根据卡牌类型触发不同动画
     if (selectedCard.type === "attack") {
+      // 攻击牌动画序列
       setIsAttacking(true);
-      
-      // 延迟显示声波特效
-      setTimeout(() => {
-        setShowSonicWave(true);
-        
-        setTimeout(() => {
-          setShowSonicWave(false);
-        }, 400);
-      }, 150);
+      setShowSonicWave(true);
 
+      // 0.15s 后显示声波特效
       setTimeout(() => {
-        const damage = selectedCard.baseDamage || 5;
+        setShowSonicWave(false);
+      }, 400);
+
+      // 0.5s 后敌人受击
+      setTimeout(() => {
         setIsEnemyHit(true);
+        const damage = selectedCard.baseDamage || 5;
+        setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 400, y: 200 }]);
 
-        // 添加伤害数字
-        setDamageNumbers(prev => [...prev, {
-          id: Date.now(),
-          damage: damage,
-          x: 450,
-          y: 150,
-          color: "text-danger-red"
-        }]);
-
-        // 伤害结算
-        if (enemyArmor > 0) {
-          if (damage <= enemyArmor) {
-            setEnemyArmor((prev) => prev - damage);
-          } else {
-            const remainingDamage = damage - enemyArmor;
-            setEnemyArmor(0);
-            setEnemyHp((prev) => Math.max(0, prev - remainingDamage));
-          }
-        } else {
-          setEnemyHp((prev) => Math.max(0, prev - damage));
-        }
-
-        setDialogMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            text: `你打出【${selectedCard.name}】，造成了 ${damage} 点伤害！`,
-            isTyping: true,
-          },
-        ]);
+        // 计算伤害
+        setEnemyHp(prev => Math.max(0, prev - damage));
+        setIsAttacking(false);
 
         setTimeout(() => {
-          setIsAttacking(false);
           setIsEnemyHit(false);
           setIsProcessing(false);
         }, 600);
       }, 500);
-    } else if (selectedCard.type === "skill") {
-      setIsDefending(true);
 
       setTimeout(() => {
-        const armor = selectedCard.baseArmor || 5;
-        const purify = selectedCard.purification || 0;
+        setDialogMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, isTyping: false } : m));
+      }, 1000);
 
-        setPlayerArmor((prev) => prev + armor);
-        if (purify > 0) {
-          setPollutionLevel((prev) => Math.max(0, prev - purify));
-        }
+    } else if (selectedCard.type === "skill" || selectedCard.type === "ability") {
+      // 技能/防御牌动画
+      setIsDefending(true);
+      const armor = selectedCard.baseArmor || 5;
+      setPlayerArmor(prev => prev + armor);
 
-        setDialogMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            text: `你打出【${selectedCard.name}】，获得了 ${armor} 点护甲${
-              purify > 0 ? `，污染度下降 ${purify}` : ""
-            }！`,
-            isTyping: true,
-          },
-        ]);
-
-        setTimeout(() => {
-          setIsDefending(false);
-          setIsProcessing(false);
-        }, 600);
-      }, 300);
+      setTimeout(() => {
+        setIsDefending(false);
+        setIsProcessing(false);
+        setDialogMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, isTyping: false } : m));
+      }, 600);
     }
   };
 
   // 结束回合
   const handleEndTurn = () => {
+    if (isProcessing) return;
+
     setIsProcessing(true);
 
-    // 敌人行动
-    const { damage = 0, armor = 0, pollution = 0 } = currentIntention;
+    // 重置AP
+    setPlayerAp(playerMaxAp);
 
-    if (damage > 0) {
-      if (playerArmor > 0) {
-        if (damage <= playerArmor) {
-          setPlayerArmor((prev) => prev - damage);
-        } else {
-          const remainingDamage = damage - playerArmor;
-          setPlayerArmor(0);
-          setPlayerHp((prev) => Math.max(0, prev - remainingDamage));
-        }
-      } else {
-        setPlayerHp((prev) => Math.max(0, prev - damage));
-      }
+    // 污染度+1
+    setPollutionLevel(prev => Math.min(30, prev + 1));
 
-      // 添加玩家伤害数字
-      setDamageNumbers(prev => [...prev, {
-        id: Date.now(),
-        damage: damage,
-        x: 200,
-        y: 150,
-        color: "text-danger-red"
-      }]);
+    // 怪物行动
+    const msg = { id: Date.now(), text: `嘶鸣游荡者使用了【${currentIntention.description}】！`, isTyping: true };
+    setDialogMessages(prev => [...prev, msg]);
 
-      setDialogMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          text: `嘶鸣游荡者发动攻击！你受到了 ${damage} 点伤害！`,
-          isTyping: true,
-        },
-      ]);
+    // 怪物造成伤害
+    if (currentIntention.damage) {
+      const damage = currentIntention.damage;
+      setPlayerHp(prev => Math.max(0, prev - damage));
+      setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 200, y: 250, color: "text-danger-red" }]);
     }
 
-    if (armor > 0) {
-      setEnemyArmor((prev) => prev + armor);
-    }
-
-    if (pollution > 0) {
-      setPollutionLevel((prev) => Math.min(30, prev + pollution));
-    }
-
-    // 新回合重置
+    // 下一回合
     setTimeout(() => {
-      setTurn((prev) => prev + 1);
-      setPlayerAp(playerMaxAp);
-      setPlayerArmor(0);
+      setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
       setCurrentIntention(getSimpleEnemyIntention());
-      setHand(INITIAL_HAND_CARDS.slice(0, 6));
+      setTurn(prev => prev + 1);
+      setHand(INITIAL_HAND_CARDS);
       setIsProcessing(false);
-
-      setDialogMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          text: `第 ${turn + 1} 回合开始！`,
-          isTyping: true,
-        },
-      ]);
-    }, 1000);
+    }, 1500);
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0a0f]">
-      {/* 背景声波动画 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sonic-purple/10 via-transparent to-transparent animate-sonic-pulse" />
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sonic-purple/20 rounded-full blur-3xl animate-sonic-pulse" style={{ animationDelay: "0s" }} />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purify-green/15 rounded-full blur-3xl animate-sonic-pulse" style={{ animationDelay: "1s" }} />
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-abyss via-abyss to-card-darker flex flex-col relative overflow-hidden">
+      {/* 背景声波脉冲 */}
+      <div className="absolute inset-0 opacity-20">
+        {[...Array(3)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-sonic-purple/30"
+            initial={{ width: 0, height: 0, opacity: 0 }}
+            animate={{
+              width: [0, 300 + i * 150],
+              height: [0, 300 + i * 150],
+              opacity: [0, 0.2, 0],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              delay: i * 1.5,
+              ease: "easeOut",
+            }}
+          />
+        ))}
       </div>
 
-      {/* 伤害数字飘出 */}
-      {damageNumbers.map((d) => (
-        <DamageNumber key={d.id} damage={d.damage} x={d.x} y={d.y} color={d.color} />
-      ))}
-
-      {/* 顶部状态栏 */}
-      <div className="relative z-10 p-4">
-        <div className="flex justify-between items-start">
-          {/* 左上角：退出按钮 */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowExitConfirm(true)}
-            className="text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
-          >
-            <RotateCcw className="h-5 w-5" />
-          </Button>
-
-          {/* 右上角：污染刻度尺 */}
-          <PollutionScale current={pollutionLevel} />
-
-          {/* 右上角：战术手册按钮 */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsManualOpen(true)}
-            className="text-slate-300 hover:text-white hover:bg-sonic-purple/20"
-          >
-            <BookOpen className="h-5 w-5" />
-          </Button>
-        </div>
+      {/* 左上角退出按钮 */}
+      <div className="fixed top-6 left-6 z-30">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowExitConfirm(true)}
+          className="text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-all duration-300 group"
+        >
+          <RotateCcw className="w-6 h-6 group-hover:rotate-[-20 transition-transform" />
+        </Button>
       </div>
 
-      {/* 中央战斗舞台 */}
-      <div className="flex-1 relative flex items-center justify-center px-8">
-        <div className="relative w-full max-w-4xl h-full flex items-center justify-between">
-          {/* 玩家角色（左） */}
-          <div className="flex flex-col items-center gap-4">
-            <PlayerCharacter
-              isAttacking={isAttacking}
-              isDefending={isDefending}
-            />
+      {/* 顶部区域：污染刻度尺 */}
+      <div className="relative z-10 p-6 flex justify-end">
+        <PollutionScale current={pollutionLevel} />
+      </div>
+
+      {/* 中间战斗舞台区域 */}
+      <div className="flex-1 flex flex-col relative z-10">
+        {/* 敌人区域 */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <EnemyStatusBar hp={enemyHp} maxHp={enemyMaxHp} armor={enemyArmor} />
+          <div className="relative">
+            <EnemyCharacter isHit={isEnemyHit} name="嘶鸣游荡者" />
+            {/* 敌人意图指示器 */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-card-darker/90 backdrop-blur rounded-lg px-4 py-2 border border-slate-700/50">
+              <p className="text-sm text-slate-300">
+                {currentIntention.description}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 声波特效 */}
+        <SonicWaveEffect active={showSonicWave} />
+
+        {/* 伤害数字 */}
+        {damageNumbers.map(dn => (
+          <DamageNumber
+            key={dn.id}
+            damage={dn.damage}
+            x={dn.x}
+            y={dn.y}
+            color={dn.color}
+          />
+        ))}
+
+        {/* 玩家区域 */}
+        <div className="flex-1 flex items-center justify-center gap-12 pb-20">
+          <div className="flex items-center gap-8">
+            {/* 玩家状态条 */}
             <PlayerStatusBar
               hp={playerHp}
               maxHp={playerMaxHp}
@@ -945,144 +754,118 @@ export default function BattleArena() {
               ap={playerAp}
               maxAp={playerMaxAp}
             />
-          </div>
-
-          {/* 中央区域 - 声波特效 */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <SonicWaveEffect active={showSonicWave} />
-          </div>
-
-          {/* 敌人角色（右） */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-col items-center gap-2">
-              <div className="mb-2">
-                <div className="text-sm text-slate-400 mb-1">意图：{currentIntention.description}</div>
-              </div>
-              <EnemyCharacter
-                isHit={isEnemyHit}
-                name="嘶鸣游荡者"
-              />
-              <EnemyStatusBar
-                hp={enemyHp}
-                maxHp={enemyMaxHp}
-                armor={enemyArmor}
-              />
-            </div>
+            {/* 玩家角色 */}
+            <PlayerCharacter
+              isAttacking={isAttacking}
+              isDefending={isDefending}
+            />
           </div>
         </div>
       </div>
 
       {/* 底部手牌区 */}
-      <div className="relative z-10 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/95 to-transparent">
-        {/* AI裁判对话框 */}
-        <div className="absolute left-4 bottom-48 z-20">
-          <div className="bg-black/60 backdrop-blur-md rounded-lg border border-slate-700/50 p-4 max-w-md">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-sonic-purple" />
-              <span className="text-sm font-bold text-sonic-purple">AI 裁判</span>
-            </div>
-            <div className="text-sm text-slate-300 min-h-[60px] max-h-24 overflow-y-auto">
-              {dialogMessages.slice(-2).map((msg, i) => (
-                <div key={msg.id} className={i > 0 ? "mt-2" : ""}>
-                  <TypewriterText text={msg.text} isTyping={msg.isTyping && i === dialogMessages.length - 1} />
-                  {msg.isTyping && i === dialogMessages.length - 1 && (
-                    <span className="inline-block w-2 h-4 bg-sonic-purple ml-1 animate-pulse" />
-                  )}
-                </div>
-              ))}
-            </div>
+      <div className="relative z-20 bg-gradient-to-t from-abyss via-abyss/95 to-transparent pt-8 pb-6">
+        <div className="container mx-auto px-6">
+          {/* 手牌展示 */}
+          <div className="flex justify-center gap-4 mb-6">
+            {hand.map((card, index) => (
+              <BattleCard
+                key={card.id}
+                card={card}
+                isSelected={selectedCard?.id === card.id}
+                canPlay={card.cost <= playerAp && !isProcessing}
+                onSelect={handleCardSelect}
+                index={index}
+              />
+            ))}
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex justify-center gap-4">
+            {selectedCard && (
+              <Button
+                onClick={handlePlayCard}
+                disabled={isProcessing}
+                className="px-8 py-6 bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60 text-white font-bold rounded-xl shadow-lg shadow-sonic-purple/30 transition-all hover:scale-105 disabled:opacity-50"
+              >
+                使用卡牌
+              </Button>
+            )}
+            <Button
+              onClick={handleEndTurn}
+              disabled={isProcessing}
+              variant="secondary"
+              className="px-6 py-6 font-bold rounded-xl"
+            >
+              结束回合
+            </Button>
+          </div>
+
+          {/* 回合计数器 */}
+          <div className="text-center mt-4">
+            <span className="text-slate-500 text-sm">
+              第 {turn} 回合
+            </span>
           </div>
         </div>
 
-        {/* 手牌区域 */}
-        <div className="pt-12 pb-8 px-4">
-          <div className="flex flex-col items-center gap-4">
-            {/* 手牌 */}
-            <div className="flex items-end justify-center relative">
-              {hand.map((card, index) => (
-                <div
-                  key={card.id}
-                  style={{
-                    zIndex: index,
-                    transform: `translateX(${(index - hand.length / 2) * -8}px)`,
-                  }}
-                >
-                  <BattleCard
-                    card={card}
-                    isSelected={selectedCard?.id === card.id}
-                    canPlay={card.cost <= playerAp && !isProcessing}
-                    onSelect={handleCardSelect}
-                    index={index}
-                  />
-                </div>
+        {/* AI 裁判对话框 */}
+        <div className="absolute bottom-4 left-4 max-w-md">
+          <div className="bg-black/60 backdrop-blur-md rounded-lg p-4 border border-slate-700/50">
+            <div className="max-h-32 overflow-y-auto space-y-2">
+              {dialogMessages.slice(-3).map((msg) => (
+                <p key={msg.id} className="text-sm text-slate-300">
+                  <TypewriterText text={msg.text} isTyping={msg.isTyping} />
+                  {msg.isTyping && (
+                    <span className="inline-block w-2 h-4 bg-sonic-purple ml-1 animate-pulse" />
+                  )}
+                </p>
               ))}
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="flex items-center gap-4">
-              {selectedCard && (
-                <Button
-                  onClick={handlePlayCard}
-                  disabled={isProcessing}
-                  className="bg-gradient-to-r from-sonic-purple to-purify-green hover:from-sonic-purple/80 hover:to-purify-green/80 text-white shadow-lg shadow-sonic-purple/30"
-                >
-                  <Sword className="h-4 w-4 mr-2" />
-                  使用卡牌
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                onClick={handleEndTurn}
-                disabled={isProcessing}
-              >
-                结束回合
-              </Button>
-            </div>
-
-            {/* 回合计数器 */}
-            <div className="text-slate-400 text-sm">
-              第 <span className="text-sonic-purple font-bold">{turn}</span> 回合
             </div>
           </div>
         </div>
       </div>
 
-      {/* 战术手册抽屉 */}
-      <TacticalManualDrawer
-        isOpen={isManualOpen}
-        onClose={() => setIsManualOpen(false)}
-      />
-
       {/* 退出确认弹窗 */}
       <AnimatePresence>
         {showExitConfirm && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
-              onClick={() => setShowExitConfirm(false)}
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card-darker rounded-xl border border-slate-700/50 p-6 z-50 w-96"
-            >
-              <h3 className="text-xl font-bold text-slate-200 mb-4">确认退出？</h3>
-              <p className="text-slate-400 mb-6">确定要返回主菜单吗？当前战斗进度将丢失。</p>
-              <div className="flex gap-3 justify-end">
-                <Button variant="secondary" onClick={() => setShowExitConfirm(false)}>
-                  继续战斗
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            onClick={() => setShowExitConfirm(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card-darker/95 backdrop-blur-xl rounded-xl p-8 border border-slate-700/50 z-50 shadow-2xl"
+          >
+            <h3 className="text-xl font-bold text-slate-100 mb-6 text-center">
+              确认退出？
+            </h3>
+            <p className="text-slate-400 text-center mb-8">
+              退出后将返回主菜单，当前战斗进度会丢失
+            </p>
+            <div className="flex gap-4">
+              <Button
+                variant="secondary"
+                onClick={() => setShowExitConfirm(false)}
+                className="flex-1"
+              >
+                继续战斗
+              </Button>
+              <Link href="/">
+                <Button className="flex-1 bg-danger-red hover:bg-danger-red/90">
+                  退出
                 </Button>
-                <Link href="/">
-                  <Button variant="destructive">退出</Button>
-                </Link>
-              </div>
-            </motion.div>
-          </>
-        )}
+              </Link>
+            </div>
+          </motion.div>
+        </>
+      )}
       </AnimatePresence>
     </div>
   );
