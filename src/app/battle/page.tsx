@@ -265,6 +265,11 @@ export default function BattleArena() {
   // 倒计时状态
   const [timeLeft, setTimeLeft] = useState(30);
   
+  // 牌库和游戏结束状态
+  const [deck, setDeck] = useState<Card[]>([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+  const [gameOver, setGameOver] = useState(false);
+  const [gameResult, setGameResult] = useState<'victory' | 'defeat' | null>(null);
+  
   const router = useRouter();
   
   // 倒计时逻辑
@@ -288,6 +293,59 @@ export default function BattleArena() {
   // 重置倒计时
   const resetTimer = () => {
     setTimeLeft(30);
+  };
+
+  // 抽牌函数
+  const drawCards = (count: number) => {
+    // 从牌库中随机抽取牌
+    const shuffledDeck = [...deck].sort(() => Math.random() - 0.5);
+    const drawnCards = shuffledDeck.slice(0, Math.min(count, shuffledDeck.length));
+    
+    // 更新手牌
+    setHand(drawnCards);
+    
+    // 从牌库中移除已抽取的牌
+    const remainingDeck = shuffledDeck.slice(count);
+    
+    // 如果牌库空了，重新填充牌库
+    if (remainingDeck.length === 0) {
+      setDeck([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+    } else {
+      setDeck(remainingDeck);
+    }
+  };
+
+  // 生死判定
+  const checkGameOver = () => {
+    if (playerHp <= 0) {
+      setGameOver(true);
+      setGameResult('defeat');
+    } else if (enemyHp <= 0) {
+      setGameOver(true);
+      setGameResult('victory');
+    }
+  };
+
+  // 重新挑战
+  const handleRestart = () => {
+    // 重置所有状态
+    setTurn(1);
+    setPollutionLevel(0);
+    setPlayerHp(80);
+    setPlayerArmor(0);
+    setPlayerAp(3);
+    setEnemyHp(50);
+    setEnemyArmor(0);
+    setHand(INITIAL_HAND_CARDS);
+    setSelectedCard(null);
+    setCurrentIntention(getSimpleEnemyIntention());
+    setIsProcessing(false);
+    setDeck([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+    setGameOver(false);
+    setGameResult(null);
+    setTimeLeft(30);
+    setDialogMessages([]);
+    setDamageNumbers([]);
   };
 
   // 选择卡牌
@@ -323,7 +381,17 @@ export default function BattleArena() {
       // 伤害数字
       setTimeout(() => {
         setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 200, y: 250, color: "text-danger-red" }]);
-        setEnemyHp(prev => Math.max(0, prev - damage));
+        setEnemyHp(prev => {
+          const newHp = Math.max(0, prev - damage);
+          // 生死判定
+          setTimeout(() => {
+            if (newHp <= 0) {
+              setGameOver(true);
+              setGameResult('victory');
+            }
+          }, 100);
+          return newHp;
+        });
         setTimeout(() => setIsEnemyHit(false), 500);
         setTimeout(() => setShowSonicWave(false), 500);
         setTimeout(() => setIsAttacking(false), 600);
@@ -405,7 +473,17 @@ export default function BattleArena() {
         }
         
         if (actualDamage > 0) {
-          setPlayerHp(prev => Math.max(0, prev - actualDamage));
+          setPlayerHp(prev => {
+            const newHp = Math.max(0, prev - actualDamage);
+            // 生死判定
+            setTimeout(() => {
+              if (newHp <= 0) {
+                setGameOver(true);
+                setGameResult('defeat');
+              }
+            }, 100);
+            return newHp;
+          });
         }
       }
       
@@ -423,6 +501,9 @@ export default function BattleArena() {
       setPlayerAp(playerMaxAp);
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
+      
+      // 抽牌
+      drawCards(5);
       
     } finally {
       setIsProcessing(false);
@@ -712,7 +793,7 @@ export default function BattleArena() {
         {/* 按钮区域 - 并排居中放置 */}
         <div className="flex gap-4">
           {/* 使用卡牌按钮 - 条件渲染 */}
-          {selectedCard && selectedCard.cost <= playerAp && !isProcessing && (
+          {selectedCard && selectedCard.cost <= playerAp && !isProcessing && !gameOver && (
             <Button
               onClick={handlePlayCard}
               className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
@@ -724,10 +805,10 @@ export default function BattleArena() {
           {/* 结束回合按钮 */}
           <Button
             onClick={handleEndTurn}
-            disabled={isProcessing}
+            disabled={isProcessing || gameOver}
             className={cn(
               "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
-              isProcessing 
+              isProcessing || gameOver
                 ? "bg-slate-700 cursor-not-allowed"
                 : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
             )}
@@ -736,6 +817,48 @@ export default function BattleArena() {
           </Button>
         </div>
       </div>
+
+      {/* 游戏结束结算弹窗 */}
+      <AnimatePresence>
+        {gameOver && (
+          <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-card-darker p-8 rounded-2xl border-2 border-slate-700 max-w-md text-center"
+            >
+              <h1 className={cn(
+                "text-5xl font-black mb-6",
+                gameResult === 'victory' ? "text-purify-green" : "text-danger-red"
+              )}>
+                {gameResult === 'victory' ? "胜利！" : "败北"}
+              </h1>
+              
+              <p className="text-slate-400 mb-8">
+                {gameResult === 'victory' 
+                  ? "你成功击败了嘶鸣游荡者！" 
+                  : "你被畸变体吞噬了..."}
+              </p>
+              
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={handleRestart}
+                  className="px-6 py-3 bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
+                >
+                  重新挑战
+                </Button>
+                <Button
+                  onClick={() => router.push("/")}
+                  variant="ghost"
+                  className="px-6 py-3 text-slate-400 hover:text-slate-200"
+                >
+                  返回主菜单
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 退出确认弹窗 */}
       <AnimatePresence>
