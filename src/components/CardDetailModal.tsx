@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Sword, Shield, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { X, Sword, Shield } from "lucide-react";
 import { Card } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -13,12 +13,31 @@ interface CardDetailModalProps {
 
 export default function CardDetailModal({ card, onClose }: CardDetailModalProps) {
   const [playCount, setPlayCount] = useState(0);
+  const attackControls = useAnimation();
+  const defenseControls = useAnimation();
 
   useEffect(() => {
     if (card) {
       setPlayCount(0);
     }
   }, [card]);
+
+  // 自动循环播放动画
+  useEffect(() => {
+    if (!card) return;
+
+    const intervalId = setInterval(() => {
+      const isAttack = card.type === "attack";
+      const controls = isAttack ? attackControls : defenseControls;
+      
+      // 触发动画
+      controls.start("visible").then(() => {
+        controls.set("hidden");
+      });
+    }, 3500); // 3.5秒循环一次
+
+    return () => clearInterval(intervalId);
+  }, [card, attackControls, defenseControls]);
 
   if (!card) return null;
 
@@ -199,24 +218,27 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
                   
                   {/* Preview Area - Dark Purple Background with Inset Shadow */}
                   <div 
-                    key={playCount}
                     className="relative bg-gradient-to-br from-sonic-purple/20 via-card-darker to-sonic-purple/10 rounded-xl p-8 border border-sonic-purple/30 shadow-[inset_0_4px_20px_rgba(0,0,0,0.6)] min-h-[300px] flex items-center justify-center overflow-hidden"
                   >
                     {isAttack ? (
-                      <AttackAnimation key={`attack-${playCount}`} />
+                      <AttackAnimation controls={attackControls} />
                     ) : (
-                      <DefenseAnimation key={`defense-${playCount}`} />
+                      <DefenseAnimation controls={defenseControls} />
                     )}
                   </div>
                 </div>
 
-                {/* Replay Button */}
+                {/* Replay Button (Hidden but Still Functional) */}
                 <div className="mt-auto">
                   <button
-                    onClick={() => setPlayCount(prev => prev + 1)}
+                    onClick={() => {
+                      const controls = isAttack ? attackControls : defenseControls;
+                      controls.start("visible").then(() => {
+                        controls.set("hidden");
+                      });
+                    }}
                     className="w-full py-4 px-6 bg-sonic-purple/20 hover:bg-sonic-purple/30 border border-sonic-purple/50 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 group"
                   >
-                    <RefreshCw className="w-5 h-5 text-sonic-purple group-hover:rotate-180 transition-transform duration-500" />
                     <span className="font-bold text-lg text-slate-200">
                       播放动效 (Replay Effect)
                     </span>
@@ -232,32 +254,40 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
 }
 
 // Attack Animation Component
-function AttackAnimation() {
+function AttackAnimation({ controls }: { controls: any }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       {/* Red Pulse Background */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
-        animate={{
-          scale: [0.8, 1.3, 1],
-          opacity: [0, 0.4, 0],
+        animate={controls}
+        variants={{
+          hidden: { scale: 0.8, opacity: 0 },
+          visible: {
+            scale: [0.8, 1.3, 1],
+            opacity: [0, 0.4, 0],
+            transition: { duration: 0.6, ease: "easeInOut" }
+          }
         }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
         className="absolute inset-0 bg-danger-red/30 rounded-full blur-3xl"
       />
       
       {/* Sword Icon - Move Right & Shake */}
       <motion.div
         initial={{ x: -40, opacity: 0, rotate: -15 }}
-        animate={{
-          x: [ -40, 0, 30, 20, 35 ],
-          opacity: [0, 1, 1, 1, 1],
-          rotate: [ -15, 0, 45, 30, 50 ],
-        }}
-        transition={{ 
-          duration: 0.6, 
-          times: [0, 0.3, 0.5, 0.7, 1],
-          ease: "easeOut"
+        animate={controls}
+        variants={{
+          hidden: { x: -40, opacity: 0, rotate: -15 },
+          visible: {
+            x: [ -40, 0, 30, 20, 35 ],
+            opacity: [0, 1, 1, 1, 1],
+            rotate: [ -15, 0, 45, 30, 50 ],
+            transition: {
+              duration: 0.6,
+              times: [0, 0.3, 0.5, 0.7, 1],
+              ease: "easeInOut"
+            }
+          }
         }}
         className="relative z-10"
       >
@@ -268,10 +298,10 @@ function AttackAnimation() {
 }
 
 // Defense Animation Component
-function DefenseAnimation() {
+function DefenseAnimation({ controls }: { controls: any }) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
-      {/* Circular Ripples */}
+      {/* Circular Ripples - Continuous */}
       <div className="absolute inset-0 flex items-center justify-center">
         {[0, 1, 2].map((i) => (
           <motion.div
@@ -299,11 +329,18 @@ function DefenseAnimation() {
       {/* Shield Icon - Expand from Center */}
       <motion.div
         initial={{ scale: 0.3, opacity: 0 }}
-        animate={{
-          scale: [0.3, 1.2, 1],
-          opacity: [0, 1, 1],
+        animate={controls}
+        variants={{
+          hidden: { scale: 0.3, opacity: 0 },
+          visible: {
+            scale: [0.3, 1.2, 1],
+            opacity: [0, 1, 1],
+            transition: {
+              duration: 0.6,
+              ease: "easeInOut"
+            }
+          }
         }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
         className="relative z-10"
       >
         <Shield className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]" />
