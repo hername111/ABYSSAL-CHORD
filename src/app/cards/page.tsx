@@ -21,7 +21,7 @@ function aggregateCards(cards: Card[]): CardWithCount[] {
   const cardMap = new Map<string, CardWithCount>();
   
   cards.forEach(card => {
-    const key = card.id; // 使用卡牌的ID作为唯一标识
+    const key = card.name; // 使用卡牌的名称作为唯一标识，这样同名卡牌会被合并
     if (cardMap.has(key)) {
       const existing = cardMap.get(key)!;
       cardMap.set(key, { ...existing, count: existing.count + 1 });
