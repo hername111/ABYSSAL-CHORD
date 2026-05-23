@@ -392,11 +392,23 @@ export default function BattleArena() {
   const handleCardSelect = (card: Card) => {
     if (isProcessing) return;
     
+    // 如果点击的是已经选中的卡牌，取消选中
+    if (selectedCard === card) {
+      setSelectedCard(null);
+      setShowHint(true);
+      setShowEnergyWarning(false);
+      return;
+    }
+    
     // 检查是否有足够的 AP
     if (card.cost > playerAp) {
       setShowEnergyWarning(true);
+      setShowHint(false);
+      setSelectedCard(null);
       // 2秒后自动隐藏警告
-      setTimeout(() => setShowEnergyWarning(false), 2000);
+      setTimeout(() => {
+        setShowEnergyWarning(false);
+      }, 2000);
       return;
     }
     
