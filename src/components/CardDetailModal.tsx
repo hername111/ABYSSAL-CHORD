@@ -53,146 +53,147 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
           className="absolute inset-0 bg-black/80 backdrop-blur-md"
         />
 
-        {/* Modal Content */}
+        {/* Modal Content - Compact Size */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative max-w-6xl w-full"
+          className="relative max-w-2xl w-full"
         >
-          <div className="bg-card-darker border border-sonic-purple/30 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="bg-card-darker border border-sonic-purple/30 rounded-xl overflow-hidden shadow-2xl">
             {/* Close Button - Large Touch Area */}
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 p-3 rounded-full hover:bg-sonic-purple/20 transition-all duration-300 z-10 flex items-center justify-center"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-sonic-purple/20 transition-all duration-300 z-10 flex items-center justify-center"
               aria-label="关闭详情"
             >
-              <X className="w-7 h-7" />
+              <X className="w-5 h-5" />
             </button>
 
-            {/* Main Grid - Left: Content, Right: Visual Preview (Larger) */}
-            <div className="grid lg:grid-cols-[40%,60%] min-h-[600px]">
+            {/* Main Grid - Compact Layout */}
+            <div className="grid lg:grid-cols-[45%,55%]">
               {/* Left Column - Content */}
-              <div className="p-8 lg:p-10 flex flex-col border-r border-sonic-purple/20">
-                {/* Header */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-4 mb-3">
-                    <h2 className="text-4xl font-black text-sonic-purple">{card.name}</h2>
+              <div className="p-4 flex flex-col border-r border-sonic-purple/20">
+                {/* Header - Compact */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="text-2xl font-black text-sonic-purple">{card.name}</h2>
                     <span className={cn(
-                      "px-4 py-1.5 rounded-full text-sm font-bold border",
+                      "px-3 py-1 rounded-full text-xs font-bold border",
                       getCardTypeColor(card.type)
                     )}>
                       {card.type}
                     </span>
                   </div>
-                  <div className="flex items-center gap-6 text-base text-slate-400">
-                    <span className="flex items-center gap-2">
+                  <div className="flex items-center gap-4 text-sm text-slate-400">
+                    <span className="flex items-center gap-1.5">
                       <span>消耗：</span>
-                      <span className="text-sonic-purple font-black text-xl">{card.cost}</span>
+                      <span className="text-sonic-purple font-black text-lg">{card.cost}</span>
                     </span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
                       <span>目标：</span>
-                      <span className="text-sonic-purple font-black text-lg">{getCardTargetLabel(card.target)}</span>
+                      <span className="text-sonic-purple font-black">{getCardTargetLabel(card.target)}</span>
                     </span>
                   </div>
                 </div>
 
-                {/* Story Background */}
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold text-gold mb-3">卡牌故事</h3>
-                  <div className="bg-sonic-purple/10 rounded-xl p-5 border border-sonic-purple/20">
-                    <p className="text-slate-300 text-lg leading-relaxed italic">
+                {/* Story Background - Compact */}
+                <div className="mb-4">
+                  <h3 className="text-sm font-bold text-gold mb-2">卡牌故事</h3>
+                  <div className="bg-sonic-purple/10 rounded-lg p-3 border border-sonic-purple/20">
+                    <p className="text-slate-300 text-sm leading-relaxed italic">
                       "{card.effect}"
                     </p>
                   </div>
                 </div>
 
-                {/* Numerical Stats Grid */}
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold text-sonic-purple mb-4">数值面板</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {card.baseDamage && (
-                      <div className="bg-danger-red/10 rounded-xl p-4 border border-danger-red/20">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">基础伤害</span>
-                          <span className="text-danger-red font-black text-2xl">{card.baseDamage}</span>
+                {/* Numerical Stats + Design Philosophy Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Numerical Stats - Left */}
+                  <div>
+                    <h3 className="text-sm font-bold text-sonic-purple mb-2">数值</h3>
+                    <div className="space-y-2">
+                      {card.baseDamage && (
+                        <div className="bg-danger-red/10 rounded-lg p-2 border border-danger-red/20">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 text-xs">基础伤害</span>
+                            <span className="text-danger-red font-black text-lg">{card.baseDamage}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {card.baseArmor && (
-                      <div className="bg-armor-blue/10 rounded-xl p-4 border border-armor-blue/20">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">基础护甲</span>
-                          <span className="text-armor-blue font-black text-2xl">{card.baseArmor}</span>
+                      )}
+                      {card.baseArmor && (
+                        <div className="bg-armor-blue/10 rounded-lg p-2 border border-armor-blue/20">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 text-xs">基础护甲</span>
+                            <span className="text-armor-blue font-black text-lg">{card.baseArmor}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {card.purification && (
-                      <div className="bg-purify-green/10 rounded-xl p-4 border border-purify-green/20">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">净化值</span>
-                          <span className="text-purify-green font-black text-2xl">{card.purification}</span>
+                      )}
+                      {card.purification && (
+                        <div className="bg-purify-green/10 rounded-lg p-2 border border-purify-green/20">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 text-xs">净化值</span>
+                            <span className="text-purify-green font-black text-lg">{card.purification}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {card.sonicBoom && (
-                      <div className="bg-sonic-purple/10 rounded-xl p-4 border border-sonic-purple/20">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">声爆层数</span>
-                          <span className="text-sonic-purple font-black text-2xl">{card.sonicBoom}</span>
+                      )}
+                      {card.sonicBoom && (
+                        <div className="bg-sonic-purple/10 rounded-lg p-2 border border-sonic-purple/20">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 text-xs">声爆层数</span>
+                            <span className="text-sonic-purple font-black text-lg">{card.sonicBoom}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {card.selfDamage && (
-                      <div className="bg-danger-red/10 rounded-xl p-4 border border-danger-red/20">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">自伤值</span>
-                          <span className="text-danger-red font-black text-2xl">{card.selfDamage}</span>
+                      )}
+                      {card.selfDamage && (
+                        <div className="bg-danger-red/10 rounded-lg p-2 border border-danger-red/20">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400 text-xs">自伤值</span>
+                            <span className="text-danger-red font-black text-lg">{card.selfDamage}</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Design Philosophy */}
-                <div className="mt-auto">
-                  <h3 className="text-xl font-bold text-gold mb-3">设计思路</h3>
-                  <div className="bg-card-darker/50 rounded-xl p-5 border border-sonic-purple/20">
-                    <p className="text-slate-400 text-base leading-relaxed">
-                      {card.designNote || "该卡牌为钟律的核心构筑牌，严格遵循1AP=5伤害/护甲的数值平衡基准，适合低频堡垒流或过载冲击流。"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Upgrade Paths */}
-                <div className="mt-6">
-                  <h3 className="text-xl font-bold text-sonic-purple mb-4">升级路径</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-card-darker/50 rounded-xl p-4 border border-sonic-purple/20">
-                      <div className="font-bold text-slate-100 mb-2">升级 A</div>
-                      <div className="text-sm text-slate-400 mb-1">基础伤害 +2</div>
-                      <div className="text-xs text-slate-500">提升输出能力</div>
+                      )}
                     </div>
-                    <div className="bg-card-darker/50 rounded-xl p-4 border border-sonic-purple/20">
-                      <div className="font-bold text-slate-100 mb-2">升级 B</div>
-                      <div className="text-sm text-slate-400 mb-1">额外 +2 护甲</div>
-                      <div className="text-xs text-slate-500">增强生存能力</div>
+                  </div>
+
+                  {/* Design Philosophy - Right */}
+                  <div>
+                    <h3 className="text-sm font-bold text-gold mb-2">设计思路</h3>
+                    <div className="bg-card-darker/50 rounded-lg p-3 border border-sonic-purple/20 h-full">
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        {card.designNote || "该卡牌为钟律的核心构筑牌，严格遵循1AP=5伤害/护甲的数值平衡基准。"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upgrade Paths - Compact */}
+                <div>
+                  <h3 className="text-sm font-bold text-sonic-purple mb-2">升级路径</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-card-darker/50 rounded-lg p-2.5 border border-sonic-purple/20">
+                      <div className="font-bold text-slate-100 text-xs mb-1">升级 A</div>
+                      <div className="text-xs text-slate-400">基础伤害 +2</div>
+                    </div>
+                    <div className="bg-card-darker/50 rounded-lg p-2.5 border border-sonic-purple/20">
+                      <div className="font-bold text-slate-100 text-xs mb-1">升级 B</div>
+                      <div className="text-xs text-slate-400">额外 +2 护甲</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Right Column - Visual Preview (Holographic Display) */}
-              <div className="p-8 lg:p-10 flex flex-col">
-                {/* Visual Preview Box - Larger, Darker, Holographic */}
+              <div className="p-4 flex flex-col">
+                {/* Visual Preview Box - Compact */}
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-sonic-purple mb-4">全息技能预览</h3>
+                  <h3 className="text-sm font-bold text-sonic-purple mb-3">全息技能预览</h3>
                   
                   {/* Preview Area - Holographic Display */}
                   <motion.div
                     animate={{ opacity: [0.3, 0.6, 0.3] }}
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="relative bg-gradient-to-br from-sonic-purple/15 via-black to-sonic-purple/20 rounded-xl p-8 border-2 border-sonic-purple/40 shadow-[inset_0_8px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(139,92,246,0.15)] min-h-[450px] flex items-center justify-center overflow-hidden"
+                    className="relative bg-gradient-to-br from-sonic-purple/15 via-black to-sonic-purple/20 rounded-lg p-6 border-2 border-sonic-purple/40 shadow-[inset_0_6px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(139,92,246,0.12)] min-h-[320px] flex items-center justify-center overflow-hidden"
                   >
                     {/* Scanning Line Effect */}
                     <motion.div
@@ -208,7 +209,7 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
                         repeat: Infinity,
                         ease: "linear",
                       }}
-                      style={{ backgroundSize: "100% 8px" }}
+                      style={{ backgroundSize: "100% 6px" }}
                     />
                     
                     {isAttack ? (
@@ -249,9 +250,9 @@ function AttackAnimation() {
       {/* Sword Icon - Move Right & Shake - Infinite */}
       <motion.div
         animate={{
-          x: [-40, 0, 30, 20, 35, -40],
+          x: [-30, 0, 20, 15, 25, -30],
           opacity: [0, 1, 1, 1, 1, 0],
-          rotate: [-15, 0, 45, 30, 50, -15],
+          rotate: [-10, 0, 35, 25, 40, -10],
         }}
         transition={{
           duration: 2.4,
@@ -262,7 +263,7 @@ function AttackAnimation() {
         }}
         className="relative z-10"
       >
-        <Sword className="w-20 h-20 text-danger-red drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
+        <Sword className="w-16 h-16 text-danger-red drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]" />
       </motion.div>
     </div>
   );
@@ -279,7 +280,7 @@ function DefenseAnimation() {
             key={i}
             initial={{ scale: 0.5, opacity: 0.6 }}
             animate={{
-              scale: 0.5 + i * 0.4,
+              scale: 0.5 + i * 0.35,
               opacity: 0,
             }}
             transition={{
@@ -290,8 +291,8 @@ function DefenseAnimation() {
             }}
             className="absolute border-2 border-armor-blue/60 rounded-full"
             style={{
-              width: `${120 + i * 80}px`,
-              height: `${120 + i * 80}px`,
+              width: `${100 + i * 60}px`,
+              height: `${100 + i * 60}px`,
             }}
           />
         ))}
@@ -300,7 +301,7 @@ function DefenseAnimation() {
       {/* Shield Icon - Expand from Center - Infinite */}
       <motion.div
         animate={{
-          scale: [0.3, 1.2, 1, 0.3],
+          scale: [0.3, 1.1, 0.95, 0.3],
           opacity: [0, 1, 1, 0],
         }}
         transition={{
@@ -312,7 +313,7 @@ function DefenseAnimation() {
         }}
         className="relative z-10"
       >
-        <Shield className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]" />
+        <Shield className="w-20 h-20 text-armor-blue drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
       </motion.div>
     </div>
   );
