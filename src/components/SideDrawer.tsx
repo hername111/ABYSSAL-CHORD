@@ -118,33 +118,33 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                         <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ① 回合开始
+                              ① 玩家行动
                             </div>
-                            <p>触发所有"回合开始时"效果，抽5张牌</p>
+                            <p>打出卡牌，消耗行动力</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ② 掷骰决定怪物意图
+                              ② 结束回合
                             </div>
-                            <p>为每个畸变体分别掷1d6，公开本回合意图</p>
+                            <p>点击结束回合按钮，触发敌人行动</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ③ 玩家行动
+                              ③ 应用阶段增益
                             </div>
-                            <p>按顺序打出卡牌，消耗AP</p>
+                            <p>根据当前污染阶段，敌人获得护甲，玩家受到穿透伤害</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ④ 怪物行动结算
+                              ④ 敌人行动结算
                             </div>
-                            <p>按意图结算怪物行为</p>
+                            <p>按敌人意图执行对应行为（攻击/防御/积蓄污染）</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ⑤ 弃牌重置
+                              ⑤ 重置回合
                             </div>
-                            <p>污染刻度尺+1，弃置所有手牌</p>
+                            <p>污染刻度尺+5，重置玩家护甲，抽5张牌，不清空手牌（保留到下一回合）</p>
                           </div>
                         </div>
                         <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
@@ -152,16 +152,22 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                         </h3>
                         <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-3 bg-slate-800/50 rounded-lg">
-                            <div className="font-bold text-danger-red mb-1">
-                              声爆 Debuff
-                            </div>
-                            <p>回合结束时受到层数×1的穿透伤害</p>
-                          </div>
-                          <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-armor-blue mb-1">
                               护甲
                             </div>
-                            <p>优先抵挡伤害，新回合开始时清空</p>
+                            <p>优先抵挡伤害，新回合开始时清空玩家护甲</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              污染阶段
+                            </div>
+                            <p>污染度每回合固定+5，不同阶段提供不同的伤害加成和效果</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-purify-green mb-1">
+                              保留手牌
+                            </div>
+                            <p>回合结束时不清空手牌，所有手牌保留到下一回合</p>
                           </div>
                         </div>
                       </TabsContent>
