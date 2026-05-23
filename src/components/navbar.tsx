@@ -11,16 +11,19 @@ import {
   MessageSquare,
   Home,
   Users,
+  Gamepad2,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/', label: '首页', icon: Home },
+  { href: '/', label: '主菜单', icon: Home },
+  { href: '/battle', label: '对战', icon: Gamepad2 },
+  { href: '/cards', label: '卡牌库', icon: BookOpen },
   { href: '/characters', label: '调音师', icon: Users },
-  { href: '/cards', label: '卡牌库', icon: Library },
   { href: '/enemies', label: '畸变体', icon: Skull },
-  { href: '/game', label: '游戏台', icon: Swords },
   { href: '/calculator', label: '计算器', icon: Calculator },
-  { href: '/agent', label: 'AI裁判', icon: MessageSquare },
+  { href: '/agent', label: 'AI裁判', icon: Sparkles },
 ];
 
 export function Navbar() {
