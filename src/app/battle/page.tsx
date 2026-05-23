@@ -15,6 +15,9 @@ import {
   Shield as ShieldIcon,
   Settings,
   DoorOpen,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
@@ -29,11 +32,15 @@ interface CardWithUid extends Card {
 const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
 const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
+// 敌人意图类型枚举
+type IntentType = "ATTACK" | "DEFEND" | "BUFF" | "DEBUFF";
+
 // 简化的敌人行为类型
 type SimpleEnemyBehavior = {
   type: "attack" | "defend" | "buff";
   value: number;
   description: string;
+  intentType: IntentType;
 };
 
 // 随机获取敌人意图
@@ -44,18 +51,21 @@ const getSimpleEnemyIntention = (): SimpleEnemyBehavior => {
       type: "attack",
       value: 6 + Math.floor(Math.random() * 5),
       description: "准备冲撞攻击",
+      intentType: "ATTACK",
     };
   } else if (roll === 4) {
     return {
       type: "buff",
       value: 2,
       description: "积蓄污染能量",
+      intentType: "BUFF",
     };
   } else {
     return {
       type: "defend",
       value: 8,
       description: "进入防御姿态",
+      intentType: "DEFEND",
     };
   }
 };
@@ -96,6 +106,120 @@ const PollutionScale = ({ level }: { level: number }) => {
           <span className="text-xs font-bold text-slate-200">{level}%</span>
         </div>
       </div>
+    </div>
+  );
+};
+
+// 可复用的属性面板组件
+const StatBox = ({ 
+  name, 
+  current, 
+  max, 
+  color, 
+  icon: Icon, 
+  showIcon = true 
+}: { 
+  name: string;
+  current: number;
+  max?: number;
+  color: string;
+  icon?: React.ElementType;
+  showIcon?: boolean;
+}) => (
+  <div className="bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
+    <div className="flex items-center gap-2 mb-1">
+      {showIcon && Icon && <Icon className="w-3 h-3" style={{ color }} />}
+      <span className="text-xs font-bold" style={{ color }}>{name}</span>
+      {max !== undefined && (
+        <span className="text-xs text-slate-300">{current}/{max}</span>
+      )}
+      {max === undefined && (
+        <span className="text-xs" style={{ color }}>{current}</span>
+      )}
+    </div>
+    {max !== undefined && (
+      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full"
+          style={{ 
+            background: `linear-gradient(to right, ${color}, ${color}cc)` 
+          }}
+          initial={{ width: "100%" }}
+          animate={{ width: `${(current / max) * 100}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+    )}
+  </div>
+);
+
+// 敌人状态面板组件
+const EnemyStatPanel = ({ 
+  hp, 
+  maxHp, 
+  armor, 
+  intentType, 
+  intentValue 
+}: { 
+  hp: number;
+  maxHp: number;
+  armor: number;
+  intentType: IntentType;
+  intentValue: number;
+}) => {
+  const getIntentColor = () => {
+    switch (intentType) {
+      case "ATTACK": return "#ef4444";
+      case "DEFEND": return "#3b82f6";
+      case "BUFF": return "#a855f7";
+      case "DEBUFF": return "#f97316";
+      default: return "#ef4444";
+    }
+  };
+
+  const getIntentText = () => {
+    switch (intentType) {
+      case "ATTACK": return `${intentValue} 伤害`;
+      case "DEFEND": return `${intentValue} 护甲`;
+      case "BUFF": return `污染 +${intentValue}`;
+      case "DEBUFF": return `削弱玩家`;
+      default: return `${intentValue} 伤害`;
+    }
+  };
+
+  const intentColor = getIntentColor();
+
+  return (
+    <div className="w-48 space-y-2">
+      {/* 意图指示器 */}
+      <div className="bg-black/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-sonic-purple/50">
+        <div className="flex items-center gap-2">
+          {intentType === "ATTACK" && <Swords className="w-5 h-5" style={{ color: intentColor }} />}
+          {intentType === "DEFEND" && <Shield className="w-5 h-5" style={{ color: intentColor }} />}
+          {intentType === "BUFF" && <Sparkles className="w-5 h-5" style={{ color: intentColor }} />}
+          {intentType === "DEBUFF" && <TrendingDown className="w-5 h-5" style={{ color: intentColor }} />}
+          <span className="text-sm text-slate-200">{getIntentText()}</span>
+        </div>
+      </div>
+
+      {/* HP条 */}
+      <StatBox 
+        name="HP" 
+        current={hp} 
+        max={maxHp} 
+        color="#ef4444" 
+        showIcon={false}
+      />
+      
+      {/* 护甲 */}
+      {armor > 0 && (
+        <StatBox 
+          name="护甲" 
+          current={armor} 
+          color="#3b82f6" 
+          icon={Shield}
+        />
+      )}
     </div>
   );
 };
@@ -700,34 +824,32 @@ export default function BattleArena() {
         {/* 玩家状态条 */}
         <div className="mt-4 w-40 space-y-2">
           {/* HP条 */}
-          <div className="bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-danger-red">HP</span>
-              <span className="text-xs text-slate-300">{playerHp}/{playerMaxHp}</span>
-            </div>
-            <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
-                initial={{ width: "100%" }}
-                animate={{ width: `${(playerHp / playerMaxHp) * 100}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-          </div>
+          <StatBox 
+            name="HP" 
+            current={playerHp} 
+            max={playerMaxHp} 
+            color="#ef4444" 
+            showIcon={false}
+          />
           
           {/* 护甲和AP */}
           <div className="flex gap-2">
-            <div className="flex-1 bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-              <div className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-armor-blue" />
-                <span className="text-xs font-bold text-armor-blue">{playerArmor}</span>
-              </div>
+            <div className="flex-1">
+              <StatBox 
+                name="护甲" 
+                current={playerArmor} 
+                color="#3b82f6" 
+                icon={Shield}
+              />
             </div>
-            <div className="flex-1 bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-              <div className="flex items-center gap-1">
-                <Zap className="w-3 h-3 text-sonic-purple" />
-                <span className="text-xs font-bold text-sonic-purple">{playerAp}/{playerMaxAp}</span>
-              </div>
+            <div className="flex-1">
+              <StatBox 
+                name="AP" 
+                current={playerAp} 
+                max={playerMaxAp} 
+                color="#8b5cf6" 
+                icon={Zap}
+              />
             </div>
           </div>
         </div>
@@ -738,15 +860,39 @@ export default function BattleArena() {
         <motion.div
           className="relative"
           animate={{
+            x: currentIntention.intentType === "ATTACK" && isEnemyCharging ? [0, -30, 0] : 0,
             scale: isEnemyCharging ? [1, 1.1, 1.05, 1.1] : isEnemyHit ? [1, 0.95, 1.02, 0.98, 1] : 1,
+            y: currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
+              ? [0, -8, 0, 8, 0] 
+              : 0,
           }}
           transition={{
             duration: isEnemyCharging ? 0.8 : 0.4,
-            repeat: isEnemyCharging ? Infinity : 0,
+            repeat: isEnemyCharging || currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
+              ? Infinity 
+              : 0,
+            ease: "easeInOut",
           }}
+          style={
+            currentIntention.intentType === "DEFEND"
+              ? { 
+                  boxShadow: "0 0 30px rgba(59, 130, 246, 0.6)",
+                }
+              : currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF"
+              ? {
+                  filter: "drop-shadow(0 0 15px rgba(168, 85, 247, 0.8))",
+                }
+              : {}
+          }
         >
           {/* 敌人身体 */}
-          <div className="w-24 h-36 bg-gradient-to-b from-sonic-purple/80 to-slate-900 rounded-t-full rounded-b-2xl shadow-2xl shadow-sonic-purple/40">
+          <div 
+            className={cn(
+              "w-24 h-36 bg-gradient-to-b from-sonic-purple/80 to-slate-900 rounded-t-full rounded-b-2xl shadow-2xl transition-all duration-300",
+              currentIntention.intentType === "DEFEND" && "shadow-[0_0_30px_rgba(59,130,246,0.6)]",
+              (currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF") && "shadow-[0_0_30px_rgba(168,85,247,0.6)]"
+            )}
+          >
             {/* 眼睛 */}
             <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-3">
               <div className="w-4 h-4 bg-danger-red rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
@@ -754,48 +900,15 @@ export default function BattleArena() {
             </div>
           </div>
           
-          {/* 意图指示器 */}
-          <div className="absolute -top-16 left-1/2 -translate-x-1/2">
-            <div className="bg-black/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-sonic-purple/50">
-              <div className="flex items-center gap-2">
-                {currentIntention.type === "attack" ? (
-                  <Swords className="w-5 h-5 text-danger-red animate-bounce" />
-                ) : currentIntention.type === "defend" ? (
-                  <Shield className="w-5 h-5 text-armor-blue" />
-                ) : (
-                  <Zap className="w-5 h-5 text-sonic-purple" />
-                )}
-                <span className="text-sm text-slate-200">
-                  {currentIntention.type === "attack" ? `${currentIntention.value} 伤害` :
-                   currentIntention.type === "defend" ? `${currentIntention.value} 护甲` :
-                   `污染 +${currentIntention.value}`}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* 敌人血条 */}
-          <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48">
-            <div className="bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-200">嘶鸣游荡者</span>
-                <span className="text-xs text-slate-300">{enemyHp}/{enemyMaxHp}</span>
-              </div>
-              <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
-                  initial={{ width: "100%" }}
-                  animate={{ width: `${(enemyHp / enemyMaxHp) * 100}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              {enemyArmor > 0 && (
-                <div className="flex items-center gap-1 mt-1">
-                  <Shield className="w-3 h-3 text-armor-blue" />
-                  <span className="text-xs text-armor-blue">{enemyArmor}</span>
-                </div>
-              )}
-            </div>
+          {/* 敌人状态面板 - 放置在敌人正下方 */}
+          <div className="absolute -bottom-44 left-1/2 -translate-x-1/2">
+            <EnemyStatPanel 
+              hp={enemyHp}
+              maxHp={enemyMaxHp}
+              armor={enemyArmor}
+              intentType={currentIntention.intentType}
+              intentValue={currentIntention.value}
+            />
           </div>
         </motion.div>
       </div>
