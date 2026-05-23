@@ -118,33 +118,39 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                         <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ① 回合开始
+                              ① 敌人意图
                             </div>
-                            <p>触发所有"回合开始时"效果，抽5张牌</p>
+                            <p>显示敌人本回合的行动意图</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ② 掷骰决定怪物意图
+                              ② 抽牌
                             </div>
-                            <p>为每个畸变体分别掷1d6，公开本回合意图</p>
+                            <p>抽5张牌。如果抽牌堆用完，将弃牌堆洗入抽牌堆</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
                               ③ 玩家行动
                             </div>
-                            <p>按顺序打出卡牌，消耗AP</p>
+                            <p>按顺序打出卡牌。手牌满时，新抽到的牌会被烧毁</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ④ 怪物行动结算
+                              ④ 结束回合
                             </div>
-                            <p>按意图结算怪物行为</p>
+                            <p>将手牌（除了保留牌）加入弃牌堆，污染刻度尺+5</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-sonic-purple mb-1">
-                              ⑤ 弃牌重置
+                              ⑤ 声爆结算
                             </div>
-                            <p>污染刻度尺+1，弃置所有手牌</p>
+                            <p>敌人行动之前，声爆效果触发，每层造成2点伤害，然后清除</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              ⑥ 敌人行动
+                            </div>
+                            <p>敌人按意图行动。先扣护甲，护甲用完才扣血</p>
                           </div>
                         </div>
                         <h3 className="text-lg font-bold text-slate-100 mt-6 mb-4">
@@ -155,13 +161,37 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                             <div className="font-bold text-danger-red mb-1">
                               声爆 Debuff
                             </div>
-                            <p>回合结束时受到层数×1的穿透伤害</p>
+                            <p>敌人行动之前受到层数×2的伤害，然后清除声爆状态</p>
                           </div>
                           <div className="p-3 bg-slate-800/50 rounded-lg">
                             <div className="font-bold text-armor-blue mb-1">
                               护甲
                             </div>
-                            <p>优先抵挡伤害，新回合开始时清空</p>
+                            <p>优先抵挡伤害，一直保留到被敌人攻击消耗掉</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-gold mb-1">
+                              保留（Retain）
+                            </div>
+                            <p>带有此词缀的卡牌，回合结束时不会被弃置，保留在手牌中</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-purify-green mb-1">
+                              消耗（Exhaust）
+                            </div>
+                            <p>带有此词缀的卡牌，打出后移出本局战斗，不进入弃牌堆</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-sonic-purple mb-1">
+                              抽牌洗牌
+                            </div>
+                            <p>抽牌堆用完时，将弃牌堆洗入抽牌堆，继续抽牌</p>
+                          </div>
+                          <div className="p-3 bg-slate-800/50 rounded-lg">
+                            <div className="font-bold text-danger-red mb-1">
+                              污染阶段
+                            </div>
+                            <p>污染度增加时，敌人获得相应的伤害加成、护甲和穿透伤害</p>
                           </div>
                         </div>
                       </TabsContent>
