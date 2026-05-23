@@ -14,6 +14,7 @@ import {
   Sword,
   Shield as ShieldIcon,
   Settings,
+  DoorOpen,
 } from "lucide-react";
 import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
@@ -437,15 +438,13 @@ export default function BattleArena() {
       </div>
 
       {/* 左上角退出按钮 */}
-      <div className="fixed top-4 left-4 z-40">
-        <Button
-          variant="ghost"
-          size="icon"
+      <div className="fixed top-6 left-6 z-50">
+        <div
           onClick={() => setShowExitConfirm(true)}
-          className="bg-black/40 hover:bg-black/60 text-slate-400 hover:text-white"
+          className="w-12 h-12 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 rounded-full flex items-center justify-center cursor-pointer transition-all"
         >
-          <Settings className="w-5 h-5" />
-        </Button>
+          <DoorOpen className="w-6 h-6 text-red-400" />
+        </div>
       </div>
 
       {/* 污染刻度尺 */}
@@ -665,8 +664,8 @@ export default function BattleArena() {
         </div>
       </div>
 
-      {/* 手牌容器 - 固定在按钮栏上方 */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex justify-center items-end h-64 z-40">
+      {/* 手牌容器 - 强制抬高到 bottom-[120px] */}
+      <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 flex justify-center items-end h-64 z-40">
         <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <HandCard
@@ -682,59 +681,60 @@ export default function BattleArena() {
         </div>
       </div>
 
-      {/* 统一按钮控制台 - 包含倒计时和按钮 */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center items-center gap-4 z-50">
-        {/* 倒计时进度条容器 */}
-        <div className="absolute bottom-full left-0 right-0 mb-2">
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-400 font-bold">回合时间</span>
-              <span className={cn(
-                "text-xs font-black",
-                timeLeft <= 10 ? "text-danger-red" : "text-sonic-purple"
-              )}>
-                {timeLeft}秒
-              </span>
-            </div>
-            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-              <motion.div
-                className={cn(
-                  "h-full transition-all duration-300",
-                  timeLeft > 10 
-                    ? "bg-gradient-to-r from-sonic-purple to-sonic-purple/60" 
-                    : "bg-gradient-to-r from-danger-red to-danger-red/60 animate-pulse"
-                )}
-                initial={{ width: "100%" }}
-                animate={{ width: `${(timeLeft / 30) * 100}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
+      {/* 重置底部中控台 - h-[100px] fixed bottom-0 */}
+      <div className="fixed bottom-0 left-0 right-0 h-[100px] bg-black/50 backdrop-blur flex flex-col justify-center items-center gap-2 z-50">
+        {/* 倒计时进度条 - 占据屏幕的 40% 左右 */}
+        <div className="w-[40%]">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-400 font-bold">回合时间</span>
+            <span className={cn(
+              "text-xs font-black",
+              timeLeft <= 10 ? "text-danger-red" : "text-sonic-purple"
+            )}>
+              {timeLeft}秒
+            </span>
+          </div>
+          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+            <motion.div
+              className={cn(
+                "h-full transition-all duration-300",
+                timeLeft > 10 
+                  ? "bg-gradient-to-r from-sonic-purple to-sonic-purple/60" 
+                  : "bg-gradient-to-r from-danger-red to-danger-red/60 animate-pulse"
+              )}
+              initial={{ width: "100%" }}
+              animate={{ width: `${(timeLeft / 30) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
           </div>
         </div>
 
-        {/* 使用卡牌按钮 - 条件渲染 */}
-        {selectedCard && selectedCard.cost <= playerAp && !isProcessing && (
-          <Button
-            onClick={handlePlayCard}
-            className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
-          >
-            使用卡牌
-          </Button>
-        )}
-
-        {/* 结束回合按钮 */}
-        <Button
-          onClick={handleEndTurn}
-          disabled={isProcessing}
-          className={cn(
-            "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
-            isProcessing 
-              ? "bg-slate-700 cursor-not-allowed"
-              : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
+        {/* 按钮区域 - 并排居中放置 */}
+        <div className="flex gap-4">
+          {/* 使用卡牌按钮 - 条件渲染 */}
+          {selectedCard && selectedCard.cost <= playerAp && !isProcessing && (
+            <Button
+              onClick={handlePlayCard}
+              className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
+            >
+              使用卡牌
+            </Button>
           )}
-        >
-          {isProcessing ? "处理中..." : "结束回合"}
-        </Button>
+
+          {/* 结束回合按钮 */}
+          <Button
+            onClick={handleEndTurn}
+            disabled={isProcessing}
+            className={cn(
+              "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
+              isProcessing 
+                ? "bg-slate-700 cursor-not-allowed"
+                : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
+            )}
+          >
+            {isProcessing ? "处理中..." : "结束回合"}
+          </Button>
+        </div>
       </div>
 
       {/* 退出确认弹窗 */}
