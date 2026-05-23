@@ -1238,7 +1238,8 @@ export default function BattleArena() {
     }
     
     // ========== 处理能力牌激活 ==========
-    if (selectedCard.type === "ability") {
+    let isAbilityCard = selectedCard.type === "ability";
+    if (isAbilityCard) {
       // 根据卡牌id映射到AbilityType
       let abilityType: AbilityType | null = null;
       
@@ -1263,8 +1264,9 @@ export default function BattleArena() {
       }
     }
     
-    // 移除打出的手牌，并加入弃牌堆（除非是消耗牌）
-    if (!selectedCard.exhaust) {
+    // 移除打出的手牌，并加入弃牌堆（除非是消耗牌或能力牌）
+    // 能力牌永远被消耗，不进入弃牌堆
+    if (!selectedCard.exhaust && !isAbilityCard) {
       setDiscardPile(prev => [...prev, selectedCard]);
     }
     setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
