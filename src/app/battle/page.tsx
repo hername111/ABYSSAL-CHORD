@@ -418,7 +418,7 @@ const HandCard = ({
     }
   };
 
-  // 动态渲染卡牌效果文本，显示污染加成伤害
+  // 动态渲染卡牌效果文本，显示污染加成伤害和污染增减
   const getDynamicEffect = () => {
     let effect = card.effect;
     
@@ -431,6 +431,17 @@ const HandCard = ({
       if (pollutionBonus > 0) {
         // 替换原效果中的伤害数值
         effect = effect.replace(/造成\s*\d+\s*点伤害/, `造成 ${finalDamage} 点伤害（包含+${pollutionBonus}污染加成）`);
+      }
+    }
+    
+    // 如果有专门的 pollutionModifier 字段，动态显示污染增减
+    if (card.pollutionModifier && card.pollutionModifier !== 0) {
+      if (card.pollutionModifier < 0) {
+        // 降低污染度
+        effect = effect.replace(/降低\s*\d+\s*点污染度/, `降低 ${Math.abs(card.pollutionModifier)} 点污染度`);
+      } else if (card.pollutionModifier > 0) {
+        // 增加污染度
+        effect = effect.replace(/增加\s*\d+\s*点污染度/, `增加 ${card.pollutionModifier} 点污染度`);
       }
     }
     
@@ -829,19 +840,26 @@ export default function BattleArena() {
     let aiMessage = "";
     let totalDamage = 0;
     let armorGain = 0;
-    let purificationGain = 0;
+    
+    // 统一的伤害计算方法 - 强制生效污染度增伤乘区
+    const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
+      // 核心机制：每 10 点污染值，增加 10% 伤害
+      const damageMultiplier = 1 + (globalPollution / 100);
+      // 返回向下取整的最终伤害
+      return Math.floor(baseDamage * damageMultiplier);
+    };
     
     // 1. 强制挂载污染度增伤公式
     const baseDamage = selectedCard.baseDamage || 0;
-    // 强制增伤公式：finalDamage = Math.floor(baseDamage * (1 + (currentPollution / 100)))
-    const finalDamage = Math.floor(baseDamage * (1 + (pollutionLevel / 100)));
+    // 必须且只能使用统一的伤害计算方法
+    const finalDamage = calculateActualDamage(baseDamage, pollutionLevel);
     const pollutionBonus = finalDamage - baseDamage;
     
     // 2. 处理护甲获得
     armorGain = selectedCard.baseArmor || 0;
     
-    // 3. 处理净化（降低污染度）
-    purificationGain = selectedCard.purification || 0;
+    // 3. 强制落实污染度增减 - 使用专门的 pollutionModifier 字段
+    const pollutionModifier = selectedCard.pollutionModifier || 0;
     
     // 构建AI消息
     if (selectedCard.type === "attack" && finalDamage > 0) {
@@ -854,7 +872,8 @@ export default function BattleArena() {
     } else if (selectedCard.type === "skill") {
       const parts: string[] = [];
       if (armorGain > 0) parts.push(`获得 ${armorGain} 点护甲`);
-      if (purificationGain > 0) parts.push(`降低 ${purificationGain} 点污染度`);
+      if (pollutionModifier < 0) parts.push(`降低 ${Math.abs(pollutionModifier)} 点污染度`);
+      if (pollutionModifier > 0) parts.push(`增加 ${pollutionModifier} 点污染度`);
       aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
     } else {
       aiMessage = `你使用了【${selectedCard.name}】！`;
@@ -874,7 +893,7 @@ export default function BattleArena() {
       setTimeout(() => {
         setDamageNumbers(prev => [...prev, { id: Date.now(), damage: totalDamage, x: 200, y: 250, color: "text-danger-red" }]);
         
-        // 使用统一的伤害结算函数
+        // 必须且只能将经过加成后的 finalDamage 传入 takeDamage 扣血函数中
         takeDamage("enemy", totalDamage);
         
         setTimeout(() => setIsEnemyHit(false), 500);
@@ -893,9 +912,9 @@ export default function BattleArena() {
           setPlayerState(prev => ({ ...prev, armor: prev.armor + armorGain }));
         }
         
-        // 应用净化效果
-        if (purificationGain > 0) {
-          setPollutionLevel(prev => Math.max(0, prev - purificationGain));
+        // 强制落实污染度增减 - 必须立刻触发UI更新
+        if (pollutionModifier !== 0) {
+          setPollutionLevel(prev => Math.min(100, Math.max(0, prev + pollutionModifier)));
         }
         
         setTimeout(() => setIsDefending(false), 600);

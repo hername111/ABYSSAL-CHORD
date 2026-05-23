@@ -22,6 +22,8 @@ export interface Card {
   pollutionCost?: number;
   sonicBoom?: number;
   purification?: number;
+  // 专门控制污染机制的数值型字段：正数增加污染，负数减少污染
+  pollutionModifier?: number;
 }
 
 // 钟律（重装和弦师）完整牌库
@@ -135,6 +137,7 @@ export const zhongLvCards: Card[] = [
     designNote: '3护甲+1净化=5点等效值（1净化≈2点等效），严格守恒。提供早期污染控制手段。',
     baseArmor: 3,
     purification: 10,
+    pollutionModifier: -10,
   },
   {
     id: 'zl-basic-10',
