@@ -389,7 +389,8 @@ const HandCard = ({
   total, 
   isSelected, 
   onSelect, 
-  canPlay 
+  canPlay,
+  pollutionLevel
 }: { 
   card: CardWithUid; 
   index: number; 
@@ -397,6 +398,7 @@ const HandCard = ({
   isSelected: boolean; 
   onSelect: (uid: string) => void;
   canPlay: boolean;
+  pollutionLevel: number;
 }) => {
   const getBorderColor = (type: CardType) => {
     switch (type) {
@@ -414,6 +416,25 @@ const HandCard = ({
       case "ability": return "from-card-darker to-yellow-900/50";
       default: return "from-card-darker to-slate-80";
     }
+  };
+
+  // 动态渲染卡牌效果文本，显示污染加成伤害
+  const getDynamicEffect = () => {
+    let effect = card.effect;
+    
+    // 如果是攻击牌且有基础伤害，动态计算污染加成
+    if (card.type === "attack" && card.baseDamage) {
+      const baseDamage = card.baseDamage;
+      const finalDamage = Math.floor(baseDamage * (1 + (pollutionLevel / 100)));
+      const pollutionBonus = finalDamage - baseDamage;
+      
+      if (pollutionBonus > 0) {
+        // 替换原效果中的伤害数值
+        effect = effect.replace(/造成\s*\d+\s*点伤害/, `造成 ${finalDamage} 点伤害（包含+${pollutionBonus}污染加成）`);
+      }
+    }
+    
+    return effect;
   };
 
   return (
@@ -462,7 +483,7 @@ const HandCard = ({
             {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
           </p>
           <div className="flex-1 text-xs text-slate-300 leading-relaxed">
-            {card.effect}
+            {getDynamicEffect()}
           </div>
         </div>
       </div>
@@ -810,10 +831,11 @@ export default function BattleArena() {
     let armorGain = 0;
     let purificationGain = 0;
     
-    // 1. 处理污染值增加伤害机制
+    // 1. 强制挂载污染度增伤公式
     const baseDamage = selectedCard.baseDamage || 0;
-    const pollutionBonus = Math.floor(baseDamage * (pollutionLevel / 100));
-    const finalDamage = baseDamage + pollutionBonus;
+    // 强制增伤公式：finalDamage = Math.floor(baseDamage * (1 + (currentPollution / 100)))
+    const finalDamage = Math.floor(baseDamage * (1 + (pollutionLevel / 100)));
+    const pollutionBonus = finalDamage - baseDamage;
     
     // 2. 处理护甲获得
     armorGain = selectedCard.baseArmor || 0;
@@ -991,8 +1013,9 @@ export default function BattleArena() {
       
       // 重置回合 - 不清空手牌
       setTurn(prev => prev + 1);
-      // 仅重置本回合护甲（易碎护甲）
+      // 强制回合护甲清空：玩家和敌人的护甲都重置为0
       setPlayerState(prev => ({ ...prev, armor: 0 }));
+      setEnemyState(prev => ({ ...prev, armor: 0 }));
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
       
@@ -1381,6 +1404,7 @@ export default function BattleArena() {
                 isSelected={selectedCardUid === card.uid}
                 onSelect={handleCardSelect}
                 canPlay={card.cost <= playerAp && !isProcessing}
+                pollutionLevel={pollutionLevel}
               />
             </div>
           ))}

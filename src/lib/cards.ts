@@ -134,7 +134,7 @@ export const zhongLvCards: Card[] = [
     effect: '获得 3 点护甲，降低 1 点污染度。',
     designNote: '3护甲+1净化=5点等效值（1净化≈2点等效），严格守恒。提供早期污染控制手段。',
     baseArmor: 3,
-    purification: 1,
+    purification: 10,
   },
   {
     id: 'zl-basic-10',
