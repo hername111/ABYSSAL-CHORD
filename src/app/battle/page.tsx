@@ -548,6 +548,8 @@ export default function BattleArena() {
   const [showRedFlash, setShowRedFlash] = useState(false);
   const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; damage: number; x: number; y: number; color: string }>>([]);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
+  // 敌人动画状态：idle(待机), attack(攻击), defend(防御), buff(强化), hit(受击)
+  const [enemyAnimationState, setEnemyAnimationState] = useState<"idle" | "attack" | "defend" | "buff" | "hit">("idle");
   
   // AI裁判消息
   const [dialogMessages, setDialogMessages] = useState<Array<{ id: number; text: string; isTyping: boolean }>>([]);
@@ -637,64 +639,66 @@ export default function BattleArena() {
     setDiscardPile(currentDiscard);
   };
 
-  // 统一的伤害与护甲结算函数
+  // 统一的伤害与护甲结算函数 - 修复护甲无效问题
   const takeDamage = (target: "player" | "enemy", damage: number) => {
     if (target === "player") {
-      let actualDamage = damage;
-      
-      // 优先扣除护甲
-      if (playerState.armor > 0) {
-        if (playerState.armor >= damage) {
-          setPlayerState(prev => ({ ...prev, armor: prev.armor - damage }));
-          actualDamage = 0;
-        } else {
-          actualDamage = damage - playerState.armor;
-          setPlayerState(prev => ({ ...prev, armor: 0 }));
+      setPlayerState(prev => {
+        let actualDamage = damage;
+        let newArmor = prev.armor;
+        
+        // 优先扣除护甲 - 使用prev确保状态一致
+        if (prev.armor > 0) {
+          if (prev.armor >= damage) {
+            newArmor = prev.armor - damage;
+            actualDamage = 0;
+          } else {
+            actualDamage = damage - prev.armor;
+            newArmor = 0;
+          }
         }
-      }
-      
-      // 扣除生命值
-      if (actualDamage > 0) {
-        setPlayerState(prev => {
-          const newHp = Math.max(0, prev.hp - actualDamage);
-          // 生死判定
-          setTimeout(() => {
-            if (newHp <= 0) {
-              setGameOver(true);
-              setGameResult('defeat');
-            }
-          }, 100);
-          return { ...prev, hp: newHp };
-        });
-      }
+        
+        // 扣除生命值
+        const newHp = Math.max(0, prev.hp - actualDamage);
+        
+        // 生死判定
+        setTimeout(() => {
+          if (newHp <= 0) {
+            setGameOver(true);
+            setGameResult('defeat');
+          }
+        }, 100);
+        
+        return { ...prev, hp: newHp, armor: newArmor };
+      });
     } else {
-      let actualDamage = damage;
-      
-      // 优先扣除护甲
-      if (enemyState.armor > 0) {
-        if (enemyState.armor >= damage) {
-          setEnemyState(prev => ({ ...prev, armor: prev.armor - damage }));
-          actualDamage = 0;
-        } else {
-          actualDamage = damage - enemyState.armor;
-          setEnemyState(prev => ({ ...prev, armor: 0 }));
+      setEnemyState(prev => {
+        let actualDamage = damage;
+        let newArmor = prev.armor;
+        
+        // 优先扣除护甲 - 使用prev确保状态一致
+        if (prev.armor > 0) {
+          if (prev.armor >= damage) {
+            newArmor = prev.armor - damage;
+            actualDamage = 0;
+          } else {
+            actualDamage = damage - prev.armor;
+            newArmor = 0;
+          }
         }
-      }
-      
-      // 扣除生命值
-      if (actualDamage > 0) {
-        setEnemyState(prev => {
-          const newHp = Math.max(0, prev.hp - actualDamage);
-          // 生死判定
-          setTimeout(() => {
-            if (newHp <= 0) {
-              setGameOver(true);
-              setGameResult('victory');
-            }
-          }, 100);
-          return { ...prev, hp: newHp };
-        });
-      }
+        
+        // 扣除生命值
+        const newHp = Math.max(0, prev.hp - actualDamage);
+        
+        // 生死判定
+        setTimeout(() => {
+          if (newHp <= 0) {
+            setGameOver(true);
+            setGameResult('victory');
+          }
+        }, 100);
+        
+        return { ...prev, hp: newHp, armor: newArmor };
+      });
     }
   };
 
@@ -872,44 +876,92 @@ export default function BattleArena() {
     resetTimer();
     
     try {
-      // 第一步：敌人准备动画
-      setIsEnemyCharging(true);
-      const chargingMsg = { id: Date.now(), text: "嘶鸣游荡者正在蓄力...", isTyping: true };
+      // 根据敌人意图类型触发对应的动画
+      let actionText = "";
+      let actionMsgText = "";
+      
+      switch (currentIntention.intentType) {
+        case "ATTACK":
+          actionText = "嘶鸣游荡者正在蓄力...";
+          actionMsgText = "嘶鸣游荡者向你发起了猛烈冲撞！";
+          setEnemyAnimationState("attack");
+          break;
+        case "DEFEND":
+          actionText = "嘶鸣游荡者正在构建声学护盾...";
+          actionMsgText = "嘶鸣游荡者进入防御姿态！";
+          setEnemyAnimationState("defend");
+          break;
+        case "BUFF":
+        case "DEBUFF":
+          actionText = "嘶鸣游荡者正在积蓄污染能量...";
+          actionMsgText = "嘶鸣游荡者的能量在涌动！";
+          setEnemyAnimationState("buff");
+          break;
+      }
+      
+      const chargingMsg = { id: Date.now(), text: actionText, isTyping: true };
       setDialogMessages(prev => [...prev, chargingMsg]);
       
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // 第二步：敌人攻击
-      setIsEnemyCharging(false);
-      setShowRedFlash(true);
-      setIsPlayerHit(true);
-      
-      const attackMsg = { id: Date.now() + 1, text: "嘶鸣游荡者向你发起了猛烈冲撞！", isTyping: true };
-      setDialogMessages(prev => [...prev, attackMsg]);
-      
-      const damage = currentIntention.type === "attack" ? currentIntention.value : 0;
-      
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setShowRedFlash(false);
-      
-      // 第三步：数值更新
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      if (damage > 0) {
-        setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 100, y: 400, color: "text-danger-red" }]);
+      // 根据意图类型执行对应操作
+      if (currentIntention.type === "attack") {
+        setShowRedFlash(true);
+        setIsPlayerHit(true);
         
-        // 使用统一的伤害结算函数
-        takeDamage("player", damage);
+        const attackMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
+        setDialogMessages(prev => [...prev, attackMsg]);
+        
+        const damage = currentIntention.value;
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
+        setShowRedFlash(false);
+        
+        // 第三步：数值更新
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (damage > 0) {
+          setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 100, y: 400, color: "text-danger-red" }]);
+          
+          // 使用统一的伤害结算函数
+          takeDamage("player", damage);
+        }
+        
+        setTimeout(() => setIsPlayerHit(false), 500);
+        
+        // 完成打字效果
+        setTimeout(() => {
+          setDialogMessages(prev => prev.map(m => 
+            m.id === chargingMsg.id || m.id === attackMsg.id ? { ...m, isTyping: false } : m
+          ));
+        }, 800);
+      } else if (currentIntention.type === "defend") {
+        // 敌人加甲
+        const defendMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
+        setDialogMessages(prev => [...prev, defendMsg]);
+        
+        await new Promise(resolve => setTimeout(resolve, 400));
+        
+        setEnemyState(prev => ({ ...prev, armor: prev.armor + currentIntention.value }));
+        
+        // 完成打字效果
+        setTimeout(() => {
+          setDialogMessages(prev => prev.map(m => 
+            m.id === chargingMsg.id || m.id === defendMsg.id ? { ...m, isTyping: false } : m
+          ));
+        }, 800);
+      } else if (currentIntention.type === "buff") {
+        // 敌人强化
+        const buffMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
+        setDialogMessages(prev => [...prev, buffMsg]);
+        
+        // 完成打字效果
+        setTimeout(() => {
+          setDialogMessages(prev => prev.map(m => 
+            m.id === chargingMsg.id || m.id === buffMsg.id ? { ...m, isTyping: false } : m
+          ));
+        }, 800);
       }
-      
-      setTimeout(() => setIsPlayerHit(false), 500);
-      
-      // 完成打字效果
-      setTimeout(() => {
-        setDialogMessages(prev => prev.map(m => 
-          m.id === chargingMsg.id || m.id === attackMsg.id ? { ...m, isTyping: false } : m
-        ));
-      }, 800);
       
       // 重置回合 - 不清空手牌
       setTurn(prev => prev + 1);
@@ -1037,27 +1089,45 @@ export default function BattleArena() {
         <motion.div
           className="relative"
           animate={{
-            x: currentIntention.intentType === "ATTACK" && isEnemyCharging ? [0, -60, -20, -50, 0] : 0,
-            scale: isEnemyCharging 
-              ? (currentIntention.intentType === "DEFEND" ? [1, 1.3, 1.2, 1.35, 1.25] : [1, 1.15, 1.05, 1.12, 1.08])
-              : isEnemyHit 
-              ? [1, 0.9, 1.05, 0.95, 1.02, 0.98, 1]
+            // 待机状态：轻微上下浮动
+            y: enemyAnimationState === "idle" 
+              ? [0, -3, 0, 3, 0]
+              // 攻击状态：向左冲刺
+              : enemyAnimationState === "attack"
+              ? [0, -30, 0]
+              // 防御状态：轻微放大
+              : enemyAnimationState === "defend"
+              ? [0, 5, 0]
+              // 强化状态：上下浮动
+              : enemyAnimationState === "buff"
+              ? [0, 10, 0, -10, 0]
+              // 受击状态：震动
+              : enemyAnimationState === "hit"
+              ? [0, -8, 0, -4, 0]
+              : 0,
+            x: enemyAnimationState === "attack"
+              ? [0, -60, 0]
+              : 0,
+            scale: enemyAnimationState === "defend"
+              ? [1, 1.2, 1]
+              : enemyAnimationState === "buff"
+              ? [1, 1.1, 1]
+              : enemyAnimationState === "hit"
+              ? [1, 0.9, 1]
               : 1,
-            y: currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
-              ? [0, -20, 0, 15, 0, -12, 0, 10, 0] 
-              : 0,
-            rotate: currentIntention.intentType === "ATTACK" && isEnemyCharging 
-              ? [0, -10, 0, -5, 0] 
-              : currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF"
-              ? [0, 5, 0, -5, 0]
-              : 0,
           }}
           transition={{
-            duration: isEnemyCharging ? 0.6 : 0.4,
-            repeat: isEnemyCharging || currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
-              ? Infinity 
-              : 0,
-            ease: isEnemyCharging ? "easeOut" : "easeInOut",
+            // 待机动画：3秒循环
+            duration: enemyAnimationState === "idle" ? 3 : 0.4,
+            // 只有待机是无限循环，其他都是单次
+            repeat: enemyAnimationState === "idle" ? Infinity : 0,
+            ease: enemyAnimationState === "idle" ? "easeInOut" : "easeOut",
+          }}
+          // 动画完成后回到待机状态
+          onAnimationComplete={() => {
+            if (enemyAnimationState !== "idle") {
+              setEnemyAnimationState("idle");
+            }
           }}
           style={
             currentIntention.intentType === "DEFEND"
