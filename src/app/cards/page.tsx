@@ -199,9 +199,10 @@ export default function CardsPage() {
     return true;
   });
 
-  const basicCards = filteredCards.filter(c => c.archetype === 'basic');
-  const fortressCards = filteredCards.filter(c => c.archetype === 'fortress');
-  const overloadCards = filteredCards.filter(c => c.archetype === 'overload');
+  // 使用去重和计数后的卡牌
+  const aggregatedBasicCards = aggregateCards(filteredCards.filter(c => c.archetype === 'basic'));
+  const aggregatedFortressCards = aggregateCards(filteredCards.filter(c => c.archetype === 'fortress'));
+  const aggregatedOverloadCards = aggregateCards(filteredCards.filter(c => c.archetype === 'overload'));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -249,14 +250,14 @@ export default function CardsPage() {
       {/* 卡牌列表 */}
       <ScrollArea className="h-[calc(100vh-280px)]">
         <div className="space-y-6">
-          {basicCards.length > 0 && (
-            <Section title="基础牌" subtitle="构建牌库循环的基石" cards={basicCards} />
+          {aggregatedBasicCards.length > 0 && (
+            <Section title="基础牌" subtitle="构建牌库循环的基石" cards={aggregatedBasicCards} />
           )}
-          {fortressCards.length > 0 && (
-            <Section title="低频堡垒流" subtitle="以守为攻，护甲溢出化为杀招" cards={fortressCards} />
+          {aggregatedFortressCards.length > 0 && (
+            <Section title="低频堡垒流" subtitle="以守为攻，护甲溢出化为杀招" cards={aggregatedFortressCards} />
           )}
-          {overloadCards.length > 0 && (
-            <Section title="过载冲击流" subtitle="血线换杀线，极限爆发" cards={overloadCards} />
+          {aggregatedOverloadCards.length > 0 && (
+            <Section title="过载冲击流" subtitle="血线换杀线，极限爆发" cards={aggregatedOverloadCards} />
           )}
         </div>
       </ScrollArea>
@@ -264,19 +265,19 @@ export default function CardsPage() {
   );
 }
 
-function Section({ title, subtitle, cards }: { title: string; subtitle: string; cards: Card[] }) {
+function Section({ title, subtitle, cards }: { title: string; subtitle: string; cards: CardWithCount[] }) {
   return (
     <div>
       <div className="mb-3 flex items-baseline gap-3">
         <h2 className="font-display text-lg font-semibold text-foreground">{title}</h2>
         <span className="text-xs text-muted-foreground">{subtitle}</span>
         <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground border-white/10">
-          {cards.length} 张
+          {cards.length} 种
         </Badge>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card, i) => (
-          <CardItem key={`${card.id}-${i}`} card={card} />
+        {cards.map(({ card, count }, i) => (
+          <CardItem key={`${card.id}-${i}`} card={card} count={count} />
         ))}
       </div>
     </div>
