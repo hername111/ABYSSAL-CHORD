@@ -159,12 +159,12 @@ const HandCard = ({
         opacity: 1,
         zIndex: isSelected ? 999 : index,
       }}
-      whileHover={canPlay ? {
+      whileHover={{
         y: -40,
         scale: 1.15,
         zIndex: 999,
-      } : {}}
-      onClick={() => canPlay && onSelect(card)}
+      }}
+      onClick={() => onSelect(card)}
       transition={{
         type: "spring",
         stiffness: 300,
