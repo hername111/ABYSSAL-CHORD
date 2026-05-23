@@ -112,7 +112,7 @@ const DamageNumber = ({ damage, x, y, color }: { damage: number; x: number; y: n
   );
 };
 
-// 手牌组件 - 数学公式重构版本
+// 手牌组件 - 平行排列版本
 const HandCard = ({ 
   card, 
   index, 
@@ -128,13 +128,6 @@ const HandCard = ({
   onSelect: (card: Card) => void;
   canPlay: boolean;
 }) => {
-  // 数学公式：计算中心偏移值
-  const offset = index - (total - 1) / 2;
-  // 旋转角度：每张牌偏移 5 度
-  const rotateZ = offset * 5;
-  // Y轴下沉：越靠两边的卡牌，位置越靠下，形成圆弧
-  const translateY = Math.abs(offset) * 10;
-
   const getBorderColor = (type: CardType) => {
     switch (type) {
       case "attack": return "border-danger-red/70";
@@ -159,19 +152,14 @@ const HandCard = ({
         "relative cursor-pointer",
         !canPlay && "opacity-50 cursor-not-allowed"
       )}
-      style={{
-        transformOrigin: "bottom center",
-      }}
       initial={{ y: 100, opacity: 0 }}
       animate={{
         y: 0,
         opacity: 1,
         zIndex: isSelected ? 999 : index,
-        rotate: isSelected ? 0 : rotateZ,
-        translateY: isSelected ? 0 : translateY,
       }}
       whileHover={canPlay ? {
-        translateY: -40,
+        y: -40,
         scale: 1.15,
         zIndex: 999,
       } : {}}
@@ -276,6 +264,9 @@ export default function BattleArena() {
   const [gameOver, setGameOver] = useState(false);
   const [gameResult, setGameResult] = useState<'victory' | 'defeat' | null>(null);
   
+  // 中间提示状态
+  const [showHint, setShowHint] = useState(true);
+  
   const router = useRouter();
   
   // 倒计时逻辑
@@ -361,12 +352,14 @@ export default function BattleArena() {
     setTimeLeft(30);
     setDialogMessages([]);
     setDamageNumbers([]);
+    setShowHint(true);
   };
 
   // 选择卡牌
   const handleCardSelect = (card: Card) => {
     if (isProcessing) return;
     setSelectedCard(card);
+    setShowHint(false);
   };
   
   // 打出卡牌
@@ -446,6 +439,7 @@ export default function BattleArena() {
     
     setIsProcessing(true);
     setSelectedCard(null);
+    setShowHint(false);
     resetTimer();
     
     try {
@@ -522,6 +516,10 @@ export default function BattleArena() {
       
     } finally {
       setIsProcessing(false);
+      // 新回合开始时显示提示
+      setTimeout(() => {
+        setShowHint(true);
+      }, 300);
     }
   };
 
@@ -769,6 +767,28 @@ export default function BattleArena() {
           </div>
         </div>
       </div>
+
+      {/* 中间提示 - 出牌阶段或必须结束回合时显示 */}
+      <AnimatePresence>
+        {showHint && !gameOver && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="bg-black/80 backdrop-blur-md px-8 py-4 rounded-xl border border-sonic-purple/40 shadow-2xl shadow-sonic-purple/30">
+              <p className="text-xl font-bold text-sonic-purple text-center">
+                选择卡牌进行出牌，或点击「结束回合」
+              </p>
+              <p className="text-sm text-slate-400 text-center mt-1">
+                点击卡牌可以选中，再次点击可以取消
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 手牌容器 - 动态扇形布局 */}
       <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
