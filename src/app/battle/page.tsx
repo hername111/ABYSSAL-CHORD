@@ -739,11 +739,11 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* 底部手牌区 - 扇形排列 */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-abyss via-abyss/95 to-transparent pt-16 pb-8">
-        <div className="container mx-auto px-6">
-          {/* 手牌扇形展示 */}
-          <div className="relative bottom-[-50px] flex justify-center items-end h-64 z-50">
+      {/* 底部手牌区 - 扇形排列（彻底解耦） */}
+      <div className="fixed bottom-24 left-0 right-0 z-50 flex justify-center items-end pointer-events-none">
+        <div className="relative h-64 pointer-events-auto">
+          {/* 手牌扇形展示 - 固定高度，防止布局抖动 */}
+          <div className="relative flex justify-center items-end h-64" style={{ transformOrigin: "bottom center" }}>
             {hand.map((card, index) => (
               <HandCard
                 key={card.id}
@@ -756,27 +756,40 @@ export default function BattleArena() {
               />
             ))}
           </div>
+        </div>
+      </div>
 
-          {/* 操作按钮 */}
-          <div className="flex justify-center gap-4 mt-8">
-            {selectedCard && (
-              <Button
-                onClick={handlePlayCard}
-                disabled={isProcessing}
-                className="px-8 py-6 bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60 text-white font-bold rounded-xl shadow-lg shadow-sonic-purple/30 transition-all hover:scale-105 disabled:opacity-50"
-              >
-                使用卡牌
-              </Button>
-            )}
+      {/* 使用卡牌按钮 - 独立定位 */}
+      <AnimatePresence>
+        {selectedCard && (
+          <motion.div
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
             <Button
-              onClick={handleEndTurn}
+              onClick={handlePlayCard}
               disabled={isProcessing}
-              variant="secondary"
-              className="px-6 py-6 font-bold rounded-xl"
+              className="px-10 py-6 bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60 text-white font-bold rounded-xl shadow-lg shadow-sonic-purple/30 transition-all hover:scale-105 disabled:opacity-50"
             >
-              结束回合
+              使用卡牌
             </Button>
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 结束回合按钮 - fixed定位在屏幕最底部 */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 z-50 bg-gradient-to-t from-abyss to-abyss/80">
+        <div className="flex justify-center">
+          <Button
+            onClick={handleEndTurn}
+            disabled={isProcessing}
+            variant="secondary"
+            className="px-12 py-5 font-bold rounded-xl text-lg"
+          >
+            结束回合
+          </Button>
         </div>
       </div>
 
