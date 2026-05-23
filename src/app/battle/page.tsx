@@ -114,7 +114,7 @@ const PollutionScale = ({ level }: { level: number }) => {
 
   return (
     <div 
-      className="fixed top-4 right-4 z-50"
+      className="fixed top-4 right-8 z-50"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
