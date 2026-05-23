@@ -382,7 +382,29 @@ const DamageNumber = ({ damage, x, y, color }: { damage: number; x: number; y: n
   );
 };
 
-// 手牌组件 - 平行排列版本
+// 计算扇形/弧形排列的样式
+const getFanStyle = (index: number, total: number, isSelected: boolean, isHovered: boolean) => {
+  if (isSelected || isHovered) {
+    return {
+      rotateZ: 0,
+      translateY: -40,
+      translateX: 0,
+    };
+  }
+
+  const offset = index - (total - 1) / 2;
+  const rotateZ = offset * 5;
+  const translateY = Math.abs(offset) * 8;
+  const translateX = offset * -3;
+
+  return {
+    rotateZ,
+    translateY,
+    translateX,
+  };
+};
+
+// 手牌组件 - 扇形排列版本
 const HandCard = ({ 
   card, 
   index, 
@@ -398,6 +420,8 @@ const HandCard = ({
   onSelect: (uid: string) => void;
   canPlay: boolean;
 }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+
   const getBorderColor = (type: CardType) => {
     switch (type) {
       case "attack": return "border-danger-red/70";
@@ -416,24 +440,26 @@ const HandCard = ({
     }
   };
 
+  const fanStyle = getFanStyle(index, total, isSelected, isHovered);
+
   return (
     <motion.div
       className={cn(
         "relative cursor-pointer",
         !canPlay && "opacity-50 cursor-not-allowed"
       )}
-      initial={{ y: 100, opacity: 0 }}
+      initial={{ y: 100, opacity: 0, rotate: 0 }}
       animate={{
-        y: isSelected ? -40 : 0,
-        scale: isSelected ? 1.15 : 1,
+        rotate: fanStyle.rotateZ,
+        y: fanStyle.translateY,
+        x: fanStyle.translateX,
+        scale: isSelected || isHovered ? 1.15 : 1,
         opacity: 1,
-        zIndex: isSelected ? 999 : index,
+        zIndex: isSelected || isHovered ? 999 : index,
       }}
-      whileHover={{
-        y: isSelected ? -40 : -20,
-        scale: isSelected ? 1.15 : 1.08,
-        zIndex: 999,
-      }}
+      whileHover={{}}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onSelect(card.uid)}
       transition={{
         type: "spring",
@@ -1270,13 +1296,17 @@ export default function BattleArena() {
       </AnimatePresence>
 
       {/* 手牌容器 - 动态扇形布局 */}
-      <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
-        <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
+      <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
+        <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
               key={card.uid}
-              className="relative"
-              style={{ transformOrigin: "bottom center" }}
+              className="absolute"
+              style={{ 
+                transformOrigin: "bottom center",
+                left: "50%",
+                bottom: 0
+              }}
             >
               <HandCard
                 card={card}
