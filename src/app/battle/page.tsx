@@ -152,220 +152,225 @@ const SonicWaveEffect = ({ active }: { active: boolean }) => {
   );
 };
 
-// 玩家角色实体
-const PlayerCharacter = ({
-  isAttacking,
-  isDefending,
-}: {
-  isAttacking: boolean;
-  isDefending: boolean;
-}) => {
-  return (
-    <div className="relative">
-      {/* 人物身体 */}
-      <motion.div
-        animate={
-          isAttacking ? {
-            x: [0, 30, 0]
-          } : {}
-        }
-        transition={{ duration: 0.4 }}
-      >
-        {/* 身体底座/阴影 */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-black/50 rounded-full blur-md" />
-        
-        {/* 身体躯干 */}
-        <div className="relative">
-          <div className="w-24 h-32 relative">
-            {/* 身体躯干 */}
-            <motion.div
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-20 bg-gradient-to-b from-sonic-purple/60 to-sonic-purple/30 rounded-lg border-2 border-sonic-purple/50 shadow-xl shadow-sonic-purple/20"
-              animate={
-                isDefending ? {
-                  scale: [1, 1.15, 1]
-                } : {}
-              }
-              transition={{ duration: 0.5 }}
-            >
-              {/* 头部 */}
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-10 h-10 bg-gradient-to-br from-sonic-purple/70 to-sonic-purple/40 rounded-full border border-sonic-purple/50" />
-            </motion.div>
-
-            {/* 声波巨剑武器 */}
-            <motion.div
-              className="absolute right-[-28px] bottom-12 origin-left"
-              animate={
-                isAttacking ? {
-                  rotate: [0, 45, -10, 0],
-                  x: [0, 8, 0],
-                  y: [0, -10, 0]
-                } : {}
-              }
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-            >
-              <div className="relative">
-                {/* 剑刃 */}
-                <div className="w-4 h-20 bg-gradient-to-t from-sonic-purple/80 via-sonic-purple/40 to-sonic-purple/20 rounded-t-full" />
-                {/* 剑刃发光效果 */}
-                <div className="absolute inset-0 bg-sonic-purple/40 blur-md" />
-              </div>
-            </motion.div>
-          </div>
-
-          {/* 防御光环 */}
-          {isDefending && (
-            <motion.div
-              className="absolute inset-0 rounded-full border-4 border-armor-blue"
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: [0.5, 1.4, 1], opacity: [0.8, 0.4, 0] }}
-              transition={{ duration: 0.6 }}
-            />
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-// 敌人角色实体
-const EnemyCharacter = ({
-  isHit,
-  name,
-}: {
-  isHit: boolean;
-  name: string;
-}) => {
-  return (
-    <div className="relative">
-      {/* 人物身体 */}
-      <motion.div
-        className={cn(
-          "relative",
-          isHit && "bg-danger-red/60"
-        )}
-        animate={
-          isHit ? {
-            x: [0, -8, 8, -8, 8, 0],
-            y: [0, -4, 4, -4, 4, 0],
-            scale: [1, 1.08, 0.95, 1.05, 1],
-          } : {}
-        }
-        transition={{ duration: 0.5 }}
-      >
-        {/* 身体 */}
-        <div className="w-24 h-32 relative">
-          {/* 身体底座/阴影 */}
-          <motion.div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-4 bg-black/40 rounded-full blur-sm"
-            animate={{ scale: isHit ? [1, 0.8, 1] : 1 }}
-          />
-
-          {/* 身体躯干 */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-16 h-20 bg-gradient-to-b from-danger-red/60 to-danger-red/30 rounded-lg border-2 border-danger-red/50 shadow-xl shadow-danger-red/20">
-            {/* 头部 */}
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-10 h-10 bg-gradient-to-br from-danger-red/70 to-danger-red/40 rounded-full border border-danger-red/50 flex items-center justify-center">
-              <Skull className="h-5 w-5 text-danger-red" />
-            </div>
-          </div>
-        </div>
-      </motion.div>
-      <div className="text-center mt-2">
-        <span className="text-sm font-bold text-slate-300">{name}</span>
-      </div>
-    </div>
-  );
-};
-
 // 玩家状态条组件
-const PlayerStatusBar = ({
-  hp,
-  maxHp,
-  armor,
-  ap,
-  maxAp,
-}: {
-  hp: number;
-  maxHp: number;
-  armor: number;
-  ap: number;
-  maxAp: number;
+const PlayerStatusBar = ({ 
+  hp, 
+  maxHp, 
+  armor, 
+  ap, 
+  maxAp 
+}: { 
+  hp: number; 
+  maxHp: number; 
+  armor: number; 
+  ap: number; 
+  maxAp: number; 
 }) => {
-  const hpPercent = (hp / maxHp) * 100;
-  const apPercent = (ap / maxAp) * 100;
-
   return (
-    <div className="bg-card-darker/80 rounded-xl p-4 border border-slate-700/50 space-y-3 min-w-[200px]">
-      {/* HP条 */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-sm">
-          <Heart className="h-4 w-4 text-danger-red" />
-          <span className="text-slate-300">
-            {hp} / {maxHp} 生命
-          </span>
-          {armor > 0 && (
-            <span className="text-armor-blue font-bold ml-2">
-              {armor} 护甲
-            </span>
-          )}
-        </div>
-        <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
-            initial={{ width: "100%" }}
-            animate={{ width: `${hpPercent}%` }}
-            transition={{ duration: 0.3 }}
-          />
+    <div className="flex flex-col gap-2 min-w-[200px]">
+      {/* HP */}
+      <div className="flex items-center gap-2">
+        <Heart className="w-5 h-5 text-danger-red" />
+        <div className="flex-1">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-slate-400">生命值</span>
+            <span className="text-danger-red font-bold">{hp} / {maxHp}</span>
+          </div>
+          <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-danger-red to-danger-red/70 transition-all duration-500"
+              style={{ width: `${(hp / maxHp) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
       
-      {/* AP条 */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-sm">
-          <Zap className="h-4 w-4 text-sonic-purple" />
-          <span className="text-slate-300">
-            {ap} / {maxAp} 行动力
-          </span>
+      {/* Armor */}
+      <div className="flex items-center gap-2">
+        <Shield className="w-5 h-5 text-armor-blue" />
+        <div className="flex-1">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-slate-400">护甲</span>
+            <span className="text-armor-blue font-bold">{armor}</span>
+          </div>
+          <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-armor-blue to-armor-blue/70 transition-all duration-500"
+              style={{ width: `${Math.min(100, (armor / 50) * 100)}%` }}
+            />
+          </div>
         </div>
-        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-sonic-purple to-gold"
-            initial={{ width: "100%" }}
-            animate={{ width: `${apPercent}%` }}
-            transition={{ duration: 0.3 }}
-          />
+      </div>
+      
+      {/* AP */}
+      <div className="flex items-center gap-2">
+        <Zap className="w-5 h-5 text-gold" />
+        <div className="flex gap-1">
+          {Array.from({ length: maxAp }).map((_, i) => (
+            <div 
+              key={i}
+              className={cn(
+                "w-6 h-6 rounded-full border-2 transition-all duration-300",
+                i < ap 
+                  ? "bg-gold border-gold shadow-lg shadow-gold/30" 
+                  : "bg-transparent border-slate-600"
+              )}
+            />
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
-// 怪物状态条组件
-const EnemyStatusBar = ({ hp, maxHp, armor }: { hp: number; maxHp: number; armor: number }) => {
-  const hpPercent = (hp / maxHp) * 100;
-
+// 敌人状态条组件
+const EnemyStatusBar = ({ 
+  hp, 
+  maxHp, 
+  armor 
+}: { 
+  hp: number; 
+  maxHp: number; 
+  armor: number; 
+}) => {
   return (
-    <div className="flex flex-col gap-2 w-48">
-      {/* HP条 */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-300">
-            {hp} / {maxHp}
-          </span>
-          {armor > 0 && (
-            <span className="text-sm text-armor-blue font-bold">
-              {armor} 护甲
-            </span>
-          )}
-        </div>
-        <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-danger-red to-danger-red/70"
-            initial={{ width: "100%" }}
-            animate={{ width: `${hpPercent}%` }}
-            transition={{ duration: 0.5 }}
-          />
+    <div className="flex flex-col gap-2 min-w-[250px]">
+      <div className="flex items-center gap-2">
+        <Skull className="w-5 h-5 text-danger-red" />
+        <div className="flex-1">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-slate-400">嘶鸣游荡者</span>
+            <span className="text-danger-red font-bold">{hp} / {maxHp}</span>
+          </div>
+          <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-danger-red to-danger-red/70 transition-all duration-500"
+              style={{ width: `${(hp / maxHp) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
+      {armor > 0 && (
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-armor-blue" />
+          <span className="text-armor-blue font-medium">{armor} 护甲</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 玩家角色组件（定点锚定版本）
+const PlayerCharacter = ({ 
+  isAttacking, 
+  isDefending 
+}: { 
+  isAttacking: boolean; 
+  isDefending: boolean; 
+}) => {
+  return (
+    <div className="relative">
+      {/* 玩家身体 */}
+      <motion.div
+        className="relative"
+        animate={{
+          x: isAttacking ? [0, 30, 0] : 0,
+          scale: isDefending ? [1, 1.15, 1] : 1,
+        }}
+        transition={{ duration: 0.6, ease: "easeInOut" }}
+      >
+        {/* 玩家躯干 */}
+        <div className="w-20 h-32 bg-gradient-to-b from-sonic-purple to-sonic-purple/60 rounded-2xl shadow-xl shadow-sonic-purple/30 relative">
+          {/* 玩家头部 */}
+          <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-br from-slate-300 to-slate-500 rounded-full shadow-lg">
+            {/* 简单的抽象人脸 */}
+            <div className="absolute top-4 left-3 w-2 h-2 bg-abyss rounded-full" />
+            <div className="absolute top-4 right-3 w-2 h-2 bg-abyss rounded-full" />
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-4 h-1 bg-abyss rounded-full" />
+          </div>
+          
+          {/* 声波巨剑武器 */}
+          <motion.div
+            className="absolute -right-12 top-4"
+            animate={isAttacking ? {
+              rotate: [0, 45, -10, 0],
+              x: [0, 15, 5, 0],
+            } : {}}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+          >
+            <div className="w-4 h-24 bg-gradient-to-b from-sonic-purple to-sonic-purple/40 rounded-full shadow-lg shadow-sonic-purple/40 transform -rotate-12" />
+          </motion.div>
+        </div>
+        
+        {/* 玩家阴影 */}
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-4 bg-black/40 rounded-full blur-sm" />
+      </motion.div>
+      
+      {/* 防御光环 */}
+      {isDefending && (
+        <motion.div
+          className="absolute inset-0 rounded-full border-4 border-armor-blue"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: [0.5, 1.4, 1], opacity: [0, 0.8, 0.4, 0] }}
+          transition={{ duration: 0.8 }}
+        />
+      )}
+    </div>
+  );
+};
+
+// 敌人角色组件（定点锚定版本）
+const EnemyCharacter = ({ 
+  isHit, 
+  name 
+}: { 
+  isHit: boolean; 
+  name: string; 
+}) => {
+  return (
+    <div className="relative">
+      <motion.div
+        className="relative"
+        animate={isHit ? {
+          x: [0, 5, -5, 5, -5, 0],
+          scale: [1, 1.08, 0.95, 1.05, 1],
+        } : {}}
+        transition={{ duration: 0.6 }}
+      >
+        {/* 敌人躯干 */}
+        <div className="w-24 h-36 bg-gradient-to-b from-danger-red to-danger-red/60 rounded-2xl shadow-xl shadow-danger-red/30 relative">
+          {/* 敌人头部 */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2">
+            <div className="w-16 h-16 bg-gradient-to-br from-slate-700 to-slate-900 rounded-full shadow-lg relative">
+              {/* 敌人眼睛 */}
+              <div className="absolute top-5 left-4 w-3 h-3 bg-danger-red rounded-full animate-pulse" />
+              <div className="absolute top-5 right-4 w-3 h-3 bg-danger-red rounded-full animate-pulse" />
+              {/* 敌人嘴巴 */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-8 h-3 bg-abyss rounded-t-xl" />
+              {/* 敌人尖牙 */}
+              <div className="absolute bottom-3 left-5 w-1.5 h-4 bg-slate-200 rounded-b" />
+              <div className="absolute bottom-3 right-5 w-1.5 h-4 bg-slate-200 rounded-b" />
+            </div>
+          </div>
+          
+          {/* 敌人手臂 */}
+          <div className="absolute -left-6 top-6 w-8 h-16 bg-gradient-to-r from-danger-red/40 to-danger-red rounded-xl" />
+          <div className="absolute -right-6 top-6 w-8 h-16 bg-gradient-to-l from-danger-red/40 to-danger-red rounded-xl" />
+        </div>
+        
+        {/* 敌人阴影 */}
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-28 h-4 bg-black/40 rounded-full blur-sm" />
+      </motion.div>
+      
+      {/* 受击红色闪红 */}
+      {isHit && (
+        <motion.div
+          className="absolute inset-0 bg-danger-red/60 rounded-2xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 0.4 }}
+        />
+      )}
     </div>
   );
 };
@@ -373,230 +378,195 @@ const EnemyStatusBar = ({ hp, maxHp, armor }: { hp: number; maxHp: number; armor
 // 打字机效果组件
 const TypewriterText = ({ text, isTyping }: { text: string; isTyping: boolean }) => {
   const [displayText, setDisplayText] = useState("");
-  const [index, setIndex] = useState(0);
-
+  
   useEffect(() => {
-    if (isTyping && index < text.length) {
-      const timer = setTimeout(() => {
-        setDisplayText(text.slice(0, index + 1));
-        setIndex(index + 1);
+    if (isTyping) {
+      setDisplayText("");
+      let index = 0;
+      const interval = setInterval(() => {
+        if (index < text.length) {
+          setDisplayText(text.slice(0, index + 1));
+          index++;
+        } else {
+          clearInterval(interval);
+        }
       }, 30);
-      return () => clearTimeout(timer);
-    } else if (!isTyping) {
+      return () => clearInterval(interval);
+    } else {
       setDisplayText(text);
-      setIndex(text.length);
     }
-  }, [isTyping, index, text]);
-
+  }, [text, isTyping]);
+  
   return <span>{displayText}</span>;
 };
 
-// 打牌图标效果
-const CardPlayEffect = ({ 
-  type, 
-  onComplete 
+// 手牌组件（扇形排列版）
+const HandCard = ({ 
+  card, 
+  index, 
+  total, 
+  isSelected, 
+  canPlay, 
+  onSelect 
 }: { 
-  type: "attack" | "skill" | "ability"; 
-  onComplete: () => void; 
+  card: Card; 
+  index: number; 
+  total: number; 
+  isSelected: boolean; 
+  canPlay: boolean; 
+  onSelect: (card: Card) => void; 
 }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onComplete();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+  const middleIndex = Math.floor(total / 2);
+  const distanceFromMiddle = index - middleIndex;
+  const rotationAngle = distanceFromMiddle * 8;
 
-  return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 0.5] }}
-      transition={{ duration: 0.5 }}
-    >
-      {type === "attack" ? (
-        <Sword className="w-16 h-16 text-danger-red" />
-      ) : (
-        <ShieldIcon className="w-16 h-16 text-armor-blue" />
-      )}
-    </motion.div>
-  );
-};
-
-// 重构的手牌卡牌组件
-const HandCard = ({
-  card,
-  index,
-  isSelected,
-  canPlay,
-  onSelect,
-}: {
-  card: Card;
-  index: number;
-  isSelected: boolean;
-  canPlay: boolean;
-  onSelect: (card: Card) => void;
-}) => {
-  const getCardBorderColor = (type: string) => {
+  const getBorderColor = (type: string) => {
     switch (type) {
-      case "attack":
-        return "border-danger-red/70 hover:border-danger-red shadow-danger-red/20";
-      case "skill":
-        return "border-armor-blue/70 hover:border-armor-blue shadow-armor-blue/20";
-      case "ability":
-        return "border-gold/70 hover:border-gold shadow-gold/20";
-      default:
-        return "border-slate-600/70 hover:border-slate-400";
+      case "attack": return "border-danger-red hover:shadow-danger-red/40";
+      case "skill": return "border-armor-blue hover:shadow-armor-blue/40";
+      case "ability": return "border-gold hover:shadow-gold/40";
+      default: return "border-slate-600";
     }
   };
 
-  const getCardBgColor = (type: string) => {
+  const getBgColor = (type: string) => {
     switch (type) {
-      case "attack":
-        return "from-danger-red/20 via-card-darker to-danger-red/10";
-      case "skill":
-        return "from-armor-blue/20 via-card-darker to-armor-blue/10";
-      case "ability":
-        return "from-gold/20 via-card-darker to-gold/10";
-      default:
-        return "from-slate-700/30 via-card-darker to-slate-700/10";
-    }
-  };
-
-  const getCostBgColor = (type: string) => {
-    switch (type) {
-      case "attack":
-        return "bg-danger-red";
-      case "skill":
-        return "bg-armor-blue";
-      case "ability":
-        return "bg-gold";
-      default:
-        return "bg-slate-600";
+      case "attack": return "from-card-darker to-danger-red/20";
+      case "skill": return "from-card-darker to-armor-blue/20";
+      case "ability": return "from-card-darker to-gold/20";
+      default: return "from-card-darker to-slate-800";
     }
   };
 
   return (
     <motion.div
       className={cn(
-        "group relative",
-        isSelected && "z-50"
+        "relative cursor-pointer transition-all duration-300",
+        !canPlay && "opacity-50 cursor-not-allowed"
       )}
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ 
-        duration: 0.4, 
-        delay: index * 0.1,
+      style={{
+        transformOrigin: "bottom center",
+      }}
+      initial={{ y: 100, opacity: 0, rotate: rotationAngle }}
+      animate={{
+        y: 0,
+        opacity: 1,
+        rotate: isSelected ? 0 : rotationAngle,
+        scale: isSelected ? 1.15 : 1,
+        zIndex: isSelected ? 50 : 20 + Math.abs(distanceFromMiddle),
+      }}
+      whileHover={canPlay ? {
+        y: -32,
+        scale: 1.1,
+        zIndex: 50,
+      } : {}}
+      onClick={() => canPlay && onSelect(card)}
+      transition={{
         type: "spring",
         stiffness: 100,
-        damping: 15
+        damping: 15,
+        delay: index * 0.1,
       }}
-      whileHover={{ 
-        y: -32,
-        zIndex: 50,
-        scale: 1.1,
-        transition: { duration: 0.2 }
-      }}
-      onClick={() => canPlay && onSelect(card)}
     >
-      {/* 卡牌主体 */}
-      <div
-        className={cn(
-          "w-40 h-56 rounded-xl border-2 bg-gradient-to-br backdrop-blur-sm cursor-pointer transition-all duration-200",
-          getCardBorderColor(card.type),
-          getCardBgColor(card.type),
-          isSelected && "ring-4 ring-sonic-purple/60 shadow-2xl shadow-sonic-purple/40",
-          !canPlay && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        {/* 消耗费用 */}
-        <div className="absolute -top-2 -left-2 w-8 h-8 rounded-full flex items-center justify-center font-black text-lg text-white shadow-lg z-10">
-          <div className={cn("w-full h-full rounded-full flex items-center justify-center", getCostBgColor(card.type))}>
-            {card.cost}
-          </div>
+      <div className={cn(
+        "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg transition-all duration-300",
+        getBgColor(card.type),
+        getBorderColor(card.type),
+        isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
+      )}>
+        {/* 费用 */}
+        <div className="absolute -top-2 -left-2 w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-sonic-purple/50">
+          {card.cost}
         </div>
-
-        {/* 卡牌名称 */}
-        <div className="pt-6 px-3 pb-2 border-b border-white/10">
-          <h3 className="font-bold text-sm text-slate-100 truncate">
+        
+        {/* 卡牌内容 */}
+        <div className="p-3 h-full flex flex-col">
+          <h3 className="text-sm font-bold text-slate-100 mb-1 truncate">
             {card.name}
           </h3>
-        </div>
-
-        {/* 卡牌效果 */}
-        <div className="pt-3 px-3">
-          <p className="text-xs text-slate-300 leading-relaxed">
-            {card.effect}
+          <p className="text-xs text-slate-400 mb-2">
+            {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
           </p>
-        </div>
-
-        {/* 卡牌类型标签 */}
-        <div className="absolute bottom-3 right-3">
-          <span className={cn(
-            "text-[10px] font-bold uppercase tracking-wider",
-            card.type === "attack" ? "text-danger-red" :
-            card.type === "skill" ? "text-armor-blue" : "text-gold"
-          )}>
-            {card.type}
-          </span>
+          <div className="flex-1 text-xs text-slate-300 leading-relaxed">
+            {card.effect}
+          </div>
         </div>
       </div>
     </motion.div>
   );
 };
 
+// 打牌图标效果组件
+const CardPlayEffect = ({ 
+  type, 
+  onComplete 
+}: { 
+  type: string; 
+  onComplete: () => void; 
+}) => {
+  return (
+    <motion.div
+      className="fixed left-1/2 bottom-1/4 -translate-x-1/2 z-50 pointer-events-none"
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 0.5] }}
+      transition={{ duration: 0.5 }}
+      onAnimationComplete={onComplete}
+    >
+      {type === "attack" ? (
+        <Sword className="w-24 h-24 text-danger-red drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]" />
+      ) : (
+        <ShieldIcon className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]" />
+      )}
+    </motion.div>
+  );
+};
+
 export default function BattleArena() {
   // 游戏状态
-  const [pollutionLevel, setPollutionLevel] = useState(3);
+  const [turn, setTurn] = useState(1);
+  const [pollutionLevel, setPollutionLevel] = useState(0);
   const [playerHp, setPlayerHp] = useState(80);
   const [playerMaxHp] = useState(80);
   const [playerArmor, setPlayerArmor] = useState(0);
   const [playerAp, setPlayerAp] = useState(3);
   const [playerMaxAp] = useState(3);
-  const [enemyHp, setEnemyHp] = useState(34);
-  const [enemyMaxHp] = useState(34);
+  const [enemyHp, setEnemyHp] = useState(50);
+  const [enemyMaxHp] = useState(50);
   const [enemyArmor, setEnemyArmor] = useState(0);
-  const [turn, setTurn] = useState(1);
   const [hand, setHand] = useState<Card[]>(INITIAL_HAND_CARDS);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(getSimpleEnemyIntention());
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  
+  // 动画状态
   const [isAttacking, setIsAttacking] = useState(false);
   const [isDefending, setIsDefending] = useState(false);
   const [isEnemyHit, setIsEnemyHit] = useState(false);
   const [showSonicWave, setShowSonicWave] = useState(false);
-  const [damageNumbers, setDamageNumbers] = useState<{ id: number; damage: number; x: number; y: number; color: string }[]>([]);
-  const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(getSimpleEnemyIntention());
-  const [dialogMessages, setDialogMessages] = useState([
-    { id: 1, text: "欢迎来到深渊协奏！战斗开始！", isTyping: false }
-  ]);
-  const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" | "ability" }>({ show: false, type: "attack" });
-
+  const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; damage: number; x: number; y: number; color: string }>>([]);
+  const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
+  
+  // AI裁判消息
+  const [dialogMessages, setDialogMessages] = useState<Array<{ id: number; text: string; isTyping: boolean }>>([]);
+  
   // 选择卡牌
   const handleCardSelect = (card: Card) => {
-    if (card.cost <= playerAp && !isProcessing) {
-      setSelectedCard(card);
-    }
+    if (isProcessing) return;
+    setSelectedCard(card);
   };
-
-  // 使用卡牌
+  
+  // 打出卡牌
   const handlePlayCard = () => {
-    if (!selectedCard || isProcessing) return;
-
+    if (!selectedCard || selectedCard.cost > playerAp || isProcessing) return;
+    
     setIsProcessing(true);
-    setSelectedCard(null);
-
-    // 显示打牌效果
-    setShowCardPlayEffect({ 
-      show: true, 
-      type: selectedCard.type === "attack" ? "attack" : "skill" 
-    });
-
-    // 消耗行动力
     setPlayerAp(prev => prev - selectedCard.cost);
-
-    // 从手牌中移除卡牌
-    setHand(prev => prev.filter(c => c.id !== selectedCard.id));
-
+    
+    // 显示打牌图标效果
+    const effectType = selectedCard.type === "attack" ? "attack" : "skill";
+    setShowCardPlayEffect({ show: true, type: effectType });
+    
     // 根据卡牌类型触发动画
     if (selectedCard.type === "attack") {
       setIsAttacking(true);
@@ -644,7 +614,7 @@ export default function BattleArena() {
       setIsProcessing(false);
     }, 800);
   };
-
+  
   // 结束回合
   const handleEndTurn = () => {
     if (isProcessing) return;
@@ -677,9 +647,9 @@ export default function BattleArena() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-abyss via-abyss to-card-darker flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-abyss via-abyss to-card-darker relative overflow-hidden">
       {/* 背景声波脉冲 */}
-      <div className="absolute inset-0 opacity-20">
+      <div className="absolute inset-0 opacity-20 z-0">
         {[...Array(3)].map((_, i) => (
           <motion.div
             key={i}
@@ -701,7 +671,7 @@ export default function BattleArena() {
       </div>
 
       {/* 左上角退出按钮 */}
-      <div className="fixed top-6 left-6 z-30">
+      <div className="fixed top-6 left-6 z-40">
         <Button
           variant="ghost"
           size="icon"
@@ -713,80 +683,73 @@ export default function BattleArena() {
       </div>
 
       {/* 顶部区域：污染刻度尺 */}
-      <div className="relative z-10 p-6 flex justify-end">
+      <div className="fixed top-6 right-6 z-40">
         <PollutionScale current={pollutionLevel} />
       </div>
 
-      {/* 中间战斗舞台区域 */}
-      <div className="flex-1 flex flex-col relative z-10">
-        {/* 敌人区域 */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <EnemyStatusBar hp={enemyHp} maxHp={enemyMaxHp} armor={enemyArmor} />
-          <div className="relative">
-            <EnemyCharacter isHit={isEnemyHit} name="嘶鸣游荡者" />
-            {/* 敌人意图指示器 */}
-            <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-card-darker/90 backdrop-blur rounded-lg px-4 py-2 border border-slate-700/50">
-              <p className="text-sm text-slate-300">
-                {currentIntention.description}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 声波特效 */}
-        <SonicWaveEffect active={showSonicWave} />
-
-        {/* 伤害数字 */}
-        {damageNumbers.map(dn => (
-          <DamageNumber
-            key={dn.id}
-            damage={dn.damage}
-            x={dn.x}
-            y={dn.y}
-            color={dn.color}
-          />
-        ))}
-
-        {/* 打牌图标效果 */}
-        <AnimatePresence>
-          {showCardPlayEffect.show && (
-            <CardPlayEffect
-              type={showCardPlayEffect.type}
-              onComplete={() => setShowCardPlayEffect({ show: false, type: "attack" })}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* 玩家区域 */}
-        <div className="flex-1 flex items-center justify-center gap-12 pb-20">
-          <div className="flex items-center gap-8">
-            {/* 玩家状态条 */}
-            <PlayerStatusBar
-              hp={playerHp}
-              maxHp={playerMaxHp}
-              armor={playerArmor}
-              ap={playerAp}
-              maxAp={playerMaxAp}
-            />
-            {/* 玩家角色 */}
-            <PlayerCharacter
-              isAttacking={isAttacking}
-              isDefending={isDefending}
-            />
+      {/* 敌人角色（定点锚定） */}
+      <div className="fixed top-1/4 right-10 z-30">
+        <EnemyStatusBar hp={enemyHp} maxHp={enemyMaxHp} armor={enemyArmor} />
+        <div className="relative mt-4">
+          <EnemyCharacter isHit={isEnemyHit} name="嘶鸣游荡者" />
+          {/* 敌人意图指示器 */}
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 bg-card-darker/90 backdrop-blur rounded-lg px-4 py-2 border border-slate-700/50">
+            <p className="text-sm text-slate-300">
+              {currentIntention.description}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 底部手牌区 - 重构为真正手牌形态 */}
-      <div className="relative z-20 bg-gradient-to-t from-abyss via-abyss/95 to-transparent pt-8 pb-6">
+      {/* 玩家角色（定点锚定） */}
+      <div className="fixed bottom-1/4 left-10 z-30">
+        <PlayerCharacter isAttacking={isAttacking} isDefending={isDefending} />
+        <div className="mt-4">
+          <PlayerStatusBar
+            hp={playerHp}
+            maxHp={playerMaxHp}
+            armor={playerArmor}
+            ap={playerAp}
+            maxAp={playerMaxAp}
+          />
+        </div>
+      </div>
+
+      {/* 声波特效 */}
+      <SonicWaveEffect active={showSonicWave} />
+
+      {/* 伤害数字 */}
+      {damageNumbers.map(dn => (
+        <DamageNumber
+          key={dn.id}
+          damage={dn.damage}
+          x={dn.x}
+          y={dn.y}
+          color={dn.color}
+        />
+      ))}
+
+      {/* 打牌图标效果 */}
+      <AnimatePresence>
+        {showCardPlayEffect.show && (
+          <CardPlayEffect
+            type={showCardPlayEffect.type}
+            onComplete={() => setShowCardPlayEffect({ show: false, type: "attack" })}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 底部手牌区 - 扇形排列 */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-abyss via-abyss/95 to-transparent pt-16 pb-8">
         <div className="container mx-auto px-6">
-          {/* 手牌展示 - 使用负间距叠加效果 */}
-          <div className="flex justify-center items-end -space-x-8 mb-6 group">
+          {/* 手牌扇形展示 */}
+          <div className="relative bottom-[-50px] flex justify-center items-end h-64 z-50">
             {hand.map((card, index) => (
               <HandCard
                 key={card.id}
                 card={card}
                 index={index}
+                total={hand.length}
                 isSelected={selectedCard?.id === card.id}
                 canPlay={card.cost <= playerAp && !isProcessing}
                 onSelect={handleCardSelect}
@@ -795,7 +758,7 @@ export default function BattleArena() {
           </div>
 
           {/* 操作按钮 */}
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4 mt-8">
             {selectedCard && (
               <Button
                 onClick={handlePlayCard}
@@ -818,7 +781,7 @@ export default function BattleArena() {
       </div>
 
       {/* AI裁判对话框 */}
-      <div className="fixed bottom-40 left-6 z-20 w-80">
+      <div className="fixed bottom-48 left-6 z-40 w-80">
         <div className="bg-black/60 backdrop-blur-md rounded-xl border border-slate-700/50 p-4 max-h-40 overflow-y-auto">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 rounded-full bg-sonic-purple animate-pulse" />
