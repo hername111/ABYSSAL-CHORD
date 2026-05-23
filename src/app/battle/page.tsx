@@ -38,7 +38,7 @@ const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 type IntentType = "ATTACK" | "DEFEND" | "BUFF" | "DEBUFF";
 
 // 状态效果类型
-type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN";
+type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN" | "SONIC_BOOM";
 
 interface StatusEffect {
   type: StatusEffectType;
@@ -956,6 +956,22 @@ export default function BattleArena() {
     const msg = { id: Date.now(), text: aiMessage, isTyping: true };
     setDialogMessages(prev => [...prev, msg]);
     
+    // 4. 处理声爆效果
+    const sonicBoomStacks = selectedCard.sonicBoom || 0;
+    if (sonicBoomStacks > 0 && selectedCard.type === "attack") {
+      setEnemyState(prev => {
+        const existingSonicBoom = prev.debuffs.find(d => d.type === "SONIC_BOOM");
+        const newDebuffs = prev.debuffs.filter(d => d.type !== "SONIC_BOOM");
+        return {
+          ...prev,
+          debuffs: [
+            ...newDebuffs,
+            { type: "SONIC_BOOM", stacks: (existingSonicBoom?.stacks || 0) + sonicBoomStacks }
+          ]
+        };
+      });
+    }
+    
     // 根据卡牌类型触发动画和效果
     if (selectedCard.type === "attack" && totalDamage > 0) {
       setIsAttacking(true);
@@ -1030,6 +1046,21 @@ export default function BattleArena() {
       // 玩家受到穿透伤害
       if (phaseConfig.playerPiercingDmg > 0) {
         takeDamage("player", phaseConfig.playerPiercingDmg, true);
+      }
+      
+      // 结算声爆伤害（每层2点）
+      const sonicBoomEffect = enemyState.debuffs.find(d => d.type === "SONIC_BOOM");
+      if (sonicBoomEffect && sonicBoomEffect.stacks > 0) {
+        const sonicBoomDamage = sonicBoomEffect.stacks * 2;
+        takeDamage("enemy", sonicBoomDamage);
+        // 清除声爆状态
+        setEnemyState(prev => ({
+          ...prev,
+          debuffs: prev.debuffs.filter(d => d.type !== "SONIC_BOOM")
+        }));
+        // 添加声爆伤害消息
+        const sonicBoomMsg = { id: Date.now() + 100, text: `声爆效果触发！造成 ${sonicBoomDamage} 点伤害！`, isTyping: true };
+        setDialogMessages(prev => [...prev, sonicBoomMsg]);
       }
       
       // 根据敌人意图类型触发对应的动画
