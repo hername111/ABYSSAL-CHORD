@@ -17,6 +17,9 @@ import { Card, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+// 工具函数：sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // 简化的敌人行为类型
 interface SimpleEnemyBehavior {
   description: string;
@@ -543,7 +546,10 @@ export default function BattleArena() {
   const [isAttacking, setIsAttacking] = useState(false);
   const [isDefending, setIsDefending] = useState(false);
   const [isEnemyHit, setIsEnemyHit] = useState(false);
+  const [isPlayerHit, setIsPlayerHit] = useState(false);
+  const [isEnemyCharging, setIsEnemyCharging] = useState(false);
   const [showSonicWave, setShowSonicWave] = useState(false);
+  const [showRedFlash, setShowRedFlash] = useState(false);
   const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; damage: number; x: number; y: number; color: string }>>([]);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
   
@@ -615,27 +621,48 @@ export default function BattleArena() {
     }, 800);
   };
   
-  // 结束回合
-  const handleEndTurn = () => {
+  // 结束回合（异步控制）
+  const handleEndTurn = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
     setSelectedCard(null);
 
-    // 污染度+1
+    // 第一步：污染度+1
     setPollutionLevel(prev => Math.min(30, prev + 1));
 
-    // 怪物行动
-    const msg = { id: Date.now(), text: `嘶鸣游荡者使用了【${currentIntention.description}】！`, isTyping: true };
+    // 第二步：AI裁判联动
+    const msg = { id: Date.now(), text: "嘶鸣游荡者向你发起了猛烈冲撞！", isTyping: true };
     setDialogMessages(prev => [...prev, msg]);
 
-    // 怪物造成伤害
-    if (currentIntention.damage) {
-      const damage = currentIntention.damage;
-      setPlayerHp(prev => Math.max(0, prev - damage));
-      setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 200, y: 250, color: "text-danger-red" }]);
-    }
+    // 第三步：敌人准备动画（scale:1.1 呼吸效果）
+    setIsEnemyCharging(true);
+    await sleep(500);
 
-    // 下一回合
+    // 第四步：玩家受击动画（红色flash）
+    setShowRedFlash(true);
+    setIsPlayerHit(true);
+    await sleep(200);
+    setShowRedFlash(false);
+
+    // 第五步：数值更新（延迟0.5秒后）
+    const damage = currentIntention.damage || 6;
+    setPlayerHp(prev => Math.max(0, prev - damage));
+    
+    // 飘字效果
+    setDamageNumbers(prev => [...prev, { 
+      id: Date.now(), 
+      damage, 
+      x: 200, 
+      y: 500, 
+      color: "text-danger-red" 
+    }]);
+
+    // 延迟等待动画完成
+    await sleep(800);
+    setIsPlayerHit(false);
+    setIsEnemyCharging(false);
+
+    // 结束阶段
     setTimeout(() => {
       setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
       setCurrentIntention(getSimpleEnemyIntention());
@@ -643,7 +670,7 @@ export default function BattleArena() {
       setHand(INITIAL_HAND_CARDS);
       setPlayerAp(playerMaxAp);
       setIsProcessing(false);
-    }, 1500);
+    }, 500);
   };
 
   return (
