@@ -1375,7 +1375,7 @@ export default function BattleArena() {
           </div>
           
           {/* 敌人状态面板 - 使用通用的 EntityStatusPanel */}
-          <div className="absolute -bottom-44 left-[65%]">
+          <div className="absolute -bottom-44 left-[25%]">
             <EntityStatusPanel 
               entity={enemyState} 
               isEnemy={true}
