@@ -268,6 +268,8 @@ export default function BattleArena() {
   
   // 中间提示状态
   const [showHint, setShowHint] = useState(true);
+  const [showEnergyWarning, setShowEnergyWarning] = useState(false);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   
   const router = useRouter();
   
@@ -279,7 +281,12 @@ export default function BattleArena() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleEndTurn();
+          setShowTimeoutWarning(true);
+          // 2秒后自动隐藏警告并结束回合
+          setTimeout(() => {
+            setShowTimeoutWarning(false);
+            handleEndTurn();
+          }, 2000);
           return 0;
         }
         return prev - 1;
@@ -337,6 +344,9 @@ export default function BattleArena() {
   const startTurn = () => {
     // 恢复玩家的能量值至满状态
     setPlayerAp(playerMaxAp);
+    // 隐藏警告提示
+    setShowEnergyWarning(false);
+    setShowTimeoutWarning(false);
     // 自动调用抽牌进行回合初的固定摸牌
     drawCard(DRAW_PER_TURN);
   };
@@ -374,13 +384,25 @@ export default function BattleArena() {
     setDialogMessages([]);
     setDamageNumbers([]);
     setShowHint(true);
+    setShowEnergyWarning(false);
+    setShowTimeoutWarning(false);
   };
 
   // 选择卡牌
   const handleCardSelect = (card: Card) => {
     if (isProcessing) return;
+    
+    // 检查是否有足够的 AP
+    if (card.cost > playerAp) {
+      setShowEnergyWarning(true);
+      // 2秒后自动隐藏警告
+      setTimeout(() => setShowEnergyWarning(false), 2000);
+      return;
+    }
+    
     setSelectedCard(card);
     setShowHint(false);
+    setShowEnergyWarning(false);
   };
   
   // 打出卡牌
@@ -805,6 +827,50 @@ export default function BattleArena() {
               </p>
               <p className="text-sm text-slate-400 text-center mt-1">
                 点击卡牌可以选中，再次点击可以取消
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* 体力不够警告提示 */}
+      <AnimatePresence>
+        {showEnergyWarning && !gameOver && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="bg-black/90 backdrop-blur-md px-8 py-5 rounded-xl border border-danger-red/60 shadow-2xl shadow-danger-red/40">
+              <p className="text-xl font-bold text-danger-red text-center">
+                ⚠️ 体力不足！
+              </p>
+              <p className="text-sm text-slate-300 text-center mt-2">
+                请选择其他卡牌或点击「结束回合」
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* 倒计时强制结束警告提示 */}
+      <AnimatePresence>
+        {showTimeoutWarning && !gameOver && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="bg-black/90 backdrop-blur-md px-8 py-5 rounded-xl border border-sonic-purple/60 shadow-2xl shadow-sonic-purple/40">
+              <p className="text-xl font-bold text-sonic-purple text-center">
+                ⏰ 时间到！
+              </p>
+              <p className="text-sm text-slate-300 text-center mt-2">
+                强制结束回合...
               </p>
             </div>
           </motion.div>
