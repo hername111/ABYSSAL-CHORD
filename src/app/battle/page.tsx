@@ -287,7 +287,33 @@ export default function BattleArena() {
   // AI裁判消息
   const [dialogMessages, setDialogMessages] = useState<Array<{ id: number; text: string; isTyping: boolean }>>([]);
   
+  // 倒计时状态
+  const [timeLeft, setTimeLeft] = useState(30);
+  
   const router = useRouter();
+  
+  // 倒计时逻辑
+  useEffect(() => {
+    if (isProcessing) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleEndTurn();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isProcessing, turn]);
+  
+  // 重置倒计时
+  const resetTimer = () => {
+    setTimeLeft(30);
+  };
 
   // 选择卡牌
   const handleCardSelect = (card: Card) => {
@@ -301,6 +327,7 @@ export default function BattleArena() {
     
     setIsProcessing(true);
     setPlayerAp(prev => prev - selectedCard.cost);
+    resetTimer();
     
     // 显示打牌图标效果
     const effectType = selectedCard.type === "attack" ? "attack" : "skill";
@@ -361,6 +388,7 @@ export default function BattleArena() {
     
     setIsProcessing(true);
     setSelectedCard(null);
+    resetTimer();
     
     try {
       // 第一步：敌人准备动画
@@ -686,7 +714,35 @@ export default function BattleArena() {
 
       {/* 底部固定区 - 专门放置结束回合按钮 */}
       <div className="fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 to-transparent z-50">
-        <div className="flex justify-center items-center h-full">
+        {/* 倒计时进度条 - 在按钮上方 */}
+        <div className="absolute top-0 left-0 right-0 px-4 pt-2">
+          <div className="max-w-md mx-auto">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-slate-400 font-bold">回合时间</span>
+              <span className={cn(
+                "text-xs font-black",
+                timeLeft <= 10 ? "text-danger-red" : "text-sonic-purple"
+              )}>
+                {timeLeft}秒
+              </span>
+            </div>
+            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <motion.div
+                className={cn(
+                  "h-full transition-all duration-300",
+                  timeLeft > 10 
+                    ? "bg-gradient-to-r from-sonic-purple to-sonic-purple/60" 
+                    : "bg-gradient-to-r from-danger-red to-danger-red/60 animate-pulse"
+                )}
+                initial={{ width: "100%" }}
+                animate={{ width: `${(timeLeft / 30) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center items-center h-full pt-6">
           <Button
             onClick={handleEndTurn}
             disabled={isProcessing}
