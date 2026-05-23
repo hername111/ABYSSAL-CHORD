@@ -895,7 +895,7 @@ export default function BattleArena() {
         <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
-              key={card.id}
+              key={index}
               className="relative"
               style={{ transformOrigin: "bottom center" }}
             >
@@ -903,7 +903,7 @@ export default function BattleArena() {
                 card={card}
                 index={index}
                 total={hand.length}
-                isSelected={selectedCard === card}
+                isSelected={selectedCard?.id === card.id}
                 onSelect={handleCardSelect}
                 canPlay={card.cost <= playerAp && !isProcessing}
               />
