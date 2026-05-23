@@ -218,7 +218,7 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                         <div className="space-y-3 text-sm text-slate-300">
                           <div className="p-4 bg-purify-green/10 rounded-lg border border-purify-green/30">
                             <div className="font-bold text-purify-green mb-1">
-                              0-5 — 寂静期
+                              0-15 — 寂静期
                             </div>
                             <p className="text-slate-300">
                               无额外效果。一切如常。
@@ -226,7 +226,7 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           </div>
                           <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
                             <div className="font-bold text-yellow-500 mb-1">
-                              6-12 — 低鸣期
+                              16-40 — 低鸣期
                             </div>
                             <p className="text-slate-300">
                               所有畸变体攻击伤害 +2。
@@ -234,7 +234,7 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           </div>
                           <div className="p-4 bg-orange-500/10 rounded-lg border border-orange-500/30">
                             <div className="font-bold text-orange-500 mb-1">
-                              13-20 — 共振期
+                              41-70 — 共振期
                             </div>
                             <p className="text-slate-300">
                               所有畸变体攻击伤害 +4；每回合获得 3 点护甲。
@@ -242,7 +242,7 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           </div>
                           <div className="p-4 bg-danger-red/10 rounded-lg border border-danger-red/30">
                             <div className="font-bold text-danger-red mb-1">
-                              21-28 — 咆哮期
+                              71-90 — 咆哮期
                             </div>
                             <p className="text-slate-300">
                               所有畸变体攻击伤害 +6；每回合获得 5 点护甲；玩家每回合开始受到 3 点穿透伤害。
@@ -250,10 +250,10 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           </div>
                           <div className="p-4 bg-sonic-purple/10 rounded-lg border border-sonic-purple/30">
                             <div className="font-bold text-sonic-purple mb-1">
-                              29-30 — 终焉和弦
+                              91-100 — 终焉和弦
                             </div>
                             <p className="text-slate-300">
-                              所有畸变体攻击伤害 +10；玩家每回合开始受到 5 点穿透伤害；下一回合结束时污染度仍为 30，游戏立即失败！
+                              所有畸变体攻击伤害 +10；玩家每回合开始受到 5 点穿透伤害。
                             </p>
                           </div>
                         </div>
