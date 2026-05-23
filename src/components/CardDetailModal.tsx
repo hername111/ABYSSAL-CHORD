@@ -48,126 +48,174 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/70 backdrop-blur-md"
+          className="absolute inset-0 bg-black/80 backdrop-blur-md"
         />
 
-        {/* Modal Content */}
+        {/* Modal Content - Two Column Layout */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative max-w-2xl w-full"
+          className="relative max-w-5xl w-full"
         >
-          <div className="bg-card-darker border border-sonic-purple/30 rounded-xl p-8 shadow-2xl">
-            {/* Close Button */}
+          <div className="bg-card-darker border border-sonic-purple/30 rounded-2xl overflow-hidden shadow-2xl">
+            {/* Close Button - Large Touch Area */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-sonic-purple/20 transition-colors"
+              className="absolute top-6 right-6 p-3 rounded-full hover:bg-sonic-purple/20 transition-all duration-300 z-10 flex items-center justify-center"
+              aria-label="关闭详情"
             >
-              <X className="w-6 h-6" />
+              <X className="w-7 h-7" />
             </button>
 
-            {/* Card Preview Header */}
-            <div className="flex items-start gap-6 mb-8">
-              {/* Card Placeholder */}
-              <div className={cn(
-                "w-48 h-72 rounded-lg border-2 flex flex-col overflow-hidden",
-                getCardTypeColor(card.type)
-              )}>
-                {/* Cost */}
-                <div className="bg-sonic-purple/30 p-2">
-                  <div className="w-10 h-10 rounded-full bg-sonic-purple flex items-center justify-center text-xl font-black">
-                    {card.cost}
-                  </div>
-                </div>
-                {/* Name */}
-                <div className="flex-1 flex items-center justify-center p-4 text-center">
-                  <span className="text-xl font-bold">{card.name}</span>
-                </div>
-                {/* Type */}
-                <div className="bg-sonic-purple/20 p-2 text-center text-sm">
-                  {card.type}
-                </div>
-              </div>
-
-              {/* Basic Info */}
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-3xl font-black text-sonic-purple">{card.name}</h2>
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-sm font-bold border",
+            {/* Two Column Grid */}
+            <div className="grid lg:grid-cols-2 min-h-[500px]">
+              {/* Left Column - Large Card Illustration */}
+              <div className="relative bg-gradient-to-br from-sonic-purple/20 to-card-darker p-8 flex items-center justify-center">
+                {/* Large Card Placeholder */}
+                <div className="relative">
+                  {/* Card Back Glow */}
+                  <div className="absolute inset-0 bg-sonic-purple/30 blur-2xl rounded-3xl" />
+                  
+                  {/* Actual Card */}
+                  <div className={cn(
+                    "relative w-64 h-96 rounded-2xl border-3 flex flex-col overflow-hidden",
                     getCardTypeColor(card.type)
                   )}>
-                    {card.type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                  <span>消耗：<span className="text-sonic-purple font-bold">{card.cost}</span></span>
-                  <span>目标：<span className="text-sonic-purple font-bold">{getCardTargetLabel(card.target)}</span></span>
-                </div>
-                <p className="text-slate-300 text-lg leading-relaxed">{card.effect}</p>
-              </div>
-            </div>
-
-            {/* Details Section */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              {/* Numerical Values */}
-              <div className="bg-sonic-purple/10 rounded-lg p-4">
-                <h3 className="text-lg font-bold text-sonic-purple mb-3">数值面板</h3>
-                <div className="space-y-2 text-sm">
-                  {card.baseDamage && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">基础伤害</span>
-                      <span className="text-danger-red font-bold">{card.baseDamage}</span>
+                    {/* Cost Badge */}
+                    <div className="bg-sonic-purple/40 p-4">
+                      <div className="w-14 h-14 rounded-full bg-sonic-purple flex items-center justify-center text-3xl font-black border-2 border-sonic-purple/50 shadow-lg">
+                        {card.cost}
+                      </div>
                     </div>
-                  )}
-                  {card.baseArmor && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">基础护甲</span>
-                      <span className="text-armor-blue font-bold">{card.baseArmor}</span>
+                    
+                    {/* Illustration Area */}
+                    <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-b from-sonic-purple/10 to-transparent">
+                      <div className="text-center">
+                        <div className="text-6xl mb-4 opacity-70">
+                          {card.type === "attack" ? "⚔️" : card.type === "skill" ? "🛡️" : "✨"}
+                        </div>
+                        <span className="text-2xl font-bold">{card.name}</span>
+                      </div>
                     </div>
-                  )}
-                  {card.purification && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">净化值</span>
-                      <span className="text-purify-green font-bold">{card.purification}</span>
+                    
+                    {/* Type Badge */}
+                    <div className="bg-sonic-purple/30 p-4 text-center">
+                      <span className="text-lg font-bold tracking-wider">
+                        {card.type.toUpperCase()}
+                      </span>
                     </div>
-                  )}
-                  {card.sonicBoom && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">声爆层数</span>
-                      <span className="text-sonic-purple font-bold">{card.sonicBoom}</span>
-                    </div>
-                  )}
-                  {card.selfDamage && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">自伤值</span>
-                      <span className="text-danger-red font-bold">{card.selfDamage}</span>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
-              {/* Design Note */}
-              <div className="bg-card-darker/50 rounded-lg p-4 border border-sonic-purple/20">
-                <h3 className="text-lg font-bold text-gold mb-3">设计思路</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {card.designNote || "该卡牌为钟律的核心构筑牌，遵循1AP=5伤害/护甲的数值平衡基准。"}
-                </p>
-              </div>
-            </div>
-
-            {/* Upgrade Path Placeholder */}
-            <div className="bg-sonic-purple/5 rounded-lg p-4 border border-sonic-purple/20">
-              <h3 className="text-lg font-bold text-sonic-purple mb-3">升级路径</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-card-darker/50 rounded p-3">
-                  <div className="text-sm text-slate-400 mb-1">升级 A：+2 伤害</div>
-                  <div className="text-xs text-slate-500">基础伤害 +2</div>
+              {/* Right Column - Details & Story */}
+              <div className="p-8 lg:p-10 flex flex-col">
+                {/* Header */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-4 mb-3">
+                    <h2 className="text-4xl font-black text-sonic-purple">{card.name}</h2>
+                    <span className={cn(
+                      "px-4 py-1.5 rounded-full text-sm font-bold border",
+                      getCardTypeColor(card.type)
+                    )}>
+                      {card.type}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-6 text-base text-slate-400">
+                    <span className="flex items-center gap-2">
+                      <span>消耗：</span>
+                      <span className="text-sonic-purple font-black text-xl">{card.cost}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span>目标：</span>
+                      <span className="text-sonic-purple font-black text-lg">{getCardTargetLabel(card.target)}</span>
+                    </span>
+                  </div>
                 </div>
-                <div className="bg-card-darker/50 rounded p-3">
-                  <div className="text-sm text-slate-400 mb-1">升级 B：+1 护甲</div>
-                  <div className="text-xs text-slate-500">额外 +2 护甲</div>
+
+                {/* Story Background */}
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gold mb-3">卡牌故事</h3>
+                  <div className="bg-sonic-purple/10 rounded-xl p-5 border border-sonic-purple/20">
+                    <p className="text-slate-300 text-lg leading-relaxed italic">
+                      "{card.effect}"
+                    </p>
+                  </div>
+                </div>
+
+                {/* Numerical Stats Grid */}
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-sonic-purple mb-4">数值面板</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {card.baseDamage && (
+                      <div className="bg-danger-red/10 rounded-xl p-4 border border-danger-red/20">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">基础伤害</span>
+                          <span className="text-danger-red font-black text-2xl">{card.baseDamage}</span>
+                        </div>
+                      </div>
+                    )}
+                    {card.baseArmor && (
+                      <div className="bg-armor-blue/10 rounded-xl p-4 border border-armor-blue/20">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">基础护甲</span>
+                          <span className="text-armor-blue font-black text-2xl">{card.baseArmor}</span>
+                        </div>
+                      </div>
+                    )}
+                    {card.purification && (
+                      <div className="bg-purify-green/10 rounded-xl p-4 border border-purify-green/20">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">净化值</span>
+                          <span className="text-purify-green font-black text-2xl">{card.purification}</span>
+                        </div>
+                      </div>
+                    )}
+                    {card.sonicBoom && (
+                      <div className="bg-sonic-purple/10 rounded-xl p-4 border border-sonic-purple/20">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">声爆层数</span>
+                          <span className="text-sonic-purple font-black text-2xl">{card.sonicBoom}</span>
+                        </div>
+                      </div>
+                    )}
+                    {card.selfDamage && (
+                      <div className="bg-danger-red/10 rounded-xl p-4 border border-danger-red/20">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">自伤值</span>
+                          <span className="text-danger-red font-black text-2xl">{card.selfDamage}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Design Philosophy */}
+                <div className="mt-auto">
+                  <h3 className="text-xl font-bold text-gold mb-3">设计思路</h3>
+                  <div className="bg-card-darker/50 rounded-xl p-5 border border-sonic-purple/20">
+                    <p className="text-slate-400 text-base leading-relaxed">
+                      {card.designNote || "该卡牌为钟律的核心构筑牌，严格遵循1AP=5伤害/护甲的数值平衡基准，适合低频堡垒流或过载冲击流。"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Upgrade Paths */}
+                <div className="mt-6">
+                  <h3 className="text-xl font-bold text-sonic-purple mb-4">升级路径</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-card-darker/50 rounded-xl p-4 border border-sonic-purple/20">
+                      <div className="font-bold text-slate-100 mb-2">升级 A</div>
+                      <div className="text-sm text-slate-400 mb-1">基础伤害 +2</div>
+                      <div className="text-xs text-slate-500">提升输出能力</div>
+                    </div>
+                    <div className="bg-card-darker/50 rounded-xl p-4 border border-sonic-purple/20">
+                      <div className="font-bold text-slate-100 mb-2">升级 B</div>
+                      <div className="text-sm text-slate-400 mb-1">额外 +2 护甲</div>
+                      <div className="text-xs text-slate-500">增强生存能力</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

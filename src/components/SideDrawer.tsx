@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, BookOpen, ScrollText, Sparkles } from "lucide-react";
+import { X, BookOpen, ScrollText, Sparkles, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, zhongLvCards } from "@/lib/cards";
@@ -178,10 +178,10 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                               className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-purple-900/30 transition-colors"
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-1">
                                   <span
                                     className={cn(
-                                      "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm",
+                                      "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0",
                                       card.type === "attack"
                                         ? "bg-danger-red/20 text-danger-red"
                                         : card.type === "skill"
@@ -195,9 +195,12 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                                     {card.name}
                                   </h4>
                                 </div>
-                                <span className="text-xs px-2 py-1 rounded bg-slate-700/50 text-slate-300">
-                                  {getCardTypeLabel(card.type)}
-                                </span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <span className="text-xs px-2 py-1 rounded bg-slate-700/50 text-slate-300">
+                                    {getCardTypeLabel(card.type)}
+                                  </span>
+                                  <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                </div>
                               </div>
                               <div className="text-sm text-slate-400 mb-1">
                                 目标：{getCardTargetLabel(card.target)}
