@@ -21,6 +21,7 @@ import {
   Target,
 } from "lucide-react";
 import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
+import { getPollutionLevel, pollutionLevels } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -97,12 +98,8 @@ const PollutionScale = ({ level }: { level: number }) => {
     return "from-danger-red to-sonic-purple";
   };
 
-  const getPollutionText = (lvl: number) => {
-    if (lvl < 25) return "清洁";
-    if (lvl < 50) return "警戒";
-    if (lvl < 75) return "危险";
-    return "深渊";
-  };
+  // 获取当前阶段配置
+  const currentPhase = getPollutionLevel(level);
 
   return (
     <div className="fixed top-4 right-4 z-40">
@@ -120,8 +117,47 @@ const PollutionScale = ({ level }: { level: number }) => {
           />
         </div>
         <div className="flex justify-between items-center mt-1">
-          <span className="text-xs text-slate-400">{getPollutionText(level)}</span>
+          <span className={cn("text-xs font-bold", currentPhase.color)}>{currentPhase.name}</span>
           <span className="text-xs font-bold text-slate-200">{level}%</span>
+        </div>
+        
+        {/* 阶段列表 - UI 动态映射 */}
+        <div className="mt-3 space-y-1">
+          {pollutionLevels.map((phase, index) => {
+            const isActive = level >= phase.range[0] && level <= phase.range[1];
+            return (
+              <div 
+                key={index}
+                className={cn(
+                  "text-xs px-2 py-1 rounded flex justify-between",
+                  isActive ? "bg-sonic-purple/20 border border-sonic-purple/50" : "bg-slate-800/50"
+                )}
+              >
+                <span className={cn(isActive ? phase.color : "text-slate-500")}>
+                  {phase.name}
+                </span>
+                <span className="text-slate-400">
+                  {phase.range[0]}-{phase.range[1]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* 阶段效果说明 */}
+        <div className="mt-2 text-xs text-slate-400 space-y-1 border-t border-slate-700 pt-2">
+          {currentPhase.damageBonus > 0 && (
+            <div className="text-danger-red">伤害 +{currentPhase.damageBonus}</div>
+          )}
+          {currentPhase.armorPerTurn > 0 && (
+            <div className="text-armor-blue">敌人护甲 +{currentPhase.armorPerTurn}</div>
+          )}
+          {currentPhase.playerPiercingDmg > 0 && (
+            <div className="text-danger-red">穿透伤害 -{currentPhase.playerPiercingDmg}</div>
+          )}
+          {currentPhase.damageBonus === 0 && currentPhase.armorPerTurn === 0 && currentPhase.playerPiercingDmg === 0 && (
+            <div>稳定期，无额外效果</div>
+          )}
         </div>
       </div>
     </div>
@@ -672,17 +708,17 @@ export default function BattleArena() {
   };
 
   // 统一的伤害与护甲结算函数 - 严格按照4步执行
-  const takeDamage = (target: "player" | "enemy", amount: number) => {
+  const takeDamage = (target: "player" | "enemy", amount: number, isPiercing: boolean = false) => {
     if (target === "player") {
       setPlayerState(prev => {
         // 第1步：获取目标当前的护甲值
-        const targetArmor = prev.armor;
+        const targetArmor = isPiercing ? 0 : prev.armor;
         
         // 第2步：计算穿透护甲后的实际伤害
-        const trueDamage = Math.max(0, amount - targetArmor);
+        const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
         
-        // 第3步：更新目标护甲值
-        const newArmor = Math.max(0, targetArmor - amount);
+        // 第3步：更新目标护甲值（穿透伤害不消耗护甲）
+        const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
         
         // 第4步：更新目标生命值
         const newHp = Math.max(0, prev.hp - trueDamage);
@@ -700,13 +736,13 @@ export default function BattleArena() {
     } else {
       setEnemyState(prev => {
         // 第1步：获取目标当前的护甲值
-        const targetArmor = prev.armor;
+        const targetArmor = isPiercing ? 0 : prev.armor;
         
         // 第2步：计算穿透护甲后的实际伤害
-        const trueDamage = Math.max(0, amount - targetArmor);
+        const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
         
-        // 第3步：更新目标护甲值
-        const newArmor = Math.max(0, targetArmor - amount);
+        // 第3步：更新目标护甲值（穿透伤害不消耗护甲）
+        const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
         
         // 第4步：更新目标生命值
         const newHp = Math.max(0, prev.hp - trueDamage);
@@ -841,19 +877,27 @@ export default function BattleArena() {
     let totalDamage = 0;
     let armorGain = 0;
     
-    // 统一的伤害计算方法 - 强制生效污染度增伤乘区
+    // 统一的伤害计算方法 - 强制生效污染度增伤乘区 + 阶段增益
     const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
-      // 核心机制：每 10 点污染值，增加 10% 伤害
+      // 获取当前阶段配置
+      const phaseConfig = getPollutionLevel(globalPollution);
+      
+      // 核心机制1：每 10 点污染值，增加 10% 伤害
       const damageMultiplier = 1 + (globalPollution / 100);
-      // 返回向下取整的最终伤害
-      return Math.floor(baseDamage * damageMultiplier);
+      const pollutionMultipliedDamage = Math.floor(baseDamage * damageMultiplier);
+      
+      // 核心机制2：强制应用阶段伤害增益
+      const finalDamage = pollutionMultipliedDamage + phaseConfig.damageBonus;
+      
+      return finalDamage;
     };
     
-    // 1. 强制挂载污染度增伤公式
+    // 1. 强制挂载污染度增伤公式 + 阶段增益
     const baseDamage = selectedCard.baseDamage || 0;
     // 必须且只能使用统一的伤害计算方法
+    const phaseConfig = getPollutionLevel(pollutionLevel);
     const finalDamage = calculateActualDamage(baseDamage, pollutionLevel);
-    const pollutionBonus = finalDamage - baseDamage;
+    const pollutionBonus = finalDamage - baseDamage - phaseConfig.damageBonus;
     
     // 2. 处理护甲获得
     armorGain = selectedCard.baseArmor || 0;
@@ -863,11 +907,12 @@ export default function BattleArena() {
     
     // 构建AI消息
     if (selectedCard.type === "attack" && finalDamage > 0) {
-      if (pollutionBonus > 0) {
-        aiMessage = `你打出了【${selectedCard.name}】，基础伤害 ${baseDamage} 点，污染加成 ${pollutionBonus} 点，总计造成 ${finalDamage} 点伤害！`;
-      } else {
-        aiMessage = `你打出了【${selectedCard.name}】，造成了 ${finalDamage} 点伤害！`;
-      }
+      const parts: string[] = [];
+      parts.push(`基础伤害 ${baseDamage} 点`);
+      if (pollutionBonus > 0) parts.push(`污染加成 ${pollutionBonus} 点`);
+      if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
+      
+      aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}，总计造成 ${finalDamage} 点伤害！`;
       totalDamage = finalDamage;
     } else if (selectedCard.type === "skill") {
       const parts: string[] = [];
@@ -943,6 +988,19 @@ export default function BattleArena() {
     resetTimer();
     
     try {
+      // 获取当前阶段配置
+      const phaseConfig = getPollutionLevel(pollutionLevel);
+      
+      // 回合开始：应用阶段增益
+      if (phaseConfig.armorPerTurn > 0) {
+        setEnemyState(prev => ({ ...prev, armor: prev.armor + phaseConfig.armorPerTurn }));
+      }
+      
+      // 玩家受到穿透伤害
+      if (phaseConfig.playerPiercingDmg > 0) {
+        takeDamage("player", phaseConfig.playerPiercingDmg, true);
+      }
+      
       // 根据敌人意图类型触发对应的动画
       let actionText = "";
       let actionMsgText = "";
