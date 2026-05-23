@@ -860,27 +860,41 @@ export default function BattleArena() {
         <motion.div
           className="relative"
           animate={{
-            x: currentIntention.intentType === "ATTACK" && isEnemyCharging ? [0, -30, 0] : 0,
-            scale: isEnemyCharging ? [1, 1.1, 1.05, 1.1] : isEnemyHit ? [1, 0.95, 1.02, 0.98, 1] : 1,
+            x: currentIntention.intentType === "ATTACK" && isEnemyCharging ? [0, -60, -20, -50, 0] : 0,
+            scale: isEnemyCharging 
+              ? (currentIntention.intentType === "DEFEND" ? [1, 1.3, 1.2, 1.35, 1.25] : [1, 1.15, 1.05, 1.12, 1.08])
+              : isEnemyHit 
+              ? [1, 0.9, 1.05, 0.95, 1.02, 0.98, 1]
+              : 1,
             y: currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
-              ? [0, -8, 0, 8, 0] 
+              ? [0, -20, 0, 15, 0, -12, 0, 10, 0] 
+              : 0,
+            rotate: currentIntention.intentType === "ATTACK" && isEnemyCharging 
+              ? [0, -10, 0, -5, 0] 
+              : currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF"
+              ? [0, 5, 0, -5, 0]
               : 0,
           }}
           transition={{
-            duration: isEnemyCharging ? 0.8 : 0.4,
+            duration: isEnemyCharging ? 0.6 : 0.4,
             repeat: isEnemyCharging || currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF" 
               ? Infinity 
               : 0,
-            ease: "easeInOut",
+            ease: isEnemyCharging ? "easeOut" : "easeInOut",
           }}
           style={
             currentIntention.intentType === "DEFEND"
               ? { 
-                  boxShadow: "0 0 30px rgba(59, 130, 246, 0.6)",
+                  boxShadow: "0 0 50px rgba(59, 130, 246, 0.8), 0 0 80px rgba(59, 130, 246, 0.4)",
+                  filter: "brightness(1.2)",
                 }
               : currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF"
               ? {
-                  filter: "drop-shadow(0 0 15px rgba(168, 85, 247, 0.8))",
+                  filter: "drop-shadow(0 0 25px rgba(168, 85, 247, 0.9)) brightness(1.3)",
+                }
+              : currentIntention.intentType === "ATTACK" && isEnemyCharging
+              ? {
+                  filter: "brightness(1.5) contrast(1.2)",
                 }
               : {}
           }
@@ -888,16 +902,59 @@ export default function BattleArena() {
           {/* 敌人身体 */}
           <div 
             className={cn(
-              "w-24 h-36 bg-gradient-to-b from-sonic-purple/80 to-slate-900 rounded-t-full rounded-b-2xl shadow-2xl transition-all duration-300",
-              currentIntention.intentType === "DEFEND" && "shadow-[0_0_30px_rgba(59,130,246,0.6)]",
-              (currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF") && "shadow-[0_0_30px_rgba(168,85,247,0.6)]"
+              "w-24 h-36 bg-gradient-to-b from-sonic-purple/80 to-slate-900 rounded-t-full rounded-b-2xl shadow-2xl transition-all duration-300 relative overflow-hidden",
+              currentIntention.intentType === "DEFEND" && "shadow-[0_0_50px_rgba(59,130,246,0.8)]",
+              (currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF") && "shadow-[0_0_50px_rgba(168,85,247,0.8)]",
+              currentIntention.intentType === "ATTACK" && isEnemyCharging && "shadow-[0_0_40px_rgba(239,68,68,0.7)]"
             )}
           >
+            {/* 防御护盾效果 */}
+            {currentIntention.intentType === "DEFEND" && (
+              <div className="absolute inset-0 bg-blue-500/20 animate-pulse rounded-t-full rounded-b-2xl" />
+            )}
+            {/* 强化/施法效果 */}
+            {(currentIntention.intentType === "BUFF" || currentIntention.intentType === "DEBUFF") && (
+              <div className="absolute inset-0 bg-purple-500/30 animate-pulse rounded-t-full rounded-b-2xl" />
+            )}
+            {/* 攻击效果 */}
+            {currentIntention.intentType === "ATTACK" && isEnemyCharging && (
+              <div className="absolute inset-0 bg-red-500/20 animate-pulse rounded-t-full rounded-b-2xl" />
+            )}
+            
             {/* 眼睛 */}
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-3">
-              <div className="w-4 h-4 bg-danger-red rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-              <div className="w-4 h-4 bg-danger-red rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)] delay-300" />
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+              <div 
+                className={cn(
+                  "w-4 h-4 rounded-full shadow-lg transition-all duration-200",
+                  currentIntention.intentType === "ATTACK" 
+                    ? "bg-danger-red animate-pulse shadow-[0_0_15px_rgba(239,68,68,1)] scale-125"
+                    : currentIntention.intentType === "DEFEND"
+                    ? "bg-blue-400 animate-pulse shadow-[0_0_15px_rgba(59,130,246,1)]"
+                    : "bg-danger-red animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+                )} 
+              />
+              <div 
+                className={cn(
+                  "w-4 h-4 rounded-full shadow-lg transition-all duration-200",
+                  currentIntention.intentType === "ATTACK" 
+                    ? "bg-danger-red animate-pulse shadow-[0_0_15px_rgba(239,68,68,1)] scale-125"
+                    : currentIntention.intentType === "DEFEND"
+                    ? "bg-blue-400 animate-pulse shadow-[0_0_15px_rgba(59,130,246,1)]"
+                    : "bg-danger-red animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+                )}
+                style={{ animationDelay: "300ms" }}
+              />
             </div>
+            
+            {/* 嘴巴 - 攻击时张开 */}
+            {currentIntention.intentType === "ATTACK" && isEnemyCharging && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 w-8 h-6 bg-red-900 rounded-b-full border-2 border-red-500 shadow-lg">
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
+                  <div className="w-1.5 h-2 bg-white rounded-t-sm" />
+                  <div className="w-1.5 h-2 bg-white rounded-t-sm" />
+                </div>
+              </div>
+            )}
           </div>
           
           {/* 敌人状态面板 - 放置在敌人正下方 */}
