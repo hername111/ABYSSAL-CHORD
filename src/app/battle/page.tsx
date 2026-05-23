@@ -75,7 +75,7 @@ const getSimpleEnemyIntention = (): SimpleEnemyBehavior => {
   } else if (roll === 4) {
     return {
       type: "buff",
-      value: 2,
+      value: 10,
       description: "积蓄污染能量",
       intentType: "BUFF",
     };
@@ -1117,9 +1117,13 @@ export default function BattleArena() {
           ));
         }, 800);
       } else if (currentIntention.type === "buff") {
-        // 敌人强化
+        // 敌人强化 - 增加污染度
         const buffMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
         setDialogMessages(prev => [...prev, buffMsg]);
+        
+        // 实际增加污染度
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setPollutionLevel(prev => Math.min(100, prev + currentIntention.value));
         
         // 完成打字效果
         setTimeout(() => {
