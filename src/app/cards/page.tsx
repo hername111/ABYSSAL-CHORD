@@ -10,6 +10,38 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sparkles, Sword, Shield, Zap, ChevronRight } from 'lucide-react';
 
+// 带数量的卡牌接口
+interface CardWithCount {
+  card: Card;
+  count: number;
+}
+
+// 辅助函数：聚合卡牌数据，去重并计数
+function aggregateCards(cards: Card[]): CardWithCount[] {
+  const cardMap = new Map<string, CardWithCount>();
+  
+  cards.forEach(card => {
+    const key = card.id; // 使用卡牌的ID作为唯一标识
+    if (cardMap.has(key)) {
+      const existing = cardMap.get(key)!;
+      cardMap.set(key, { ...existing, count: existing.count + 1 });
+    } else {
+      cardMap.set(key, { card, count: 1 });
+    }
+  });
+  
+  return Array.from(cardMap.values());
+}
+
+// 数量角标组件
+function CountBadge({ count }: { count: number }) {
+  return (
+    <div className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-sonic-purple text-white font-display text-xs font-bold shadow-lg shadow-purple-500/30 z-10">
+      x{count}
+    </div>
+  );
+}
+
 const typeIcons: Record<CardType, React.ReactNode> = {
   attack: <Sword className="h-3.5 w-3.5" />,
   skill: <Shield className="h-3.5 w-3.5" />,
@@ -30,7 +62,7 @@ function CostBadge({ cost }: { cost: number }) {
   );
 }
 
-function CardItem({ card }: { card: Card }) {
+function CardItem({ card, count }: { card: Card; count?: number }) {
   const typeConf = cardTypeConfig[card.type];
   const archConf = archetypeConfig[card.archetype];
   const targetConf = targetConfig[card.target];
@@ -39,10 +71,14 @@ function CardItem({ card }: { card: Card }) {
     <Dialog>
       <DialogTrigger asChild>
         <div className={cn(
-          'card-hover cursor-pointer rounded-lg border p-3 transition-all',
+          'card-hover cursor-pointer rounded-lg border p-3 transition-all relative',
           typeConf.borderColor,
           'bg-abyss-light/80 hover:bg-abyss-light'
         )}>
+          {/* 数量角标 */}
+          {count !== undefined && count > 1 && (
+            <CountBadge count={count} />
+          )}
           <div className="flex items-start gap-3">
             <CostBadge cost={card.cost} />
             <div className="flex-1 min-w-0">
