@@ -1056,6 +1056,11 @@ export default function BattleArena() {
     
     // 特殊卡牌逻辑：次声崩塌
     let isInfrasonicCollapse = selectedCard.id === 'zl-fortress-03';
+    // 特殊卡牌逻辑：谐波叠加
+    let isHarmonicStack = selectedCard.id === 'zl-fortress-02';
+    // 特殊卡牌逻辑：共振壁垒
+    let isResonanceBulwark = selectedCard.id === 'zl-fortress-01';
+    
     let infrasonicDamage = 0;
     let armorLost = 0;
     let baseDamage = 0;
@@ -1063,6 +1068,10 @@ export default function BattleArena() {
     let phaseConfig = getPollutionLevel(pollutionLevel);
     armorGain = 0;
     let pollutionModifier = 0;
+    
+    // 共振壁垒：溢出伤害
+    let resonanceOverflowDamage = 0;
+    let resonanceArmorThreshold = 20;
     
     // 1. 处理特殊卡牌逻辑
     if (isInfrasonicCollapse) {
@@ -1076,6 +1085,41 @@ export default function BattleArena() {
       
       aiMessage = `你打出了【${selectedCard.name}】，当前护甲 ${playerState.armor} 点，造成 ${infrasonicDamage} 点伤害，失去 ${armorLost} 点护甲！`;
       totalDamage = infrasonicDamage;
+    } else if (isHarmonicStack) {
+      // ========== 谐波叠加 ==========
+      // 获得3点护甲。你本回合每打出一张牌，再获得2点护甲。
+      const baseArmorGain = 3;
+      const bonusArmorPerCard = 2;
+      // 注意：cardsPlayedThisTurn在出牌前已经+1了，所以要减去1
+      const extraArmorGain = Math.max(0, (cardsPlayedThisTurn - 1)) * bonusArmorPerCard;
+      armorGain = baseArmorGain + extraArmorGain;
+      
+      const parts: string[] = [];
+      parts.push(`基础护甲 ${baseArmorGain} 点`);
+      if (extraArmorGain > 0) {
+        parts.push(`额外护甲 ${extraArmorGain} 点（已打${cardsPlayedThisTurn - 1}张牌）`);
+      }
+      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}，总计获得 ${armorGain} 点护甲！`;
+    } else if (isResonanceBulwark) {
+      // ========== 共振壁垒 ==========
+      // 获得14点护甲。若本回合你的护甲总量超过20点，对全体敌人造成等同于溢出值的声波伤害。
+      const baseArmorGain = 14;
+      armorGain = baseArmorGain;
+      
+      // 计算获得护甲后的总护甲
+      const totalArmorAfterGain = playerState.armor + armorGain;
+      
+      // 检测是否超过阈值
+      if (totalArmorAfterGain > resonanceArmorThreshold) {
+        resonanceOverflowDamage = totalArmorAfterGain - resonanceArmorThreshold;
+      }
+      
+      const parts: string[] = [];
+      parts.push(`获得 ${armorGain} 点护甲`);
+      if (resonanceOverflowDamage > 0) {
+        parts.push(`护甲溢出 ${resonanceOverflowDamage} 点，转化为群体伤害！`);
+      }
+      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
     } else {
       // 1. 只使用阶段固定数值加成
       baseDamage = selectedCard.baseDamage || 0;
@@ -1176,6 +1220,15 @@ export default function BattleArena() {
         setTimeout(() => {
           setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
         }, 800);
+        
+        // ========== 共振壁垒：溢出伤害处理 ==========
+        if (isResonanceBulwark && resonanceOverflowDamage > 0) {
+          setTimeout(() => {
+            // 对敌人造成溢出伤害
+            setDamageNumbers(prev => [...prev, { id: Date.now() + 100, damage: resonanceOverflowDamage, x: 200, y: 250, color: "text-sonic-purple" }]);
+            takeDamage("enemy", resonanceOverflowDamage);
+          }, 400);
+        }
       }, 300);
     }
     
