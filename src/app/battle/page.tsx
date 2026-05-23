@@ -37,6 +37,44 @@ const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 // 敌人意图类型枚举
 type IntentType = "ATTACK" | "DEFEND" | "BUFF" | "DEBUFF";
 
+// 能力类型枚举
+type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_TUNING";
+
+// 能力接口
+interface ActiveAbility {
+  id: AbilityType;
+  cardId: string;
+}
+
+// 能力配置
+const abilityConfig: Record<AbilityType, {
+  armorPerTurn?: number;
+  armorThreshold?: number;
+  damagePerThreshold?: number;
+  selfDamageBonusPerPoint?: number;
+  maxBonus?: number;
+  lowHpThreshold?: number;
+  lowHpDamageBonus?: number;
+  lowHpDotDamage?: number;
+}> = {
+  FREQUENCY_ANCHOR: {
+    armorPerTurn: 3,
+  },
+  LOW_FREQUENCY_RESONANCE: {
+    armorThreshold: 5,
+    damagePerThreshold: 3,
+  },
+  PAIN_ECHO: {
+    selfDamageBonusPerPoint: 1,
+    maxBonus: 8,
+  },
+  FINAL_TUNING: {
+    lowHpThreshold: 20,
+    lowHpDamageBonus: 5,
+    lowHpDotDamage: 2,
+  },
+};
+
 // 状态效果类型
 type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN" | "SONIC_BOOM";
 
@@ -675,8 +713,11 @@ export default function BattleArena() {
   // 新卡牌效果状态
   const [cardsPlayedThisTurn, setCardsPlayedThisTurn] = useState(0);
   const [selfDamageThisTurn, setSelfDamageThisTurn] = useState(0);
-  const [activeAbilities, setActiveAbilities] = useState<string[]>([]);
+  const [activeAbilities, setActiveAbilities] = useState<ActiveAbility[]>([]);
   const [angerBonus, setAngerBonus] = useState(0);
+  
+  // 本回合获得的护甲总数（用于低频共振能力）
+  const [armorGainedThisTurn, setArmorGainedThisTurn] = useState(0);
   
   const router = useRouter();
   
@@ -799,6 +840,63 @@ export default function BattleArena() {
       });
     }
   };
+  
+  // ========== 获得护甲检查点 ==========
+  // 专门处理玩家获得护甲的函数，包含触发器
+  const gainArmor = (amount: number) => {
+    if (amount <= 0) return;
+    
+    // 1. 先更新玩家护甲
+    setPlayerState(prev => ({ ...prev, armor: prev.armor + amount }));
+    
+    // 2. 更新本回合获得的护甲总数
+    setArmorGainedThisTurn(prev => prev + amount);
+    
+    // 3. ========== "获得护甲"检查点 ==========
+    // 遍历持久化能力列表，检查是否有对应的能力需要触发
+    activeAbilities.forEach(ability => {
+      const config = abilityConfig[ability.id];
+      
+      // 低频共振：每获得5点护甲时，对随机一个敌人造成3点声波伤害
+      if (ability.id === "LOW_FREQUENCY_RESONANCE" && config.armorThreshold && config.damagePerThreshold) {
+        const totalArmorGained = armorGainedThisTurn + amount;
+        const oldThresholds = Math.floor(armorGainedThisTurn / config.armorThreshold);
+        const newThresholds = Math.floor(totalArmorGained / config.armorThreshold);
+        
+        if (newThresholds > oldThresholds) {
+          const timesToTrigger = newThresholds - oldThresholds;
+          for (let i = 0; i < timesToTrigger; i++) {
+            takeDamage("enemy", config.damagePerThreshold);
+          }
+        }
+      }
+    });
+  };
+  
+  // ========== 受到自伤检查点 ==========
+  // 专门处理玩家受到自伤的函数，包含触发器
+  const takeSelfDamage = (amount: number) => {
+    if (amount <= 0) return;
+    
+    // 1. 先造成自伤
+    takeDamage("player", amount);
+    
+    // 2. 更新本回合自伤累加器
+    setSelfDamageThisTurn(prev => prev + amount);
+    
+    // 3. ========== "受到自伤"检查点 ==========
+    // 遍历持久化能力列表，检查是否有对应的能力需要触发
+    activeAbilities.forEach(ability => {
+      const config = abilityConfig[ability.id];
+      
+      // 痛觉回响：每受到1点来自自身卡牌的伤害，下一张攻击牌伤害+1（最多叠加至+8）
+      if (ability.id === "PAIN_ECHO") {
+        const bonusPerPoint = config.selfDamageBonusPerPoint!;
+        const maxBonus = config.maxBonus!;
+        setAngerBonus(prev => Math.min(maxBonus, prev + amount * bonusPerPoint));
+      }
+    });
+  };
 
   // 回合开始逻辑
   const startTurn = () => {
@@ -811,6 +909,18 @@ export default function BattleArena() {
     // 重置本回合累加器
     setCardsPlayedThisTurn(0);
     setSelfDamageThisTurn(0);
+    setArmorGainedThisTurn(0);
+    
+    // ========== "回合开始"检查点 ==========
+    // 遍历持久化能力列表，如果有对应的能力，则自动执行后台操作
+    activeAbilities.forEach(ability => {
+      const config = abilityConfig[ability.id];
+      
+      // 频率锚定：每回合开始时获得3点护甲
+      if (ability.id === "FREQUENCY_ANCHOR" && config.armorPerTurn) {
+        gainArmor(config.armorPerTurn);
+      }
+    });
     
     // 自动调用抽牌进行回合初的固定摸牌
     drawCard(DRAW_PER_TURN);
@@ -925,14 +1035,21 @@ export default function BattleArena() {
     let aiMessage = "";
     let totalDamage = 0;
     let armorGain = 0;
+    let selfDamageAmount = selectedCard.selfDamage || 0;
     
     // 统一的伤害计算方法 - 只保留固定数值加成
     const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
       // 获取当前阶段配置
       const phaseConfig = getPollutionLevel(globalPollution);
       
-      // 核心机制：只应用阶段固定数值伤害增益
-      const finalDamage = baseDamage + phaseConfig.damageBonus;
+      // 核心机制：只应用阶段固定数值伤害增益 + 愤怒加成
+      let finalDamage = baseDamage + phaseConfig.damageBonus;
+      
+      // 添加终末定音的低血量伤害加成
+      const hasFinalTuning = activeAbilities.find(a => a.id === "FINAL_TUNING");
+      if (hasFinalTuning && playerState.hp <= abilityConfig.FINAL_TUNING.lowHpThreshold!) {
+        finalDamage += abilityConfig.FINAL_TUNING.lowHpDamageBonus!;
+      }
       
       return finalDamage;
     };
@@ -976,6 +1093,7 @@ export default function BattleArena() {
         const parts: string[] = [];
         parts.push(`基础伤害 ${baseDamage} 点`);
         if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
+        if (selfDamageAmount > 0) parts.push(`自伤 ${selfDamageAmount} 点`);
         
         aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}，总计造成 ${finalDamage} 点伤害！`;
         totalDamage = finalDamage;
@@ -984,7 +1102,11 @@ export default function BattleArena() {
         if (armorGain > 0) parts.push(`获得 ${armorGain} 点护甲`);
         if (pollutionModifier < 0) parts.push(`降低 ${Math.abs(pollutionModifier)} 点污染度`);
         if (pollutionModifier > 0) parts.push(`增加 ${pollutionModifier} 点污染度`);
+        if (selfDamageAmount > 0) parts.push(`自伤 ${selfDamageAmount} 点`);
         aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
+      } else if (selectedCard.type === "ability") {
+        // 能力牌：直接激活永久效果
+        aiMessage = `你激活了【${selectedCard.name}】，能力将永久生效！`;
       } else {
         aiMessage = `你使用了【${selectedCard.name}】！`;
       }
@@ -1018,10 +1140,16 @@ export default function BattleArena() {
       
       // 伤害数字
       setTimeout(() => {
-        setDamageNumbers(prev => [...prev, { id: Date.now(), damage: totalDamage, x: 200, y: 250, color: "text-danger-red" }]);
+        // 添加愤怒加成到最终伤害
+        const finalDamageWithBonus = totalDamage + angerBonus;
+        
+        setDamageNumbers(prev => [...prev, { id: Date.now(), damage: finalDamageWithBonus, x: 200, y: 250, color: "text-danger-red" }]);
         
         // 必须且只能将经过加成后的 finalDamage 传入 takeDamage 扣血函数中
-        takeDamage("enemy", totalDamage);
+        takeDamage("enemy", finalDamageWithBonus);
+        
+        // 攻击结束后清零愤怒加成
+        setAngerBonus(0);
         
         setTimeout(() => setIsEnemyHit(false), 500);
         setTimeout(() => setShowSonicWave(false), 500);
@@ -1034,9 +1162,9 @@ export default function BattleArena() {
       setIsDefending(true);
       
       setTimeout(() => {
-        // 应用护甲效果
+        // 应用护甲效果 - 使用新的gainArmor函数，包含"获得护甲"检查点
         if (armorGain > 0) {
-          setPlayerState(prev => ({ ...prev, armor: prev.armor + armorGain }));
+          gainArmor(armorGain);
         }
         
         // 强制落实污染度增减 - 必须立刻触发UI更新
@@ -1049,6 +1177,37 @@ export default function BattleArena() {
           setDialogMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
         }, 800);
       }, 300);
+    }
+    
+    // ========== 处理自伤 ==========
+    if (selfDamageAmount > 0) {
+      takeSelfDamage(selfDamageAmount);
+    }
+    
+    // ========== 处理能力牌激活 ==========
+    if (selectedCard.type === "ability") {
+      // 根据卡牌id映射到AbilityType
+      let abilityType: AbilityType | null = null;
+      
+      switch (selectedCard.id) {
+        case "zl-ability-01":
+          abilityType = "FREQUENCY_ANCHOR";
+          break;
+        case "zl-ability-02":
+          abilityType = "LOW_FREQUENCY_RESONANCE";
+          break;
+        case "zl-ability-03":
+          abilityType = "PAIN_ECHO";
+          break;
+        case "zl-ability-04":
+          abilityType = "FINAL_TUNING";
+          break;
+      }
+      
+      // 激活能力（如果还没有激活过）
+      if (abilityType && !activeAbilities.find(a => a.id === abilityType)) {
+        setActiveAbilities(prev => [...prev, { id: abilityType, cardId: selectedCard.id }]);
+      }
     }
     
     // 移除打出的手牌，并加入弃牌堆（除非是消耗牌）
@@ -1208,6 +1367,16 @@ export default function BattleArena() {
             m.id === chargingMsg.id || m.id === buffMsg.id ? { ...m, isTyping: false } : m
           ));
         }, 800);
+      }
+      
+      // ========== "回合结束"检查点 ==========
+      // 终末定音：当生命值降至20以下时，每回合结束受到2点穿透伤害
+      const hasFinalTuning = activeAbilities.find(a => a.id === "FINAL_TUNING");
+      if (hasFinalTuning && playerState.hp <= abilityConfig.FINAL_TUNING.lowHpThreshold!) {
+        takeDamage("player", abilityConfig.FINAL_TUNING.lowHpDotDamage!, true);
+        // 添加终末定音伤害消息
+        const finalTuningMsg = { id: Date.now() + 200, text: `终末定音触发！受到 ${abilityConfig.FINAL_TUNING.lowHpDotDamage} 点穿透伤害！`, isTyping: true };
+        setDialogMessages(prev => [...prev, finalTuningMsg]);
       }
       
       // 结束回合：将手牌加入弃牌堆（除了保留牌）
