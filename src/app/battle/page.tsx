@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 // 全局常量
-const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
+const MAX_HAND_SIZE = 10; // 手牌上限严格限制为 10 张
 const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
 // 简化的敌人行为类型
@@ -155,13 +155,14 @@ const HandCard = ({
       )}
       initial={{ y: 100, opacity: 0 }}
       animate={{
-        y: 0,
+        y: isSelected ? -40 : 0,
+        scale: isSelected ? 1.15 : 1,
         opacity: 1,
         zIndex: isSelected ? 999 : index,
       }}
       whileHover={{
-        y: -40,
-        scale: 1.15,
+        y: isSelected ? -40 : -20,
+        scale: isSelected ? 1.15 : 1.08,
         zIndex: 999,
       }}
       onClick={() => onSelect(card)}
