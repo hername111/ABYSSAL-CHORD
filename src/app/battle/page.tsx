@@ -20,6 +20,9 @@ import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+// 强制手牌上限
+const MAX_HAND_SIZE = 10;
+
 // 简化的敌人行为类型
 type SimpleEnemyBehavior = {
   type: "attack" | "defend" | "buff";
@@ -109,7 +112,7 @@ const DamageNumber = ({ damage, x, y, color }: { damage: number; x: number; y: n
   );
 };
 
-// 手牌组件 - 重构版本
+// 手牌组件 - 数学公式重构版本
 const HandCard = ({ 
   card, 
   index, 
@@ -125,9 +128,12 @@ const HandCard = ({
   onSelect: (card: Card) => void;
   canPlay: boolean;
 }) => {
-  const middleIndex = (total - 1) / 2;
-  const distanceFromMiddle = index - middleIndex;
-  const rotationAngle = distanceFromMiddle * 6;
+  // 数学公式：计算中心偏移值
+  const offset = index - (total - 1) / 2;
+  // 旋转角度：每张牌偏移 5 度
+  const rotateZ = offset * 5;
+  // Y轴下沉：越靠两边的卡牌，位置越靠下，形成圆弧
+  const translateY = Math.abs(offset) * 10;
 
   const getBorderColor = (type: CardType) => {
     switch (type) {
@@ -143,42 +149,42 @@ const HandCard = ({
       case "attack": return "from-card-darker to-red-900/50";
       case "skill": return "from-card-darker to-blue-900/50";
       case "ability": return "from-card-darker to-yellow-900/50";
-      default: return "from-card-darker to-slate-800";
+      default: return "from-card-darker to-slate-80";
     }
   };
 
   return (
     <motion.div
       className={cn(
-        "relative cursor-pointer transition-all duration-300",
+        "relative cursor-pointer",
         !canPlay && "opacity-50 cursor-not-allowed"
       )}
       style={{
         transformOrigin: "bottom center",
       }}
-      initial={{ y: 100, opacity: 0, rotate: rotationAngle }}
+      initial={{ y: 100, opacity: 0 }}
       animate={{
         y: 0,
         opacity: 1,
-        rotate: isSelected ? 0 : rotationAngle,
-        scale: isSelected ? 1.15 : 1,
-        zIndex: isSelected ? 50 : 20 + Math.abs(distanceFromMiddle),
+        zIndex: isSelected ? 999 : index,
+        rotate: isSelected ? 0 : rotateZ,
+        translateY: isSelected ? 0 : translateY,
       }}
       whileHover={canPlay ? {
-        y: -20,
-        scale: 1.1,
-        zIndex: 50,
+        translateY: -40,
+        scale: 1.15,
+        zIndex: 999,
       } : {}}
       onClick={() => canPlay && onSelect(card)}
       transition={{
         type: "spring",
-        stiffness: 100,
-        damping: 15,
-        delay: index * 0.1,
+        stiffness: 300,
+        damping: 20,
+        duration: 0.2,
       }}
     >
       <div className={cn(
-        "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg transition-all duration-300",
+        "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg",
         getBgColor(card.type),
         getBorderColor(card.type),
         isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
@@ -295,17 +301,26 @@ export default function BattleArena() {
     setTimeLeft(30);
   };
 
-  // 抽牌函数
+  // 抽牌函数 - 强制手牌上限
   const drawCards = (count: number) => {
+    // 计算当前手牌加上新抽牌是否超过上限
+    const availableSlots = MAX_HAND_SIZE - hand.length;
+    const actualDrawCount = Math.min(count, availableSlots);
+    
+    if (actualDrawCount <= 0) {
+      // 手牌已满，无法抽牌
+      return;
+    }
+    
     // 从牌库中随机抽取牌
     const shuffledDeck = [...deck].sort(() => Math.random() - 0.5);
-    const drawnCards = shuffledDeck.slice(0, Math.min(count, shuffledDeck.length));
+    const drawnCards = shuffledDeck.slice(0, Math.min(actualDrawCount, shuffledDeck.length));
     
-    // 更新手牌
-    setHand(drawnCards);
+    // 更新手牌（追加到现有手牌）
+    setHand(prevHand => [...prevHand, ...drawnCards]);
     
     // 从牌库中移除已抽取的牌
-    const remainingDeck = shuffledDeck.slice(count);
+    const remainingDeck = shuffledDeck.slice(actualDrawCount);
     
     // 如果牌库空了，重新填充牌库
     if (remainingDeck.length === 0) {
@@ -722,173 +737,201 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* AI裁判区 - 固定在左下角，避开卡牌区域 */}
-      <div className="fixed bottom-24 left-4 z-30 max-w-xs">
-        <div className="bg-black/70 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-sm text-slate-200">AI 裁判</span>
+      {/* AI裁判区 - 左侧边抽屉式 */}
+      <div className="fixed left-4 top-[30%] z-30">
+        <div className="group">
+          {/* 收起状态 - 只显示图标 */}
+          <div className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-sonic-purple/30 cursor-pointer hover:border-sonic-purple/60 transition-all">
+            <BookOpen className="w-5 h-5 text-sonic-purple" />
           </div>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {dialogMessages.slice(-3).map(msg => (
-              <div key={msg.id} className="text-sm text-slate-300">
-                {msg.isTyping ? (
-                  <span className="animate-pulse">{msg.text}</span>
-                ) : (
-                  msg.text
-                )}
+          
+          {/* 展开状态 - 显示完整面板 */}
+          <div className="absolute left-full top-0 ml-2 hidden group-hover:block">
+            <div className="bg-black/80 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 w-64 shadow-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <span className="font-bold text-lg text-slate-200">AI 裁判</span>
               </div>
-            ))}
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {dialogMessages.slice(-4).map(msg => (
+                  <div key={msg.id} className="text-sm text-slate-300">
+                    {msg.isTyping ? (
+                      <span className="animate-pulse">{msg.text}</span>
+                    ) : (
+                      msg.text
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 手牌容器 - 强制抬高到 bottom-[120px] */}
-      <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 flex justify-center items-end h-64 z-40">
+      {/* 手牌容器 - 动态扇形布局 */}
+      <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
         <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
-            <HandCard
+            <div
               key={card.id}
-              card={card}
-              index={index}
-              total={hand.length}
-              isSelected={selectedCard === card}
-              onSelect={handleCardSelect}
-              canPlay={card.cost <= playerAp && !isProcessing}
-            />
+              className="absolute bottom-0 left-1/2 -translate-x-1/2"
+              style={{ transformOrigin: "bottom center" }}
+            >
+              <HandCard
+                card={card}
+                index={index}
+                total={hand.length}
+                isSelected={selectedCard === card}
+                onSelect={handleCardSelect}
+                canPlay={card.cost <= playerAp && !isProcessing}
+              />
+            </div>
           ))}
         </div>
       </div>
 
-      {/* 重置底部中控台 - h-[100px] fixed bottom-0 */}
-      <div className="fixed bottom-0 left-0 right-0 h-[100px] bg-black/50 backdrop-blur flex flex-col justify-center items-center gap-2 z-50">
-        {/* 倒计时进度条 - 占据屏幕的 40% 左右 */}
-        <div className="w-[40%]">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-slate-400 font-bold">回合时间</span>
-            <span className={cn(
-              "text-xs font-black",
-              timeLeft <= 10 ? "text-danger-red" : "text-sonic-purple"
-            )}>
-              {timeLeft}秒
-            </span>
-          </div>
-          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-            <motion.div
-              className={cn(
-                "h-full transition-all duration-300",
-                timeLeft > 10 
-                  ? "bg-gradient-to-r from-sonic-purple to-sonic-purple/60" 
-                  : "bg-gradient-to-r from-danger-red to-danger-red/60 animate-pulse"
-              )}
-              initial={{ width: "100%" }}
-              animate={{ width: `${(timeLeft / 30) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
+      {/* 底部中控台 - 时间进度条在最底部，按钮悬浮在手牌区右上方 */}
+      <div className="fixed bottom-0 left-0 right-0 z-50">
+        {/* 时间进度条 - 平铺吸附在屏幕最底部 */}
+        <div className="h-12 bg-black/60 backdrop-blur-sm border-t border-slate-800">
+          <div className="container mx-auto px-4 h-full flex items-center">
+            <div className="flex-1 max-w-2xl mx-auto">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-300">回合时间</span>
+                <span className={cn(
+                  "text-xs font-bold",
+                  timeLeft > 10 ? "text-sonic-purple" : "text-danger-red animate-pulse"
+                )}>
+                  {timeLeft}秒
+                </span>
+              </div>
+              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div
+                  className={cn(
+                    "h-full transition-all",
+                    timeLeft > 10 ? "bg-gradient-to-r from-sonic-purple to-sonic-purple/70" : "bg-gradient-to-r from-danger-red to-danger-red/70"
+                  )}
+                  initial={{ width: "100%" }}
+                  animate={{ width: `${(timeLeft / 30) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* 按钮区域 - 并排居中放置 */}
-        <div className="flex gap-4">
-          {/* 使用卡牌按钮 - 条件渲染 */}
-          {selectedCard && selectedCard.cost <= playerAp && !isProcessing && !gameOver && (
-            <Button
-              onClick={handlePlayCard}
-              className="bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white px-6 py-3 rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
-            >
-              使用卡牌
-            </Button>
-          )}
-
+        
+        {/* 操作按钮 - 悬浮在手牌区右上方 */}
+        <div className="fixed right-8 bottom-20 z-50 flex flex-col gap-3">
+          {/* 使用卡牌按钮 */}
+          <AnimatePresence>
+            {selectedCard && !gameOver && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                onClick={handlePlayCard}
+                disabled={selectedCard.cost > playerAp || isProcessing}
+                className="px-10 py-4 text-xl font-extrabold tracking-widest bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-[0_0_25px_rgba(147,51,234,0.7)] hover:shadow-[0_0_35px_rgba(147,51,234,0.9)] transition-all transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                使用卡牌
+              </motion.button>
+            )}
+          </AnimatePresence>
+          
           {/* 结束回合按钮 */}
-          <Button
+          <button
             onClick={handleEndTurn}
             disabled={isProcessing || gameOver}
-            className={cn(
-              "px-8 py-4 text-lg font-bold rounded-xl shadow-lg transition-all duration-300",
-              isProcessing || gameOver
-                ? "bg-slate-700 cursor-not-allowed"
-                : "bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white shadow-sonic-purple/40 border border-sonic-purple/50"
-            )}
+            className="px-10 py-4 text-xl font-extrabold tracking-widest bg-sonic-purple hover:bg-sonic-purple/90 text-white rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.6)] hover:shadow-[0_0_30px_rgba(139,92,246,0.8)] transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            {isProcessing ? "处理中..." : "结束回合"}
-          </Button>
+            结束回合
+          </button>
         </div>
       </div>
 
-      {/* 游戏结束结算弹窗 */}
+      {/* 游戏结束弹窗 */}
       <AnimatePresence>
         {gameOver && (
-          <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center">
+          <motion.div
+            className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-card-darker p-8 rounded-2xl border-2 border-slate-700 max-w-md text-center"
+              className="bg-black/95 backdrop-blur-xl p-12 rounded-2xl border-2 border-sonic-purple/50 shadow-2xl text-center max-w-md"
+              initial={{ scale: 0.8, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
             >
-              <h1 className={cn(
-                "text-5xl font-black mb-6",
-                gameResult === 'victory' ? "text-purify-green" : "text-danger-red"
-              )}>
-                {gameResult === 'victory' ? "胜利！" : "败北"}
-              </h1>
+              <motion.div
+                className="text-6xl font-black mb-6"
+                style={{
+                  color: gameResult === 'victory' ? '#22c55e' : '#ef4444',
+                  textShadow: `0 0 30px ${gameResult === 'victory' ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)'}`
+                }}
+                initial={{ scale: 0.5 }}
+                animate={{ scale: 1.2 }}
+                transition={{ type: "spring", delay: 0.2 }}
+              >
+                {gameResult === 'victory' ? '胜利！' : '败北...'}
+              </motion.div>
               
-              <p className="text-slate-400 mb-8">
+              <p className="text-slate-300 mb-8 text-lg">
                 {gameResult === 'victory' 
-                  ? "你成功击败了嘶鸣游荡者！" 
-                  : "你被畸变体吞噬了..."}
+                  ? '你成功净化了这只畸变体！' 
+                  : '你被旧日回音吞噬了...'}
               </p>
               
               <div className="flex gap-4 justify-center">
                 <Button
                   onClick={handleRestart}
-                  className="px-6 py-3 bg-gradient-to-r from-sonic-purple to-sonic-purple/80 hover:from-sonic-purple/90 hover:to-sonic-purple/70 text-white rounded-xl shadow-lg shadow-sonic-purple/40 border border-sonic-purple/50 font-bold"
+                  className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105"
                 >
                   重新挑战
                 </Button>
                 <Button
-                  onClick={() => router.push("/")}
-                  variant="ghost"
-                  className="px-6 py-3 text-slate-400 hover:text-slate-200"
+                  onClick={() => router.push('/')}
+                  className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg shadow-lg transition-all hover:scale-105"
                 >
                   返回主菜单
                 </Button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* 退出确认弹窗 */}
       <AnimatePresence>
         {showExitConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-card-darker p-6 rounded-xl border border-slate-700 max-w-sm"
-            >
-              <h2 className="text-xl font-bold text-slate-200 mb-4">确认退出？</h2>
-              <p className="text-slate-400 mb-6">退出后当前战斗进度将丢失。</p>
-              <div className="flex gap-3">
+          <motion.div
+            className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="bg-black/95 backdrop-blur-xl p-8 rounded-2xl border border-slate-700 shadow-2xl">
+              <h3 className="text-xl font-bold text-slate-200 mb-4">确认退出？</h3>
+              <p className="text-slate-400 mb-6">退出战斗后，当前进度将不会保存。</p>
+              <div className="flex gap-4 justify-end">
                 <Button
-                  variant="ghost"
                   onClick={() => setShowExitConfirm(false)}
-                  className="flex-1"
+                  className="bg-slate-700 hover:bg-slate-600"
                 >
                   继续战斗
                 </Button>
                 <Button
-                  onClick={() => router.push("/")}
-                  className="flex-1 bg-danger-red hover:bg-danger-red/90"
+                  onClick={() => router.push('/')}
+                  className="bg-danger-red hover:bg-danger-red/90"
                 >
-                  退出
+                  确认退出
                 </Button>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
