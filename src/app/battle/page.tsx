@@ -510,19 +510,37 @@ const HandCard = ({
 }) => {
   const getBorderColor = (type: CardType) => {
     switch (type) {
-      case "attack": return "border-danger-red/70";
-      case "skill": return "border-armor-blue/70";
-      case "ability": return "border-gold/70";
+      case "attack": return "border-danger-red/80";
+      case "skill": return "border-armor-blue/80";
+      case "ability": return "border-gold/80";
       default: return "border-slate-600";
     }
   };
 
   const getBgColor = (type: CardType) => {
     switch (type) {
-      case "attack": return "from-card-darker to-red-900/50";
-      case "skill": return "from-card-darker to-blue-900/50";
-      case "ability": return "from-card-darker to-yellow-900/50";
+      case "attack": return "from-red-950/80 to-red-900/60";
+      case "skill": return "from-blue-950/80 to-blue-900/60";
+      case "ability": return "from-yellow-950/80 to-yellow-900/60";
       default: return "from-card-darker to-slate-80";
+    }
+  };
+
+  const getTypeLabel = (type: CardType) => {
+    switch (type) {
+      case "attack": return "攻击";
+      case "skill": return "技能";
+      case "ability": return "能力";
+      default: return "基础";
+    }
+  };
+
+  const getTypeLabelColor = (type: CardType) => {
+    switch (type) {
+      case "attack": return "bg-danger-red text-white";
+      case "skill": return "bg-armor-blue text-white";
+      case "ability": return "bg-gold text-black";
+      default: return "bg-slate-600 text-white";
     }
   };
 
@@ -583,25 +601,33 @@ const HandCard = ({
       }}
     >
       <div className={cn(
-        "w-32 h-44 rounded-xl border-2 bg-gradient-to-br shadow-lg",
+        "w-44 h-60 rounded-xl border-3 bg-gradient-to-br shadow-lg",
         getBgColor(card.type),
         getBorderColor(card.type),
         isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
       )}>
         {/* 费用 */}
-        <div className="absolute -top-2 -left-2 w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-sonic-purple/50">
+        <div className="absolute -top-2 -left-2 w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-sonic-purple/50">
           {card.cost}
         </div>
         
+        {/* 类型标签 */}
+        <div className={cn(
+          "absolute -top-2 -right-2 px-3 py-1 rounded-lg text-xs font-bold shadow-lg",
+          getTypeLabelColor(card.type)
+        )}>
+          {getTypeLabel(card.type)}
+        </div>
+        
         {/* 卡牌内容 */}
-        <div className="p-3 h-full flex flex-col">
-          <h3 className="text-sm font-bold text-slate-100 mb-1 truncate">
+        <div className="p-4 h-full flex flex-col">
+          <h3 className="text-lg font-bold text-slate-100 mb-2 truncate">
             {card.name}
           </h3>
-          <p className="text-xs text-slate-400 mb-2">
+          <p className="text-sm text-slate-400 mb-3">
             {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
           </p>
-          <div className="flex-1 text-xs text-slate-300 leading-relaxed">
+          <div className="flex-1 text-sm text-slate-300 leading-relaxed overflow-y-auto">
             {getDynamicEffect()}
           </div>
         </div>
@@ -1859,7 +1885,7 @@ export default function BattleArena() {
 
       {/* 手牌容器 - 动态扇形布局 */}
       <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
-        <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
+        <div className="relative flex items-end justify-center -space-x-6" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
               key={card.uid}
