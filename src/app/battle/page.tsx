@@ -757,6 +757,13 @@ export default function BattleArena() {
   // 本回合获得的护甲总数（用于低频共振能力）
   const [armorGainedThisTurn, setArmorGainedThisTurn] = useState(0);
   
+  // 反馈回路效果：本回合是否已受到过自伤
+  const [hasTakenSelfDamageThisTurn, setHasTakenSelfDamageThisTurn] = useState(false);
+  // 反馈回路效果：是否可以免费再打一次
+  const [freeSecondAttackAvailable, setFreeSecondAttackAvailable] = useState(false);
+  // 断弦极限效果：下一张攻击牌伤害加成
+  const [nextAttackDamageBonus, setNextAttackDamageBonus] = useState(0);
+  
   const router = useRouter();
   
   // 倒计时逻辑
@@ -921,6 +928,8 @@ export default function BattleArena() {
     
     // 2. 更新本回合自伤累加器
     setSelfDamageThisTurn(prev => prev + amount);
+    // 3. 标记本回合已受到过自伤
+    setHasTakenSelfDamageThisTurn(true);
     
     // 3. ========== "受到自伤"检查点 ==========
     // 遍历持久化能力列表，检查是否有对应的能力需要触发
@@ -948,6 +957,9 @@ export default function BattleArena() {
     setCardsPlayedThisTurn(0);
     setSelfDamageThisTurn(0);
     setArmorGainedThisTurn(0);
+    setHasTakenSelfDamageThisTurn(false);
+    setFreeSecondAttackAvailable(false);
+    setNextAttackDamageBonus(0);
     
     // ========== "回合开始"检查点 ==========
     // 遍历持久化能力列表，如果有对应的能力，则自动执行后台操作
@@ -1093,7 +1105,14 @@ export default function BattleArena() {
     // 增加本回合出牌计数
     setCardsPlayedThisTurn(prev => prev + 1);
     
-    setPlayerAp(prev => prev - selectedCard.cost);
+    // 反馈回路：如果可以免费再打一次，则不消耗行动力
+    if (freeSecondAttackAvailable) {
+      // 使用免费再打一次，不消耗行动力
+      setFreeSecondAttackAvailable(false);
+    } else {
+      // 正常消耗行动力
+      setPlayerAp(prev => prev - selectedCard.cost);
+    }
     resetTimer();
     
     // 显示打牌图标效果
@@ -1111,8 +1130,8 @@ export default function BattleArena() {
       // 获取当前阶段配置
       const phaseConfig = getPollutionLevel(globalPollution);
       
-      // 核心机制：只应用阶段固定数值伤害增益 + 愤怒加成
-      let finalDamage = baseDamage + phaseConfig.damageBonus;
+      // 核心机制：只应用阶段固定数值伤害增益 + 愤怒加成 + 断弦极限加成
+      let finalDamage = baseDamage + phaseConfig.damageBonus + nextAttackDamageBonus;
       
       // 添加终末定音的低血量伤害加成
       const hasFinalTuning = activeAbilities.find(a => a.id === "FINAL_TUNING");
@@ -1129,6 +1148,10 @@ export default function BattleArena() {
     let isHarmonicStack = selectedCard.id === 'zl-fortress-02';
     // 特殊卡牌逻辑：共振壁垒
     let isResonanceBulwark = selectedCard.id === 'zl-fortress-01';
+    // 特殊卡牌逻辑：反馈回路
+    let isFeedbackLoop = selectedCard.id === 'zl-overload-02';
+    // 特殊卡牌逻辑：断弦极限
+    let isBrokenStringLimit = selectedCard.id === 'zl-overload-03';
     
     let infrasonicDamage = 0;
     let armorLost = 0;
@@ -1188,6 +1211,58 @@ export default function BattleArena() {
       if (resonanceOverflowDamage > 0) {
         parts.push(`护甲溢出 ${resonanceOverflowDamage} 点，转化为群体伤害！`);
       }
+      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
+    } else if (isFeedbackLoop) {
+      // ========== 反馈回路 ==========
+      // 造成4点伤害。若本回合已受到过自身卡牌的伤害，此牌伤害翻倍（8点），并可以不消耗行动力再打出一次（须从手牌中打出第二次，第二次不翻倍）。
+      baseDamage = selectedCard.baseDamage || 0;
+      
+      // 检查是否本回合已受到过自伤
+      let damageMultiplier = 1;
+      if (hasTakenSelfDamageThisTurn) {
+        damageMultiplier = 2;
+      }
+      
+      finalDamage = calculateActualDamage(baseDamage * damageMultiplier, pollutionLevel);
+      
+      const parts: string[] = [];
+      parts.push(`基础伤害 ${baseDamage} 点`);
+      if (hasTakenSelfDamageThisTurn) {
+        parts.push(`条件满足！伤害翻倍至 ${finalDamage} 点`);
+        // 标记可以免费再打一次
+        setFreeSecondAttackAvailable(true);
+      }
+      if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
+      if (nextAttackDamageBonus > 0) parts.push(`断弦极限加成 ${nextAttackDamageBonus} 点`);
+      
+      aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}！`;
+      totalDamage = finalDamage;
+      
+      // 断弦极限：使用后清零
+      if (nextAttackDamageBonus > 0) {
+        setNextAttackDamageBonus(0);
+      }
+    } else if (isBrokenStringLimit) {
+      // ========== 断弦极限 ==========
+      // 失去10点生命值。获得2点行动力。本回合你打出的下一张攻击牌伤害+10。
+      const hpLoss = 10;
+      const apGain = 2;
+      const damageBonus = 10;
+      
+      // 1. 失去10点生命值（造成穿透伤害）
+      takeDamage("player", hpLoss, true);
+      
+      // 2. 获得2点行动力
+      setPlayerAp(prev => Math.min(playerMaxAp + 2, prev + apGain));
+      
+      // 3. 设置下一张攻击牌伤害+10
+      setNextAttackDamageBonus(damageBonus);
+      
+      const parts: string[] = [];
+      parts.push(`失去 ${hpLoss} 点生命值`);
+      parts.push(`获得 ${apGain} 点行动力`);
+      parts.push(`下一张攻击牌伤害 +${damageBonus}`);
+      
       aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
     } else {
       // 1. 只使用阶段固定数值加成
