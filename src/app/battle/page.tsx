@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 // 强制手牌上限
-const MAX_HAND_SIZE = 10;
+const MAX_HAND_SIZE = 6;
 
 // 简化的敌人行为类型
 type SimpleEnemyBehavior = {
@@ -771,7 +771,7 @@ export default function BattleArena() {
       </div>
 
       {/* 手牌容器 - 动态扇形布局 */}
-      <div className="fixed bottom-[120px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
+      <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
         <div className="relative flex items-end justify-center" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
@@ -823,7 +823,7 @@ export default function BattleArena() {
         </div>
         
         {/* 操作按钮 - 悬浮在手牌区右上方 */}
-        <div className="fixed right-8 bottom-20 z-50 flex flex-col gap-3">
+        <div className="fixed right-8 bottom-32 z-50 flex flex-col gap-3">
           {/* 使用卡牌按钮 */}
           <AnimatePresence>
             {selectedCard && !gameOver && (
@@ -833,7 +833,7 @@ export default function BattleArena() {
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
                 onClick={handlePlayCard}
                 disabled={selectedCard.cost > playerAp || isProcessing}
-                className="px-10 py-4 text-xl font-extrabold tracking-widest bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-[0_0_25px_rgba(147,51,234,0.7)] hover:shadow-[0_0_35px_rgba(147,51,234,0.9)] transition-all transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="px-12 py-6 text-2xl font-extrabold tracking-widest bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-[0_0_25px_rgba(147,51,234,0.7)] hover:shadow-[0_0_35px_rgba(147,51,234,0.9)] transition-all transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 使用卡牌
               </motion.button>
