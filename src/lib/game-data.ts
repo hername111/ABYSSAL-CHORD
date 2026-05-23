@@ -96,15 +96,19 @@ export interface PollutionLevel {
 }
 
 export const pollutionLevels: PollutionLevel[] = [
-  { range: [0, 5], name: '寂静期', nameEn: 'Silence', damageBonus: 0, armorPerTurn: 0, playerPiercingDmg: 0, color: 'text-green-400', bgColor: 'bg-green-500' },
-  { range: [6, 12], name: '低鸣期', nameEn: 'Hum', damageBonus: 2, armorPerTurn: 0, playerPiercingDmg: 0, color: 'text-yellow-400', bgColor: 'bg-yellow-500' },
-  { range: [13, 20], name: '共振期', nameEn: 'Resonance', damageBonus: 4, armorPerTurn: 3, playerPiercingDmg: 0, color: 'text-orange-400', bgColor: 'bg-orange-500' },
-  { range: [21, 28], name: '咆哮期', nameEn: 'Roar', damageBonus: 6, armorPerTurn: 5, playerPiercingDmg: 3, color: 'text-red-400', bgColor: 'bg-red-500' },
-  { range: [29, 30], name: '终焉和弦', nameEn: 'Final Chord', damageBonus: 10, armorPerTurn: 5, playerPiercingDmg: 5, color: 'text-purple-400', bgColor: 'bg-purple-500' },
+  { range: [0, 15], name: '寂静期', nameEn: 'Silent', damageBonus: 0, armorPerTurn: 0, playerPiercingDmg: 0, color: 'text-green-400', bgColor: 'bg-green-500' },
+  { range: [16, 40], name: '低鸣期', nameEn: 'Humming', damageBonus: 2, armorPerTurn: 0, playerPiercingDmg: 0, color: 'text-yellow-400', bgColor: 'bg-yellow-500' },
+  { range: [41, 70], name: '共振期', nameEn: 'Resonance', damageBonus: 4, armorPerTurn: 3, playerPiercingDmg: 0, color: 'text-orange-400', bgColor: 'bg-orange-500' },
+  { range: [71, 90], name: '咆哮期', nameEn: 'Roaring', damageBonus: 6, armorPerTurn: 5, playerPiercingDmg: 3, color: 'text-red-400', bgColor: 'bg-red-500' },
+  { range: [91, 100], name: '终焉和弦', nameEn: 'Finale', damageBonus: 10, armorPerTurn: 5, playerPiercingDmg: 5, color: 'text-purple-400', bgColor: 'bg-purple-500' },
 ];
 
 export function getPollutionLevel(pollution: number): PollutionLevel {
-  return pollutionLevels.find(l => pollution >= l.range[0] && pollution <= l.range[1]) ?? pollutionLevels[0];
+  if (pollution >= 91) return pollutionLevels[4];
+  if (pollution >= 71) return pollutionLevels[3];
+  if (pollution >= 41) return pollutionLevels[2];
+  if (pollution >= 16) return pollutionLevels[1];
+  return pollutionLevels[0];
 }
 
 // 角色数据

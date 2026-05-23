@@ -100,9 +100,25 @@ const PollutionScale = ({ level }: { level: number }) => {
 
   // 获取当前阶段配置
   const currentPhase = getPollutionLevel(level);
+  
+  // 获取阶段效果描述
+  const getPhaseEffectDescription = (phase: typeof pollutionLevels[0]) => {
+    const effects: string[] = [];
+    if (phase.damageBonus > 0) effects.push(`伤害 +${phase.damageBonus}`);
+    if (phase.armorPerTurn > 0) effects.push(`敌人护甲 +${phase.armorPerTurn}`);
+    if (phase.playerPiercingDmg > 0) effects.push(`穿透伤害 -${phase.playerPiercingDmg}`);
+    return effects.length > 0 ? effects.join("，") : "稳定期，无额外效果";
+  };
+
+  const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <div className="fixed top-4 right-4 z-40">
+    <div 
+      className="fixed top-4 right-4 z-50"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {/* 极简主界面 UI */}
       <div className="bg-black/70 backdrop-blur-md p-4 rounded-xl border border-sonic-purple/30 shadow-lg">
         <div className="flex items-center gap-2 mb-2">
           <Skull className="w-4 h-4 text-sonic-purple" />
@@ -117,49 +133,67 @@ const PollutionScale = ({ level }: { level: number }) => {
           />
         </div>
         <div className="flex justify-between items-center mt-1">
-          <span className={cn("text-xs font-bold", currentPhase.color)}>{currentPhase.name}</span>
           <span className="text-xs font-bold text-slate-200">{level}%</span>
         </div>
         
-        {/* 阶段列表 - UI 动态映射 */}
-        <div className="mt-3 space-y-1">
-          {pollutionLevels.map((phase, index) => {
-            const isActive = level >= phase.range[0] && level <= phase.range[1];
-            return (
-              <div 
-                key={index}
-                className={cn(
-                  "text-xs px-2 py-1 rounded flex justify-between",
-                  isActive ? "bg-sonic-purple/20 border border-sonic-purple/50" : "bg-slate-800/50"
-                )}
-              >
-                <span className={cn(isActive ? phase.color : "text-slate-500")}>
-                  {phase.name}
-                </span>
-                <span className="text-slate-400">
-                  {phase.range[0]}-{phase.range[1]}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* 阶段效果说明 */}
-        <div className="mt-2 text-xs text-slate-400 space-y-1 border-t border-slate-700 pt-2">
-          {currentPhase.damageBonus > 0 && (
-            <div className="text-danger-red">伤害 +{currentPhase.damageBonus}</div>
-          )}
-          {currentPhase.armorPerTurn > 0 && (
-            <div className="text-armor-blue">敌人护甲 +{currentPhase.armorPerTurn}</div>
-          )}
-          {currentPhase.playerPiercingDmg > 0 && (
-            <div className="text-danger-red">穿透伤害 -{currentPhase.playerPiercingDmg}</div>
-          )}
-          {currentPhase.damageBonus === 0 && currentPhase.armorPerTurn === 0 && currentPhase.playerPiercingDmg === 0 && (
-            <div>稳定期，无额外效果</div>
-          )}
+        {/* 当前阶段信息 - 带有发光边框 */}
+        <div className={cn(
+          "mt-2 text-xs px-3 py-2 rounded-lg border",
+          currentPhase.bgColor.replace('bg-', 'border-').replace('500', '600'),
+          "bg-opacity-20",
+          "shadow-sm",
+          currentPhase.bgColor.replace('bg-', 'shadow-').replace('500', '500/30')
+        )}>
+          <div className={cn("font-bold mb-1", currentPhase.color)}>
+            {currentPhase.name}
+          </div>
+          <div className="text-slate-300">
+            {getPhaseEffectDescription(currentPhase)}
+          </div>
         </div>
       </div>
+
+      {/* Hover Tooltip 悬浮详情框 */}
+      <AnimatePresence>
+        {showTooltip && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute right-0 top-full mt-2 w-64 bg-black/95 backdrop-blur-lg rounded-xl border border-sonic-purple/50 shadow-2xl p-4"
+          >
+            <div className="text-sm font-bold text-slate-200 mb-3">污染阶段详情</div>
+            <div className="space-y-2">
+              {pollutionLevels.map((phase, index) => {
+                const isActive = level >= phase.range[0] && level <= phase.range[1];
+                return (
+                  <div 
+                    key={index}
+                    className={cn(
+                      "text-xs px-3 py-2 rounded-lg",
+                      isActive 
+                        ? "bg-sonic-purple/20 border border-sonic-purple/50" 
+                        : "bg-slate-800/50 border border-transparent"
+                    )}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={cn("font-bold", isActive ? phase.color : "text-slate-500")}>
+                        {phase.name}
+                      </span>
+                      <span className="text-slate-400">
+                        {phase.range[0]}-{phase.range[1]}
+                      </span>
+                    </div>
+                    <div className="text-slate-400">
+                      {getPhaseEffectDescription(phase)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
