@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Sword, Shield, RefreshCw } from "lucide-react";
 import { Card } from "@/lib/cards";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 interface CardDetailModalProps {
   card: Card | null;
@@ -11,6 +12,14 @@ interface CardDetailModalProps {
 }
 
 export default function CardDetailModal({ card, onClose }: CardDetailModalProps) {
+  const [playCount, setPlayCount] = useState(0);
+
+  useEffect(() => {
+    if (card) {
+      setPlayCount(0);
+    }
+  }, [card]);
+
   if (!card) return null;
 
   const getCardTypeColor = (type: string) => {
@@ -39,6 +48,8 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
     }
   };
 
+  const isAttack = card.type === "attack";
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -51,12 +62,12 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
           className="absolute inset-0 bg-black/80 backdrop-blur-md"
         />
 
-        {/* Modal Content - Two Column Layout */}
+        {/* Modal Content */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative max-w-5xl w-full"
+          className="relative max-w-6xl w-full"
         >
           <div className="bg-card-darker border border-sonic-purple/30 rounded-2xl overflow-hidden shadow-2xl">
             {/* Close Button - Large Touch Area */}
@@ -68,49 +79,10 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
               <X className="w-7 h-7" />
             </button>
 
-            {/* Two Column Grid */}
-            <div className="grid lg:grid-cols-2 min-h-[500px]">
-              {/* Left Column - Large Card Illustration */}
-              <div className="relative bg-gradient-to-br from-sonic-purple/20 to-card-darker p-8 flex items-center justify-center">
-                {/* Large Card Placeholder */}
-                <div className="relative">
-                  {/* Card Back Glow */}
-                  <div className="absolute inset-0 bg-sonic-purple/30 blur-2xl rounded-3xl" />
-                  
-                  {/* Actual Card */}
-                  <div className={cn(
-                    "relative w-64 h-96 rounded-2xl border-3 flex flex-col overflow-hidden",
-                    getCardTypeColor(card.type)
-                  )}>
-                    {/* Cost Badge */}
-                    <div className="bg-sonic-purple/40 p-4">
-                      <div className="w-14 h-14 rounded-full bg-sonic-purple flex items-center justify-center text-3xl font-black border-2 border-sonic-purple/50 shadow-lg">
-                        {card.cost}
-                      </div>
-                    </div>
-                    
-                    {/* Illustration Area */}
-                    <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-b from-sonic-purple/10 to-transparent">
-                      <div className="text-center">
-                        <div className="text-6xl mb-4 opacity-70">
-                          {card.type === "attack" ? "⚔️" : card.type === "skill" ? "🛡️" : "✨"}
-                        </div>
-                        <span className="text-2xl font-bold">{card.name}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Type Badge */}
-                    <div className="bg-sonic-purple/30 p-4 text-center">
-                      <span className="text-lg font-bold tracking-wider">
-                        {card.type.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column - Details & Story */}
-              <div className="p-8 lg:p-10 flex flex-col">
+            {/* Main Grid - Left: Content, Right: Visual Preview */}
+            <div className="grid lg:grid-cols-2 min-h-[600px]">
+              {/* Left Column - Content */}
+              <div className="p-8 lg:p-10 flex flex-col border-r border-sonic-purple/20">
                 {/* Header */}
                 <div className="mb-8">
                   <div className="flex items-center gap-4 mb-3">
@@ -218,10 +190,124 @@ export default function CardDetailModal({ card, onClose }: CardDetailModalProps)
                   </div>
                 </div>
               </div>
+
+              {/* Right Column - Visual Preview */}
+              <div className="p-8 lg:p-10 flex flex-col">
+                {/* Visual Preview Box */}
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-sonic-purple mb-4">技能视觉效果预览</h3>
+                  
+                  {/* Preview Area - Dark Purple Background with Inset Shadow */}
+                  <div 
+                    key={playCount}
+                    className="relative bg-gradient-to-br from-sonic-purple/20 via-card-darker to-sonic-purple/10 rounded-xl p-8 border border-sonic-purple/30 shadow-[inset_0_4px_20px_rgba(0,0,0,0.6)] min-h-[300px] flex items-center justify-center overflow-hidden"
+                  >
+                    {isAttack ? (
+                      <AttackAnimation key={`attack-${playCount}`} />
+                    ) : (
+                      <DefenseAnimation key={`defense-${playCount}`} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Replay Button */}
+                <div className="mt-auto">
+                  <button
+                    onClick={() => setPlayCount(prev => prev + 1)}
+                    className="w-full py-4 px-6 bg-sonic-purple/20 hover:bg-sonic-purple/30 border border-sonic-purple/50 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 group"
+                  >
+                    <RefreshCw className="w-5 h-5 text-sonic-purple group-hover:rotate-180 transition-transform duration-500" />
+                    <span className="font-bold text-lg text-slate-200">
+                      播放动效 (Replay Effect)
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
+  );
+}
+
+// Attack Animation Component
+function AttackAnimation() {
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+      {/* Red Pulse Background */}
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{
+          scale: [0.8, 1.3, 1],
+          opacity: [0, 0.4, 0],
+        }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="absolute inset-0 bg-danger-red/30 rounded-full blur-3xl"
+      />
+      
+      {/* Sword Icon - Move Right & Shake */}
+      <motion.div
+        initial={{ x: -40, opacity: 0, rotate: -15 }}
+        animate={{
+          x: [ -40, 0, 30, 20, 35 ],
+          opacity: [0, 1, 1, 1, 1],
+          rotate: [ -15, 0, 45, 30, 50 ],
+        }}
+        transition={{ 
+          duration: 0.6, 
+          times: [0, 0.3, 0.5, 0.7, 1],
+          ease: "easeOut"
+        }}
+        className="relative z-10"
+      >
+        <Sword className="w-20 h-20 text-danger-red drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
+      </motion.div>
+    </div>
+  );
+}
+
+// Defense Animation Component
+function DefenseAnimation() {
+  return (
+    <div className="relative w-full h-full flex items-center justify-center">
+      {/* Circular Ripples */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            initial={{ scale: 0.5, opacity: 0.6 }}
+            animate={{
+              scale: 0.5 + i * 0.4,
+              opacity: 0,
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "easeOut"
+            }}
+            className="absolute border-2 border-armor-blue/60 rounded-full"
+            style={{
+              width: `${120 + i * 80}px`,
+              height: `${120 + i * 80}px`,
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Shield Icon - Expand from Center */}
+      <motion.div
+        initial={{ scale: 0.3, opacity: 0 }}
+        animate={{
+          scale: [0.3, 1.2, 1],
+          opacity: [0, 1, 1],
+        }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative z-10"
+      >
+        <Shield className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.7)]" />
+      </motion.div>
+    </div>
   );
 }
