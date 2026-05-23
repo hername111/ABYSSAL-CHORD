@@ -20,6 +20,11 @@ import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+// 带唯一实例 ID 的卡牌类型
+interface CardWithUid extends Card {
+  uid: string;
+}
+
 // 全局常量
 const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
 const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
@@ -122,11 +127,11 @@ const HandCard = ({
   onSelect, 
   canPlay 
 }: { 
-  card: Card; 
+  card: CardWithUid; 
   index: number; 
   total: number; 
   isSelected: boolean; 
-  onSelect: (card: Card) => void;
+  onSelect: (uid: string) => void;
   canPlay: boolean;
 }) => {
   const getBorderColor = (type: CardType) => {
@@ -165,7 +170,7 @@ const HandCard = ({
         scale: isSelected ? 1.15 : 1.08,
         zIndex: 999,
       }}
-      onClick={() => onSelect(card)}
+      onClick={() => onSelect(card.uid)}
       transition={{
         type: "spring",
         stiffness: 300,
@@ -227,6 +232,17 @@ const CardPlayEffect = ({
 };
 
 export default function BattleArena() {
+  // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
+  const uidCounterRef = useRef(0);
+  
+  // 为卡牌数组添加 uid 的辅助函数
+  const addUidsToCards = (cards: Card[]): CardWithUid[] => {
+    return cards.map(card => {
+      uidCounterRef.current++;
+      return { ...card, uid: `${card.id}_${uidCounterRef.current}` };
+    });
+  };
+  
   // 游戏状态
   const [turn, setTurn] = useState(1);
   const [pollutionLevel, setPollutionLevel] = useState(0);
@@ -238,8 +254,10 @@ export default function BattleArena() {
   const [enemyHp, setEnemyHp] = useState(50);
   const [enemyMaxHp] = useState(50);
   const [enemyArmor, setEnemyArmor] = useState(0);
-  const [hand, setHand] = useState<Card[]>(INITIAL_HAND_CARDS);
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [hand, setHand] = useState<CardWithUid[]>(
+    addUidsToCards(INITIAL_HAND_CARDS)
+  );
+  const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(getSimpleEnemyIntention());
   const [isProcessing, setIsProcessing] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -262,8 +280,10 @@ export default function BattleArena() {
   const [timeLeft, setTimeLeft] = useState(30);
   
   // 牌库、弃牌堆和游戏结束状态
-  const [deck, setDeck] = useState<Card[]>([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
-  const [discardPile, setDiscardPile] = useState<Card[]>([]);
+  const [deck, setDeck] = useState<CardWithUid[]>(
+    addUidsToCards([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS])
+  );
+  const [discardPile, setDiscardPile] = useState<CardWithUid[]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [gameResult, setGameResult] = useState<'victory' | 'defeat' | null>(null);
   
@@ -365,6 +385,9 @@ export default function BattleArena() {
 
   // 重新挑战
   const handleRestart = () => {
+    // 重置 uid 计数器
+    uidCounterRef.current = 0;
+    
     // 重置所有状态
     setTurn(1);
     setPollutionLevel(0);
@@ -373,11 +396,13 @@ export default function BattleArena() {
     setPlayerAp(3);
     setEnemyHp(50);
     setEnemyArmor(0);
-    setHand(INITIAL_HAND_CARDS);
-    setSelectedCard(null);
+    setHand(addUidsToCards(INITIAL_HAND_CARDS));
+    setSelectedCardUid(null);
     setCurrentIntention(getSimpleEnemyIntention());
     setIsProcessing(false);
-    setDeck([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+    setDeck(
+      addUidsToCards([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS])
+    );
     setDiscardPile([]);
     setGameOver(false);
     setGameResult(null);
@@ -390,12 +415,16 @@ export default function BattleArena() {
   };
 
   // 选择卡牌
-  const handleCardSelect = (card: Card) => {
+  const handleCardSelect = (uid: string) => {
     if (isProcessing) return;
     
+    // 找到对应的卡牌
+    const card = hand.find(c => c.uid === uid);
+    if (!card) return;
+    
     // 如果点击的是已经选中的卡牌，取消选中
-    if (selectedCard === card) {
-      setSelectedCard(null);
+    if (selectedCardUid === uid) {
+      setSelectedCardUid(null);
       setShowHint(true);
       setShowEnergyWarning(false);
       return;
@@ -405,7 +434,7 @@ export default function BattleArena() {
     if (card.cost > playerAp) {
       setShowEnergyWarning(true);
       setShowHint(false);
-      setSelectedCard(null);
+      setSelectedCardUid(null);
       // 2秒后自动隐藏警告
       setTimeout(() => {
         setShowEnergyWarning(false);
@@ -413,14 +442,18 @@ export default function BattleArena() {
       return;
     }
     
-    setSelectedCard(card);
+    setSelectedCardUid(uid);
     setShowHint(false);
     setShowEnergyWarning(false);
   };
   
   // 打出卡牌
   const handlePlayCard = () => {
-    if (!selectedCard || selectedCard.cost > playerAp || isProcessing) return;
+    if (!selectedCardUid || isProcessing) return;
+    
+    // 通过 uid 找到对应的卡牌
+    const selectedCard = hand.find(c => c.uid === selectedCardUid);
+    if (!selectedCard || selectedCard.cost > playerAp) return;
     
     setIsProcessing(true);
     setPlayerAp(prev => prev - selectedCard.cost);
@@ -481,8 +514,8 @@ export default function BattleArena() {
     }
     
     // 移除打出的手牌
-    setHand(prev => prev.filter(c => c !== selectedCard));
-    setSelectedCard(null);
+    setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
+    setSelectedCardUid(null);
     
     setTimeout(() => {
       setIsProcessing(false);
@@ -494,7 +527,7 @@ export default function BattleArena() {
     if (isProcessing) return;
     
     setIsProcessing(true);
-    setSelectedCard(null);
+    setSelectedCardUid(null);
     setShowHint(false);
     resetTimer();
     
@@ -895,7 +928,7 @@ export default function BattleArena() {
         <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
             <div
-              key={index}
+              key={card.uid}
               className="relative"
               style={{ transformOrigin: "bottom center" }}
             >
@@ -903,7 +936,7 @@ export default function BattleArena() {
                 card={card}
                 index={index}
                 total={hand.length}
-                isSelected={selectedCard?.id === card.id}
+                isSelected={selectedCardUid === card.uid}
                 onSelect={handleCardSelect}
                 canPlay={card.cost <= playerAp && !isProcessing}
               />
@@ -946,13 +979,16 @@ export default function BattleArena() {
         <div className="fixed right-8 bottom-32 z-50 flex flex-col gap-3">
           {/* 使用卡牌按钮 */}
           <AnimatePresence>
-            {selectedCard && !gameOver && (
+            {selectedCardUid && !gameOver && (
               <motion.button
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
                 onClick={handlePlayCard}
-                disabled={selectedCard.cost > playerAp || isProcessing}
+                disabled={(() => {
+                  const card = hand.find(c => c.uid === selectedCardUid);
+                  return !card || card.cost > playerAp || isProcessing;
+                })()}
                 className="px-12 py-6 text-2xl font-extrabold tracking-widest bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-[0_0_25px_rgba(147,51,234,0.7)] hover:shadow-[0_0_35px_rgba(147,51,234,0.9)] transition-all transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 使用卡牌
