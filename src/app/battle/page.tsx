@@ -1144,8 +1144,6 @@ export default function BattleArena() {
       
       // 重置回合
       setTurn(prev => prev + 1);
-      // 仅重置本回合护甲（易碎护甲）
-      setPlayerState(prev => ({ ...prev, armor: 0 }));
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
       
