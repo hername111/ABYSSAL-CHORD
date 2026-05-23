@@ -796,7 +796,14 @@ export default function BattleArena() {
 
   // AI裁判消息辅助函数
   const addJudgeMessage = (text: string, typing: boolean = false) => {
-    setDialogMessages(prev => [...prev, { id: Date.now(), text, isTyping: typing }]);
+    // 检查是否是重复消息
+    setDialogMessages(prev => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage && lastMessage.text === text) {
+        return prev; // 跳过重复消息
+      }
+      return [...prev, { id: Date.now(), text, isTyping: typing }];
+    });
     if (typing) {
       setTimeout(() => {
         setDialogMessages(prev => prev.map(msg => 
@@ -909,6 +916,9 @@ export default function BattleArena() {
     // 2. 更新本回合获得的护甲总数
     setArmorGainedThisTurn(prev => prev + amount);
     
+    // 3. 添加AI裁判说明
+    addJudgeMessage(`你获得了 ${amount} 点护甲！`);
+    
     // 3. ========== "获得护甲"检查点 ==========
     // 遍历持久化能力列表，检查是否有对应的能力需要触发
     activeAbilities.forEach(ability => {
@@ -942,6 +952,9 @@ export default function BattleArena() {
     setSelfDamageThisTurn(prev => prev + amount);
     // 3. 标记本回合已受到过自伤
     setHasTakenSelfDamageThisTurn(true);
+    
+    // 4. 添加AI裁判说明
+    addJudgeMessage(`你受到了 ${amount} 点自伤！`);
     
     // 3. ========== "受到自伤"检查点 ==========
     // 遍历持久化能力列表，检查是否有对应的能力需要触发
@@ -1488,18 +1501,18 @@ export default function BattleArena() {
       switch (currentIntention.intentType) {
         case "ATTACK":
           actionText = "嘶鸣游荡者正在蓄力...";
-          actionMsgText = "嘶鸣游荡者向你发起了猛烈冲撞！";
+          actionMsgText = `嘶鸣游荡者向你发起了猛烈冲撞！造成 ${currentIntention.value} 点伤害！`;
           setEnemyAnimationState("attack");
           break;
         case "DEFEND":
           actionText = "嘶鸣游荡者正在构建声学护盾...";
-          actionMsgText = "嘶鸣游荡者进入防御姿态！";
+          actionMsgText = `嘶鸣游荡者进入防御姿态，获得了 ${currentIntention.value} 点护盾！`;
           setEnemyAnimationState("defend");
           break;
         case "BUFF":
         case "DEBUFF":
           actionText = "嘶鸣游荡者正在积蓄污染能量...";
-          actionMsgText = "嘶鸣游荡者的能量在涌动！";
+          actionMsgText = `嘶鸣游荡者的能量在涌动！污染度增加了 ${currentIntention.value}！`;
           setEnemyAnimationState("buff");
           break;
       }
