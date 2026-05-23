@@ -1013,9 +1013,8 @@ export default function BattleArena() {
       
       // 重置回合 - 不清空手牌
       setTurn(prev => prev + 1);
-      // 强制回合护甲清空：玩家和敌人的护甲都重置为0
+      // 仅重置本回合护甲（易碎护甲）
       setPlayerState(prev => ({ ...prev, armor: 0 }));
-      setEnemyState(prev => ({ ...prev, armor: 0 }));
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
       
