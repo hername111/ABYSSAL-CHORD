@@ -6,6 +6,7 @@ import { Users, Play, ArrowLeft, Copy, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createWsConnection, type WsMessage } from '@/lib/ws-client';
 
 interface Player {
@@ -21,6 +22,7 @@ interface RoomState {
 }
 
 export default function LobbyPage() {
+  const router = useRouter();
   const [playerName, setPlayerName] = useState('');
   const [roomIdInput, setRoomIdInput] = useState('');
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
@@ -58,8 +60,10 @@ export default function LobbyPage() {
           break;
           
         case 'game-started':
-          // TODO: Navigate to multiplayer battle page
-          alert('Game started! (Multiplayer battle not implemented yet)');
+          // Navigate to multiplayer battle page
+          if (currentRoomId && currentPlayerId) {
+            router.push(`/multiplayer?roomId=${currentRoomId}&playerId=${currentPlayerId}`);
+          }
           break;
           
         case 'error':
