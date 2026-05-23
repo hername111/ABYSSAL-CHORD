@@ -922,34 +922,57 @@ export default function BattleArena() {
       return finalDamage;
     };
     
-    // 1. 只使用阶段固定数值加成
-    const baseDamage = selectedCard.baseDamage || 0;
-    // 必须且只能使用统一的伤害计算方法
-    const phaseConfig = getPollutionLevel(pollutionLevel);
-    const finalDamage = calculateActualDamage(baseDamage, pollutionLevel);
+    // 特殊卡牌逻辑：次声崩塌
+    let isInfrasonicCollapse = selectedCard.id === 'zl-fortress-03';
+    let infrasonicDamage = 0;
+    let armorLost = 0;
+    let baseDamage = 0;
+    let finalDamage = 0;
+    let phaseConfig = getPollutionLevel(pollutionLevel);
+    armorGain = 0;
+    let pollutionModifier = 0;
     
-    // 2. 处理护甲获得
-    armorGain = selectedCard.baseArmor || 0;
-    
-    // 3. 强制落实污染度增减 - 使用专门的 pollutionModifier 字段
-    const pollutionModifier = selectedCard.pollutionModifier || 0;
-    
-    // 构建AI消息
-    if (selectedCard.type === "attack" && finalDamage > 0) {
-      const parts: string[] = [];
-      parts.push(`基础伤害 ${baseDamage} 点`);
-      if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
+    // 1. 处理特殊卡牌逻辑
+    if (isInfrasonicCollapse) {
+      // 造成伤害等于你当前护甲值的 50%（向下取整）
+      infrasonicDamage = Math.floor(playerState.armor * 0.5);
+      // 失去一半护甲（向下取整）
+      armorLost = Math.floor(playerState.armor * 0.5);
       
-      aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}，总计造成 ${finalDamage} 点伤害！`;
-      totalDamage = finalDamage;
-    } else if (selectedCard.type === "skill") {
-      const parts: string[] = [];
-      if (armorGain > 0) parts.push(`获得 ${armorGain} 点护甲`);
-      if (pollutionModifier < 0) parts.push(`降低 ${Math.abs(pollutionModifier)} 点污染度`);
-      if (pollutionModifier > 0) parts.push(`增加 ${pollutionModifier} 点污染度`);
-      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
+      // 应用阶段加成
+      infrasonicDamage += phaseConfig.damageBonus;
+      
+      aiMessage = `你打出了【${selectedCard.name}】，当前护甲 ${playerState.armor} 点，造成 ${infrasonicDamage} 点伤害，失去 ${armorLost} 点护甲！`;
+      totalDamage = infrasonicDamage;
     } else {
-      aiMessage = `你使用了【${selectedCard.name}】！`;
+      // 1. 只使用阶段固定数值加成
+      baseDamage = selectedCard.baseDamage || 0;
+      // 必须且只能使用统一的伤害计算方法
+      finalDamage = calculateActualDamage(baseDamage, pollutionLevel);
+      
+      // 2. 处理护甲获得
+      armorGain = selectedCard.baseArmor || 0;
+      
+      // 3. 强制落实污染度增减 - 使用专门的 pollutionModifier 字段
+      pollutionModifier = selectedCard.pollutionModifier || 0;
+      
+      // 构建AI消息
+      if (selectedCard.type === "attack" && finalDamage > 0) {
+        const parts: string[] = [];
+        parts.push(`基础伤害 ${baseDamage} 点`);
+        if (phaseConfig.damageBonus > 0) parts.push(`阶段增益 ${phaseConfig.damageBonus} 点`);
+        
+        aiMessage = `你打出了【${selectedCard.name}】，${parts.join('，')}，总计造成 ${finalDamage} 点伤害！`;
+        totalDamage = finalDamage;
+      } else if (selectedCard.type === "skill") {
+        const parts: string[] = [];
+        if (armorGain > 0) parts.push(`获得 ${armorGain} 点护甲`);
+        if (pollutionModifier < 0) parts.push(`降低 ${Math.abs(pollutionModifier)} 点污染度`);
+        if (pollutionModifier > 0) parts.push(`增加 ${pollutionModifier} 点污染度`);
+        aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}！`;
+      } else {
+        aiMessage = `你使用了【${selectedCard.name}】！`;
+      }
     }
     
     // AI裁判台词
@@ -1019,6 +1042,11 @@ export default function BattleArena() {
     }
     setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
     setSelectedCardUid(null);
+    
+    // 次声崩塌：失去一半护甲
+    if (isInfrasonicCollapse && armorLost > 0) {
+      setPlayerState(prev => ({ ...prev, armor: Math.max(0, prev.armor - armorLost) }));
+    }
     
     setTimeout(() => {
       setIsProcessing(false);
