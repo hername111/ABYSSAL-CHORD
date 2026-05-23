@@ -1891,7 +1891,7 @@ export default function BattleArena() {
 
       {/* AI裁判区 - 鼠标悬停展开 */}
       <div 
-        className="fixed left-4 top-[30%] z-30 group"
+        className="fixed left-6 top-24 z-30 group"
       >
         {/* 提示图标 */}
         <div className="w-12 h-12 bg-sonic-purple rounded-full flex items-center justify-center mb-2 shadow-lg group-hover:scale-110 transition-transform cursor-pointer">
