@@ -1071,7 +1071,25 @@ export default function BattleArena() {
         const attackMsg = { id: Date.now() + 1, text: actionMsgText, isTyping: true };
         setDialogMessages(prev => [...prev, attackMsg]);
         
-        const damage = currentIntention.value;
+        // 统一的伤害计算方法 - 强制生效污染度增伤乘区 + 阶段增益
+        const calculateActualDamage = (baseDamage: number, globalPollution: number) => {
+          // 获取当前阶段配置
+          const phaseConfig = getPollutionLevel(globalPollution);
+          
+          // 核心机制1：每 10 点污染值，增加 10% 伤害
+          const damageMultiplier = 1 + (globalPollution / 100);
+          const pollutionMultipliedDamage = Math.floor(baseDamage * damageMultiplier);
+          
+          // 核心机制2：强制应用阶段伤害增益
+          const finalDamage = pollutionMultipliedDamage + phaseConfig.damageBonus;
+          
+          return finalDamage;
+        };
+        
+        const baseEnemyDamage = currentIntention.value;
+        const finalEnemyDamage = calculateActualDamage(baseEnemyDamage, pollutionLevel);
+        const enemyPhaseConfig = getPollutionLevel(pollutionLevel);
+        const enemyPollutionBonus = finalEnemyDamage - baseEnemyDamage - enemyPhaseConfig.damageBonus;
         
         await new Promise(resolve => setTimeout(resolve, 200));
         setShowRedFlash(false);
@@ -1079,11 +1097,11 @@ export default function BattleArena() {
         // 第三步：数值更新
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        if (damage > 0) {
-          setDamageNumbers(prev => [...prev, { id: Date.now(), damage, x: 100, y: 400, color: "text-danger-red" }]);
+        if (finalEnemyDamage > 0) {
+          setDamageNumbers(prev => [...prev, { id: Date.now(), damage: finalEnemyDamage, x: 100, y: 400, color: "text-danger-red" }]);
           
           // 使用统一的伤害结算函数
-          takeDamage("player", damage);
+          takeDamage("player", finalEnemyDamage);
         }
         
         setTimeout(() => setIsPlayerHit(false), 500);
