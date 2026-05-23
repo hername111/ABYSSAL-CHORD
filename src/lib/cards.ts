@@ -24,6 +24,9 @@ export interface Card {
   purification?: number;
   // 专门控制污染机制的数值型字段：正数增加污染，负数减少污染
   pollutionModifier?: number;
+  // 新的词缀字段
+  exhaust?: boolean; // 消耗：打出后移出本局战斗
+  retain?: boolean; // 保留：回合结束时不丢入弃牌堆
 }
 
 // 钟律（重装和弦师）完整牌库
@@ -275,7 +278,7 @@ export const zhongLvCards: Card[] = [
 export const cardTypeConfig: Record<CardType, { label: string; color: string; borderColor: string; bg: string }> = {
   attack: { label: '攻击', color: 'text-red-400', borderColor: 'border-red-500/60', bg: 'bg-red-500/10' },
   skill: { label: '技能', color: 'text-blue-400', borderColor: 'border-blue-500/60', bg: 'bg-blue-500/10' },
-  ability: { label: '能力', color: 'text-yellow-400', borderColor: 'border-yellow-500/60', bg: 'bg-yellow-500/10' },
+  ability: { label: '能力', color: 'text-purple-400', borderColor: 'border-purple-500/60', bg: 'bg-purple-500/10' },
 };
 
 export const archetypeConfig: Record<CardArchetype, { label: string; color: string }> = {

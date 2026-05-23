@@ -186,7 +186,7 @@ export default function CardsPage() {
               <TabsTrigger value="all" className="text-xs">全部</TabsTrigger>
               <TabsTrigger value="attack" className="text-xs text-red-400">攻击</TabsTrigger>
               <TabsTrigger value="skill" className="text-xs text-blue-400">技能</TabsTrigger>
-              <TabsTrigger value="ability" className="text-xs text-yellow-400">能力</TabsTrigger>
+              <TabsTrigger value="ability" className="text-xs text-purple-400">能力</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
