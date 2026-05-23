@@ -9,6 +9,27 @@ import { Card, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import CardDetailModal from "./CardDetailModal";
 
+interface CardWithCount {
+  card: Card;
+  count: number;
+}
+
+function aggregateCards(cards: Card[]): CardWithCount[] {
+  const cardMap = new Map<string, CardWithCount>();
+
+  cards.forEach((card) => {
+    const key = card.name;
+    if (cardMap.has(key)) {
+      const existing = cardMap.get(key)!;
+      cardMap.set(key, { ...existing, count: existing.count + 1 });
+    } else {
+      cardMap.set(key, { card, count: 1 });
+    }
+  });
+
+  return Array.from(cardMap.values());
+}
+
 interface SideDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -224,12 +245,18 @@ export default function SideDrawer({ isOpen, onClose }: SideDrawerProps) {
                           📚 钟律卡牌库
                         </h3>
                         <div className="space-y-2">
-                          {zhongLvCards.map((card, index) => (
+                          {aggregateCards(zhongLvCards).map(({ card, count }, index) => (
                             <div
-                              key={index}
+                              key={`${card.id}-${index}`}
                               onClick={() => setSelectedCard(card)}
-                              className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-purple-900/30 transition-colors"
+                              className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-purple-900/30 transition-colors relative"
                             >
+                              {/* 数量角标 */}
+                              {count > 1 && (
+                                <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-sonic-purple px-2 text-xs font-bold text-white shadow-lg shadow-purple-500/30 z-10">
+                                  x{count}
+                                </span>
+                              )}
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-3 flex-1">
                                   <span

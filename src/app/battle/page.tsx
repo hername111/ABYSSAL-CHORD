@@ -672,6 +672,12 @@ export default function BattleArena() {
   const [showEnergyWarning, setShowEnergyWarning] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   
+  // 新卡牌效果状态
+  const [cardsPlayedThisTurn, setCardsPlayedThisTurn] = useState(0);
+  const [selfDamageThisTurn, setSelfDamageThisTurn] = useState(0);
+  const [activeAbilities, setActiveAbilities] = useState<string[]>([]);
+  const [angerBonus, setAngerBonus] = useState(0);
+  
   const router = useRouter();
   
   // 倒计时逻辑
@@ -801,6 +807,11 @@ export default function BattleArena() {
     // 隐藏警告提示
     setShowEnergyWarning(false);
     setShowTimeoutWarning(false);
+    
+    // 重置本回合累加器
+    setCardsPlayedThisTurn(0);
+    setSelfDamageThisTurn(0);
+    
     // 自动调用抽牌进行回合初的固定摸牌
     drawCard(DRAW_PER_TURN);
   };
@@ -899,6 +910,10 @@ export default function BattleArena() {
     if (!selectedCard || selectedCard.cost > playerAp) return;
     
     setIsProcessing(true);
+    
+    // 增加本回合出牌计数
+    setCardsPlayedThisTurn(prev => prev + 1);
+    
     setPlayerAp(prev => prev - selectedCard.cost);
     resetTimer();
     
