@@ -20,8 +20,9 @@ import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-// 强制手牌上限
-const MAX_HAND_SIZE = 6;
+// 全局常量
+const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
+const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
 // 简化的敌人行为类型
 type SimpleEnemyBehavior = {
@@ -259,8 +260,9 @@ export default function BattleArena() {
   // 倒计时状态
   const [timeLeft, setTimeLeft] = useState(30);
   
-  // 牌库和游戏结束状态
+  // 牌库、弃牌堆和游戏结束状态
   const [deck, setDeck] = useState<Card[]>([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+  const [discardPile, setDiscardPile] = useState<Card[]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [gameResult, setGameResult] = useState<'victory' | 'defeat' | null>(null);
   
@@ -292,33 +294,51 @@ export default function BattleArena() {
     setTimeLeft(30);
   };
 
-  // 抽牌函数 - 强制手牌上限
-  const drawCards = (count: number) => {
-    // 计算当前手牌加上新抽牌是否超过上限
-    const availableSlots = MAX_HAND_SIZE - hand.length;
-    const actualDrawCount = Math.min(count, availableSlots);
+  // 抽牌与爆牌逻辑 - 逐张抽，满手牌烧毁
+  const drawCard = (amount: number) => {
+    let currentDeck = [...deck];
+    let currentHand = [...hand];
+    let currentDiscard = [...discardPile];
     
-    if (actualDrawCount <= 0) {
-      // 手牌已满，无法抽牌
-      return;
+    for (let i = 0; i < amount; i++) {
+      // 如果牌库空了，将弃牌堆洗入抽牌堆
+      if (currentDeck.length === 0) {
+        if (currentDiscard.length === 0) {
+          // 牌库和弃牌堆都空了，无法继续抽牌
+          break;
+        }
+        // 将弃牌堆洗入抽牌堆
+        currentDeck = [...currentDiscard].sort(() => Math.random() - 0.5);
+        currentDiscard = [];
+      }
+      
+      // 从牌库中抽一张牌
+      const randomIndex = Math.floor(Math.random() * currentDeck.length);
+      const drawnCard = currentDeck.splice(randomIndex, 1)[0];
+      
+      // 检查当前手牌数量
+      if (currentHand.length < MAX_HAND_SIZE) {
+        // 手牌未满，加入手牌
+        currentHand.push(drawnCard);
+      } else {
+        // 爆牌惩罚：卡牌直接进入弃牌堆
+        currentDiscard.push(drawnCard);
+        // 可以在这里添加爆牌的视觉特效逻辑
+      }
     }
     
-    // 从牌库中随机抽取牌
-    const shuffledDeck = [...deck].sort(() => Math.random() - 0.5);
-    const drawnCards = shuffledDeck.slice(0, Math.min(actualDrawCount, shuffledDeck.length));
-    
-    // 更新手牌（追加到现有手牌）
-    setHand(prevHand => [...prevHand, ...drawnCards]);
-    
-    // 从牌库中移除已抽取的牌
-    const remainingDeck = shuffledDeck.slice(actualDrawCount);
-    
-    // 如果牌库空了，重新填充牌库
-    if (remainingDeck.length === 0) {
-      setDeck([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
-    } else {
-      setDeck(remainingDeck);
-    }
+    // 更新状态
+    setDeck(currentDeck);
+    setHand(currentHand);
+    setDiscardPile(currentDiscard);
+  };
+
+  // 回合开始逻辑
+  const startTurn = () => {
+    // 恢复玩家的能量值至满状态
+    setPlayerAp(playerMaxAp);
+    // 自动调用抽牌进行回合初的固定摸牌
+    drawCard(DRAW_PER_TURN);
   };
 
   // 生死判定
@@ -347,6 +367,7 @@ export default function BattleArena() {
     setCurrentIntention(getSimpleEnemyIntention());
     setIsProcessing(false);
     setDeck([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS]);
+    setDiscardPile([]);
     setGameOver(false);
     setGameResult(null);
     setTimeLeft(30);
@@ -505,14 +526,14 @@ export default function BattleArena() {
         ));
       }, 800);
       
-      // 重置回合
+      // 重置回合 - 不清空手牌
       setTurn(prev => prev + 1);
-      setPlayerAp(playerMaxAp);
+      setPlayerArmor(0); // 仅重置本回合护甲（易碎护甲）
       setCurrentIntention(getSimpleEnemyIntention());
       setPollutionLevel(prev => Math.min(100, prev + 5));
       
-      // 抽牌
-      drawCards(5);
+      // 回合开始：恢复能量并固定摸牌
+      startTurn();
       
     } finally {
       setIsProcessing(false);
