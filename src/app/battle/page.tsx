@@ -416,34 +416,22 @@ const HandCard = ({
     }
   };
 
-  // 计算扇形布局参数
-  const cardWidth = 128; // w-32 = 128px
-  const cardGap = 10; // 卡片间距
-  const offset = index - (total - 1) / 2;
-  const rotateZ = offset * 5; // 旋转角度
-  const translateY = Math.abs(offset) * 10; // Y轴下沉
-  const translateX = index * (cardWidth + cardGap) - (total - 1) * (cardWidth + cardGap) / 2; // 水平居中
-
   return (
     <motion.div
       className={cn(
-        "relative cursor-pointer absolute",
+        "relative cursor-pointer",
         !canPlay && "opacity-50 cursor-not-allowed"
       )}
       initial={{ y: 100, opacity: 0 }}
       animate={{
-        x: isSelected ? 0 : translateX,
-        y: isSelected ? -60 : translateY,
-        rotate: isSelected ? 0 : rotateZ,
-        scale: isSelected ? 1.2 : 1,
+        y: isSelected ? -40 : 0,
+        scale: isSelected ? 1.15 : 1,
         opacity: 1,
         zIndex: isSelected ? 999 : index,
       }}
       whileHover={{
-        y: -60,
-        x: translateX,
-        rotate: 0,
-        scale: 1.2,
+        y: isSelected ? -40 : -20,
+        scale: isSelected ? 1.15 : 1.08,
         zIndex: 999,
       }}
       onClick={() => onSelect(card.uid)}
@@ -1353,17 +1341,22 @@ export default function BattleArena() {
 
       {/* 手牌容器 - 动态扇形布局 */}
       <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
-        <div className="relative w-[800px] h-72" style={{ transformOrigin: "bottom center" }}>
+        <div className="relative flex items-end justify-center -space-x-12" style={{ transformOrigin: "bottom center" }}>
           {hand.map((card, index) => (
-            <HandCard
+            <div
               key={card.uid}
-              card={card}
-              index={index}
-              total={hand.length}
-              isSelected={selectedCardUid === card.uid}
-              onSelect={handleCardSelect}
-              canPlay={card.cost <= playerAp && !isProcessing}
-            />
+              className="relative"
+              style={{ transformOrigin: "bottom center" }}
+            >
+              <HandCard
+                card={card}
+                index={index}
+                total={hand.length}
+                isSelected={selectedCardUid === card.uid}
+                onSelect={handleCardSelect}
+                canPlay={card.cost <= playerAp && !isProcessing}
+              />
+            </div>
           ))}
         </div>
       </div>
