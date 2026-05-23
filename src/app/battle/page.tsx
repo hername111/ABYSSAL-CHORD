@@ -20,7 +20,7 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { Card, CardType, CardTarget, INITIAL_HAND_CARDS } from "@/lib/cards";
+import { Card, CardType, CardTarget, INITIAL_HAND_CARDS, zhongLvCards } from "@/lib/cards";
 import { getPollutionLevel, pollutionLevels } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -964,9 +964,40 @@ export default function BattleArena() {
     setSelectedCardUid(null);
     setCurrentIntention(getSimpleEnemyIntention());
     setIsProcessing(false);
-    setDeck(
-      addUidsToCards([...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS, ...INITIAL_HAND_CARDS])
-    );
+    // ========== 测试牌组：包含所有新添加的卡牌类型 ==========
+    const testDeck: Card[] = [
+      // 基础牌（保持适量）
+      zhongLvCards[0],  // 重频打击
+      zhongLvCards[1],  // 重频打击
+      zhongLvCards[4],  // 声学壁垒
+      zhongLvCards[5],  // 声学壁垒
+      zhongLvCards[8],  // 稳频调谐
+      zhongLvCards[9],  // 余音震击
+      
+      // 低频堡垒流技能牌
+      zhongLvCards[10], // 共振壁垒
+      zhongLvCards[11], // 谐波叠加
+      zhongLvCards[12], // 次声崩塌
+      
+      // 过载冲击流技能牌
+      zhongLvCards[13], // 过载轰鸣
+      zhongLvCards[14], // 反馈回路
+      zhongLvCards[15], // 断弦极限
+      
+      // 全部能力牌
+      zhongLvCards[16], // 频率锚定
+      zhongLvCards[17], // 低频共振
+      zhongLvCards[18], // 痛觉回响
+      zhongLvCards[19], // 终末定音
+      
+      // 再补充一些基础牌保证卡组大小
+      zhongLvCards[0],  // 重频打击
+      zhongLvCards[1],  // 重频打击
+      zhongLvCards[4],  // 声学壁垒
+      zhongLvCards[5],  // 声学壁垒
+    ];
+    
+    setDeck(addUidsToCards(testDeck));
     setDiscardPile([]);
     setGameOver(false);
     setGameResult(null);
