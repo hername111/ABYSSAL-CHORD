@@ -123,6 +123,9 @@ export function handlePlayCard(
   const card = player.hand[cardIndex];
   console.log('找到的卡牌:', card.name);
 
+  // 先重置挥剑状态，确保有上升沿
+  player.turnState.isSwordSwinging = false;
+  
   // 如果是攻击牌，设置挥剑动画
   if (card.type === 'attack') {
     player.turnState.isSwordSwinging = true;

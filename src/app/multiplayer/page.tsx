@@ -464,6 +464,9 @@ export default function MultiplayerBattle() {
   // 本地剑动画状态（用于控制动画显示时长）
   const [showMySwordSwing, setShowMySwordSwing] = useState(false);
   const [showEnemySwordSwing, setShowEnemySwordSwing] = useState(false);
+  // 用于记录上一次的状态，避免无限循环
+  const prevMySwordSwingRef = useRef(false);
+  const prevEnemySwordSwingRef = useRef(false);
   
 
 
@@ -592,18 +595,20 @@ export default function MultiplayerBattle() {
     const currentPlayer = getCurrentPlayer();
     const enemy = getEnemyPlayer();
 
-    // 检查我的剑是否需要挥舞
-    if (currentPlayer?.turnState.isSwordSwinging && !showMySwordSwing) {
+    // 检查我的剑是否需要挥舞（检测上升沿）
+    if (currentPlayer?.turnState.isSwordSwinging && !prevMySwordSwingRef.current) {
       setShowMySwordSwing(true);
       setTimeout(() => setShowMySwordSwing(false), 500);
     }
+    prevMySwordSwingRef.current = currentPlayer?.turnState.isSwordSwinging || false;
 
-    // 检查敌人的剑是否需要挥舞
-    if (enemy?.turnState.isSwordSwinging && !showEnemySwordSwing) {
+    // 检查敌人的剑是否需要挥舞（检测上升沿）
+    if (enemy?.turnState.isSwordSwinging && !prevEnemySwordSwingRef.current) {
       setShowEnemySwordSwing(true);
       setTimeout(() => setShowEnemySwordSwing(false), 500);
     }
-  }, [gameState, getCurrentPlayer, getEnemyPlayer, showMySwordSwing, showEnemySwordSwing]);
+    prevEnemySwordSwingRef.current = enemy?.turnState.isSwordSwinging || false;
+  }, [gameState, getCurrentPlayer, getEnemyPlayer]);
 
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
