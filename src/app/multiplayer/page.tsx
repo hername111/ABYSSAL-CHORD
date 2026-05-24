@@ -596,7 +596,18 @@ export default function MultiplayerBattle() {
       <div className="absolute bottom-8 right-8 z-20">
         {isMyTurn() && (
           <div className="flex gap-4">
-            {selectedCardUid ? (
+            {/* 固定的结束回合按钮 */}
+            <Button
+              variant="default"
+              onClick={handleEndTurn}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-4 text-2xl font-bold"
+            >
+              <ChevronRight className="w-6 h-6 mr-2" />
+              结束回合
+            </Button>
+            
+            {/* 只有选中牌时才显示出牌按钮 */}
+            {selectedCardUid && (
               <Button
                 variant="default"
                 onClick={() => handlePlayCard(selectedCardUid)}
@@ -604,15 +615,6 @@ export default function MultiplayerBattle() {
               >
                 <Sword className="w-8 h-8 mr-3" />
                 出牌！
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                onClick={handleEndTurn}
-                className="bg-sonic-purple hover:bg-sonic-purple/80 text-white px-8 py-6 text-3xl font-black"
-              >
-                <ChevronRight className="w-8 h-8 mr-3" />
-                结束回合
               </Button>
             )}
           </div>
