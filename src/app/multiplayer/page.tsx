@@ -577,7 +577,7 @@ export default function MultiplayerBattle() {
               playerName={enemyPlayer.name}
             />
             {/* 敌方永久属性加成显示 */}
-            {enemyPlayer.permanentAbilities && enemyPlayer.permanentAbilities.length > 0 && (
+            {enemyPlayer?.permanentAbilities?.length > 0 && (
               <div className="mt-2 w-48 group relative">
                 <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">敌方永久能力</div>
                 
@@ -804,7 +804,7 @@ export default function MultiplayerBattle() {
               </div>
               
               {/* 永久属性加成显示 */}
-              {currentPlayer.permanentAbilities && currentPlayer.permanentAbilities.length > 0 && (
+              {currentPlayer?.permanentAbilities?.length > 0 && (
                 <div className="mt-3 w-64 group relative">
                   <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
                   

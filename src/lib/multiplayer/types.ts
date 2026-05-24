@@ -2,7 +2,7 @@
 import { Card } from '@/lib/cards';
 
 // 能力类型枚举
-export type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_TUNING" | string;
+export type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_NOTE" | string;
 
 // 能力接口
 export interface ActiveAbility {
