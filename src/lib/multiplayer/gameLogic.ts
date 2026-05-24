@@ -236,6 +236,51 @@ export function handlePlayCard(
       player.turnState.nextAttackDamageBonus += 10;
       break;
 
+    // 余音震击：造成3点伤害，附加1层声爆
+    case 'zl-basic-10':
+      if (enemy) {
+        let damage = 3 + player.permanentBonuses.damageBonus;
+        
+        // 加上断弦极限的下一张攻击牌加成
+        damage += player.turnState.nextAttackDamageBonus;
+        
+        // 额外伤害（基于护甲）
+        if (player.permanentBonuses.extraDamagePerArmor > 0) {
+          damage += Math.floor(player.armor * player.permanentBonuses.extraDamagePerArmor);
+        }
+
+        // 应用护甲
+        if (enemy.armor > 0) {
+          if (enemy.armor >= damage) {
+            enemy.armor -= damage;
+            damage = 0;
+          } else {
+            damage -= enemy.armor;
+            enemy.armor = 0;
+          }
+        }
+
+        // 应用伤害
+        if (damage > 0) {
+          enemy.hp = Math.max(0, enemy.hp - damage);
+        }
+      }
+      
+      // 附加1层声爆
+      if (enemy) {
+        const existingSonicBoom = enemy.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
+        
+        if (existingSonicBoom) {
+          existingSonicBoom.stacks += 1;
+        } else {
+          enemy.debuffs.push({
+            type: 'SONIC_BOOM',
+            stacks: 1
+          });
+        }
+      }
+      break;
+
     default:
       // 普通卡牌效果处理
       // ============================================
@@ -311,8 +356,8 @@ export function handlePlayCard(
         player.armor += card.baseArmor;
       }
 
-      // 声爆效果：给敌方添加声爆 debuff
-      if (card.sonicBoom && enemy) {
+      // 声爆效果：给敌方添加声爆 debuff（仅攻击牌触发）
+      if (card.sonicBoom && enemy && card.type === 'attack') {
         const sonicBoomStacks = card.sonicBoom;
         const existingSonicBoom = enemy.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
         
