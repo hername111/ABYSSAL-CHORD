@@ -885,6 +885,19 @@ export default function MultiplayerBattle() {
         {enemyPlayer && (
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-3">
+              {/* 敌人的飘字 - 在头像左边 */}
+              <div className="relative z-50">
+                {floatingNumbers
+                  .filter(fn => fn.target === 'ENEMY')
+                  .map((fn, index) => (
+                    <DamageNumber
+                      key={fn.id}
+                      amount={fn.amount}
+                      type={fn.type}
+                      index={index}
+                    />
+                  ))}
+              </div>
               <div className="text-right">
                 <h2 className="text-xl font-black text-slate-100">
                   {enemyPlayer.name}
@@ -907,20 +920,6 @@ export default function MultiplayerBattle() {
               </div>
             </div>
             <div className="relative">
-              {/* 敌人的飘字 - 在角色上方 */}
-              <div className="absolute -top-20 left-0 right-0 flex justify-center z-50">
-                {floatingNumbers
-                  .filter(fn => fn.target === 'ENEMY')
-                  .map((fn, index) => (
-                    <DamageNumber
-                      key={fn.id}
-                      amount={fn.amount}
-                      type={fn.type}
-                      index={index}
-                    />
-                  ))}
-              </div>
-              
               <EntityStatusPanel 
                 entity={convertToEntityState(enemyPlayer)} 
                 isEnemy={true}
