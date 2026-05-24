@@ -283,10 +283,11 @@ lobbyWss.on('connection', (ws: WebSocket) => {
   ws.on('close', () => {
     console.log('Client disconnected');
     
-    // If player was in a room, remove them
+    // If player was in a room, remove them only if game hasn't started
     if (currentRoomId && currentPlayerId) {
       const room = rooms.get(currentRoomId);
-      if (room) {
+      if (room && !room.isGameStarted) {
+        // 只有在游戏未开始时才清理玩家
         room.players.delete(currentPlayerId);
         
         // If room is empty, delete it
@@ -297,6 +298,7 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           broadcastRoomState(currentRoomId);
         }
       }
+      // 如果游戏已经开始，不清理房间，保持房间存在供多人对战页面使用
     }
   });
 
