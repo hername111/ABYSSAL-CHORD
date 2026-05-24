@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Play, ArrowLeft, Copy, Check, AlertCircle } from 'lucide-react';
+import { Users, Play, ArrowLeft, Copy, Check, AlertCircle, DoorOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -186,16 +186,14 @@ export default function LobbyPage() {
 
         {/* 主内容 */}
         <div className="relative z-10 flex flex-col items-center space-y-8">
-          {/* 返回按钮 */}
-          <Link href="/">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 text-slate-400 hover:text-white z-20"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-          </Link>
+          {/* 左上角退出按钮 */}
+          <div className="fixed top-6 left-6 z-50">
+            <Link href="/">
+              <div className="w-12 h-12 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 rounded-full flex items-center justify-center cursor-pointer transition-all">
+                <DoorOpen className="w-6 h-6 text-red-400" />
+              </div>
+            </Link>
+          </div>
 
           {/* 房间标题 */}
           <motion.div
@@ -371,16 +369,14 @@ export default function LobbyPage() {
 
       {/* 主内容 */}
       <div className="relative z-10 flex flex-col items-center space-y-12">
-        {/* 返回按钮 */}
-        <Link href="/">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 text-slate-400 hover:text-white z-20"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
-        </Link>
+        {/* 左上角退出按钮 */}
+        <div className="fixed top-6 left-6 z-50">
+          <Link href="/">
+            <div className="w-12 h-12 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 rounded-full flex items-center justify-center cursor-pointer transition-all">
+              <DoorOpen className="w-6 h-6 text-red-400" />
+            </div>
+          </Link>
+        </div>
 
         {/* 游戏标题 */}
         <motion.div

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skull, Shield, Users, User, Play, RotateCcw, Target, ChevronRight, Trophy, Gamepad2, Layers, Clock, MessageSquare } from 'lucide-react';
+import { Skull, Shield, Users, User, Play, RotateCcw, Target, ChevronRight, Trophy, Gamepad2, Layers, Clock, MessageSquare, DoorOpen } from 'lucide-react';
 
 export default function MultiplayerBattlePage() {
   const searchParams = useSearchParams();
@@ -512,15 +512,15 @@ export default function MultiplayerBattlePage() {
         </div>
       </div>
 
-      {/* 返回按钮 */}
-      <Button
-        onClick={handleBackToLobby}
-        variant="outline"
-        size="icon"
-        className="absolute top-4 right-4 bg-[#13131a] border-slate-600 hover:bg-[#1a1a24] z-20"
-      >
-        <RotateCcw className="w-5 h-5" />
-      </Button>
+      {/* 左上角退出按钮 */}
+      <div className="fixed top-6 left-6 z-50">
+        <div
+          onClick={handleBackToLobby}
+          className="w-12 h-12 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 rounded-full flex items-center justify-center cursor-pointer transition-all"
+        >
+          <DoorOpen className="w-6 h-6 text-red-400" />
+        </div>
+      </div>
     </div>
   );
 }
