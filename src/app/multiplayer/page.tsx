@@ -63,15 +63,53 @@ export default function MultiplayerBattlePage() {
   const playerId = searchParams.get('playerId');
   const playerName = searchParams.get('playerName') || '玩家';
 
-  const [gameState, setGameState] = useState<MultiplayerGameState | null>(null);
+  // 开发模式下的模拟数据
+  const mockGameState: MultiplayerGameState = {
+    roomId: roomId || 'TEST_ROOM',
+    players: [
+      {
+        id: playerId || 'player1',
+        name: playerName || '玩家1',
+        hp: 80,
+        maxHp: 80,
+        armor: 0,
+        isCurrentTurn: true,
+        isReady: true,
+        hand: ['heavy_strike', 'acoustic_barrier', 'frequency_tuning', 'heavy_strike', 'resonating_barrier'],
+        pollutionLevel: 0,
+      },
+      {
+        id: 'player2',
+        name: '对手玩家',
+        hp: 80,
+        maxHp: 80,
+        armor: 0,
+        isCurrentTurn: false,
+        isReady: true,
+        hand: ['heavy_strike', 'acoustic_barrier'],
+        pollutionLevel: 0,
+      },
+    ],
+    currentPlayerIndex: 0,
+    phase: 'playing',
+    turnCount: 1,
+    selectedTargetId: null,
+    isSelectingTarget: false,
+    pendingCardId: null,
+    sharedDeck: [],
+    sharedDiscard: [],
+    actionLogs: [],
+  };
+
+  const [gameState, setGameState] = useState<MultiplayerGameState | null>(mockGameState);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const wsRef = useRef<ReturnType<typeof createMultiplayerWsConnection> | null>(null);
 
   useEffect(() => {
+    // 如果没有房间ID或玩家ID，直接使用模拟数据
     if (!roomId || !playerId) {
-      setError('缺少房间ID或玩家ID');
       return;
     }
 
@@ -101,9 +139,9 @@ export default function MultiplayerBattlePage() {
     };
   }, [roomId, playerId, playerName]);
 
-  const currentPlayer = gameState ? getCurrentPlayer(gameState) : null;
-  const enemyPlayers = gameState && playerId ? getEnemyPlayers(gameState, playerId) : [];
-  const isMyTurn = gameState && playerId ? isCurrentPlayerTurn(gameState, playerId) : false;
+  const currentPlayer = gameState?.players[gameState.currentPlayerIndex] || null;
+  const enemyPlayers = gameState && playerId ? gameState.players.filter(p => p.id !== playerId) : [];
+  const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
   const myPlayer = gameState?.players.find(p => p.id === playerId);
   
   // 模拟AP状态（和单人模式一致）
@@ -111,7 +149,7 @@ export default function MultiplayerBattlePage() {
   const [playerMaxAp] = useState(3);
 
   const handlePlayCard = (cardId: string) => {
-    if (!isMyTurn || !wsRef.current || !myPlayer) return;
+    if (!isMyTurn || !myPlayer) return;
 
     // 检查玩家是否有这张牌
     if (!myPlayer.hand.includes(cardId)) {
@@ -127,27 +165,68 @@ export default function MultiplayerBattlePage() {
       return;
     }
 
-    // 直接打出卡牌
-    wsRef.current.sendPlayCard(cardId);
+    // 如果有WebSocket连接，通过连接发送
+    if (wsRef.current) {
+      wsRef.current.sendPlayCard(cardId);
+    } else {
+      // 开发模式：简单模拟出牌效果
+      setGameState(prev => {
+        if (!prev) return prev;
+        const newPlayers = prev.players.map(p => {
+          if (p.id === playerId) {
+            return {
+              ...p,
+              hand: p.hand.filter(id => id !== cardId),
+            };
+          }
+          return p;
+        });
+        return {
+          ...prev,
+          players: newPlayers,
+        };
+      });
+    }
     setSelectedCard(null);
   };
 
   const handleSelectTarget = (targetId: string) => {
-    if (!isMyTurn || !wsRef.current || !selectedCard) return;
-    wsRef.current.sendPlayCard(selectedCard, targetId);
+    if (!isMyTurn || !selectedCard) return;
+    if (wsRef.current) {
+      wsRef.current.sendPlayCard(selectedCard, targetId);
+    }
     setSelectedCard(null);
   };
 
   const handleEndTurn = () => {
-    if (!isMyTurn || !wsRef.current) return;
-    wsRef.current.sendEndTurn();
+    if (!isMyTurn) return;
+    if (wsRef.current) {
+      wsRef.current.sendEndTurn();
+    } else {
+      // 开发模式：简单模拟回合切换
+      setGameState(prev => {
+        if (!prev) return prev;
+        const nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
+        const newPlayers = prev.players.map((p, index) => ({
+          ...p,
+          isCurrentTurn: index === nextIndex,
+        }));
+        return {
+          ...prev,
+          currentPlayerIndex: nextIndex,
+          turnCount: prev.turnCount + 1,
+          players: newPlayers,
+        };
+      });
+    }
   };
 
   const handleBackToLobby = () => {
     router.push('/lobby');
   };
 
-  if (error) {
+  // 只在有真实roomId和playerId时才显示错误
+  if (error && roomId && playerId) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
         <Card className="bg-[#13131a] border-red-500/50 max-w-md w-full">
@@ -168,7 +247,8 @@ export default function MultiplayerBattlePage() {
     );
   }
 
-  if (!gameState) {
+  // 只在有真实roomId和playerId时才显示加载状态
+  if (!gameState && roomId && playerId) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
         <div className="text-center">
@@ -181,7 +261,7 @@ export default function MultiplayerBattlePage() {
     );
   }
 
-  if (gameState.phase === 'ended') {
+  if (gameState && gameState.phase === 'ended') {
     const winner = gameState.players.find(p => p.hp > 0);
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
@@ -318,7 +398,7 @@ export default function MultiplayerBattlePage() {
                   <span className="text-slate-400">抽牌堆</span>
                 </div>
                 <p className="text-2xl font-bold text-slate-200">
-                  {gameState.sharedDeck.length}
+                  {gameState?.sharedDeck.length || 0}
                 </p>
               </div>
               <div className="bg-[#13131a] border border-slate-700/50 rounded-xl p-4">
@@ -327,7 +407,7 @@ export default function MultiplayerBattlePage() {
                   <span className="text-slate-400">弃牌堆</span>
                 </div>
                 <p className="text-2xl font-bold text-slate-200">
-                  {gameState.sharedDiscard.length}
+                  {gameState?.sharedDiscard.length || 0}
                 </p>
               </div>
             </div>
@@ -335,7 +415,7 @@ export default function MultiplayerBattlePage() {
             <div className="mb-4">
               <Badge variant="outline" className="text-lg px-4 py-2 bg-[#13131a] border-purple-500/50">
                 <Gamepad2 className="w-5 h-5 mr-2 text-purple-400" />
-                回合 {gameState.turnCount}
+                回合 {gameState?.turnCount || 1}
               </Badge>
             </div>
 
