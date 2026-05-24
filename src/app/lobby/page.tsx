@@ -133,11 +133,15 @@ export default function LobbyPage() {
   }, [playerName, roomIdInput, currentPlayerId]);
 
   const toggleReady = useCallback(() => {
+    if (!roomState) return;
+    const currentPlayer = roomState.players.find(p => p.id === currentPlayerId);
+    if (!currentPlayer) return;
+    
     connRef.current?.send({
-      type: 'toggle-ready',
-      payload: {},
+      type: 'player-ready',
+      payload: { isReady: !currentPlayer.isReady },
     });
-  }, []);
+  }, [roomState, currentPlayerId]);
 
   const leaveRoom = useCallback(() => {
     connRef.current?.send({
