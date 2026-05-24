@@ -400,7 +400,28 @@ export default function MultiplayerBattle() {
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
     setSelectedCardUid(null);
-  }, [gameState, getCurrentPlayer, isMyTurn]);
+    
+    // 【关键修复】立刻更新本地状态：移除已打出的牌
+    // 注意：这里使用 cardUid（唯一标识）来匹配，避免删除同名牌
+    const newState = JSON.parse(JSON.stringify(gameState));
+    const player = newState.players[playerId];
+    if (player) {
+      const handCardIndex = player.hand.findIndex((c: CardWithUid, index: number) => 
+        `${c.id}_${index}` === cardUid
+      );
+      if (handCardIndex !== -1) {
+        const [removedCard] = player.hand.splice(handCardIndex, 1);
+        if (!removedCard.exhaust) {
+          player.discard.push(removedCard);
+        } else {
+          player.exiled.push(removedCard);
+        }
+        player.ap -= removedCard.cost;
+        player.turnState.cardsPlayed = (player.turnState.cardsPlayed || 0) + 1;
+      }
+    }
+    setGameState(newState);
+  }, [gameState, getCurrentPlayer, isMyTurn, playerId]);
 
   // 处理结束回合
   const handleEndTurn = useCallback(() => {
