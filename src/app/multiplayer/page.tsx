@@ -217,9 +217,9 @@ export default function MultiplayerBattlePage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-radial from-purple-500/5 to-transparent animate-[pulse_4s_ease-in-out_infinite_2s]" />
       </div>
 
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* 顶部：敌人玩家 */}
-        <div className="p-4">
+      <div className="relative z-10 min-h-screen">
+        {/* 顶部：对手玩家 - 固定在顶部居中 */}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-40">
           <div className="flex justify-center gap-4 flex-wrap">
             {enemyPlayers.map((enemy) => (
               <Card
@@ -302,8 +302,13 @@ export default function MultiplayerBattlePage() {
           </div>
         </div>
 
-        {/* 中间：游戏信息 */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* 左侧：战斗日志区域（预留位置） */}
+        <div className="fixed left-6 top-24 bottom-24 w-64 z-30">
+          {/* 预留左侧区域 */}
+        </div>
+
+        {/* 中央：提示与交互区 */}
+        <div className="fixed inset-0 flex items-center justify-center z-20 pt-32 pb-32">
           <div className="text-center">
             {/* 牌库状态 */}
             <div className="mb-6 flex justify-center gap-4">
@@ -341,7 +346,7 @@ export default function MultiplayerBattlePage() {
                   选择目标
                 </h3>
                 <p className="text-slate-400">
-                  点击一个敌对玩家作为目标
+                  点击上方的敌对玩家作为目标
                 </p>
                 <Button
                   onClick={() => setSelectedCard(null)}
@@ -364,8 +369,13 @@ export default function MultiplayerBattlePage() {
           </div>
         </div>
 
+        {/* 右侧：抽牌堆/弃牌堆区域（预留位置） */}
+        <div className="fixed right-6 top-24 bottom-24 w-64 z-30">
+          {/* 预留右侧区域 */}
+        </div>
+
         {/* 底部：手牌 */}
-        <div className="p-4">
+        <div className="fixed bottom-0 left-0 right-0 p-4 z-40">
           {/* 手牌 */}
           <div className="flex justify-center items-end gap-[-24px] flex-wrap pb-4">
             {myPlayer && myPlayer.hand.map((cardId, index) => {
