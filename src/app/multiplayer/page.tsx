@@ -1,27 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
-  X,
   Shield,
   Zap,
   Skull,
-  Swords,
-  ChevronRight,
-  Sword,
-  Shield as ShieldIcon,
-  Settings,
   DoorOpen,
-  TrendingUp,
-  TrendingDown,
-  Sparkles,
-  Target,
   User,
+  Clock
 } from "lucide-react";
-import { Card, CardType, CardTarget, INITIAL_HAND_CARDS, zhongLvCards } from "@/lib/cards";
+import { Card, INITIAL_HAND_CARDS, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -29,10 +20,6 @@ import { Button } from "@/components/ui/button";
 interface CardWithUid extends Card {
   uid: string;
 }
-
-// 全局常量
-const MAX_HAND_SIZE = 6; // 手牌上限严格限制为 6 张
-const DRAW_PER_TURN = 2; // 每回合固定抽取的张数
 
 // 能力类型枚举
 type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_TUNING";
@@ -45,6 +32,7 @@ interface ActiveAbility {
 
 // 能力配置
 const abilityConfig: Record<AbilityType, {
+  name: string;
   armorPerTurn?: number;
   armorThreshold?: number;
   damagePerThreshold?: number;
@@ -54,373 +42,225 @@ const abilityConfig: Record<AbilityType, {
   lowHpDamageBonus?: number;
   lowHpDotDamage?: number;
 }> = {
-  FREQUENCY_ANCHOR: {
-    armorPerTurn: 3,
-  },
-  LOW_FREQUENCY_RESONANCE: {
-    armorThreshold: 5,
-    damagePerThreshold: 3,
-  },
-  PAIN_ECHO: {
-    selfDamageBonusPerPoint: 1,
-    maxBonus: 8,
-  },
-  FINAL_TUNING: {
-    lowHpThreshold: 20,
-    lowHpDamageBonus: 5,
-    lowHpDotDamage: 2,
-  },
+  FREQUENCY_ANCHOR: { name: "频率锚定", armorPerTurn: 3 },
+  LOW_FREQUENCY_RESONANCE: { name: "低频共振", armorThreshold: 5, damagePerThreshold: 3 },
+  PAIN_ECHO: { name: "痛觉回响", selfDamageBonusPerPoint: 2, maxBonus: 8 },
+  FINAL_TUNING: { name: "终末定音", lowHpThreshold: 20, lowHpDamageBonus: 5, lowHpDotDamage: 2 }
 };
 
-// 状态效果类型
-type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN" | "SONIC_BOOM";
-
-interface StatusEffect {
-  type: StatusEffectType;
-  stacks: number;
-}
-
-// 实体状态类型
-interface EntityState {
-  hp: number;
-  maxHp: number;
-  armor: number;
-  buffs: StatusEffect[];
-  debuffs: StatusEffect[];
-}
-
-// 可复用的属性面板组件
-const StatBox = ({ 
-  name, 
-  current, 
-  max, 
-  color, 
-  icon: Icon, 
-  showIcon = true 
-}: { 
-  name: string;
-  current: number;
-  max?: number;
-  color: string;
-  icon?: React.ElementType;
-  showIcon?: boolean;
-}) => (
-  <div className="bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-    <div className="flex items-center gap-2 mb-1">
-      {showIcon && Icon && <Icon className="w-3 h-3" style={{ color }} />}
-      <span className="text-xs font-bold" style={{ color }}>{name}</span>
-      {max !== undefined && (
-        <span className="text-xs text-slate-300">{current}/{max}</span>
-      )}
-      {max === undefined && (
-        <span className="text-xs" style={{ color }}>{current}</span>
-      )}
-    </div>
-    {max !== undefined && (
-      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-        <motion.div
-          className="h-full"
-          style={{ 
-            background: `linear-gradient(to right, ${color}, ${color}cc)` 
-          }}
-          initial={{ width: "100%" }}
-          animate={{ width: `${(current / max) * 100}%` }}
-          transition={{ duration: 0.5 }}
-        />
-      </div>
-    )}
-  </div>
-);
-
-// 通用的实体状态面板组件 - 同时用于玩家和敌人
-const EntityStatusPanel = ({
-  entity,
-  isEnemy = false,
-  playerName = "玩家",
-}: {
-  entity: EntityState;
-  isEnemy?: boolean;
-  playerName?: string;
-}) => {
-  // 获取状态效果的图标和颜色
-  const getStatusEffectIcon = (type: StatusEffectType) => {
-    switch (type) {
-      case "VULNERABLE": return <Target className="w-4 h-4" />;
-      case "WEAK": return <TrendingDown className="w-4 h-4" />;
-      case "POISON": return <Skull className="w-4 h-4" />;
-      case "STRENGTH": return <TrendingUp className="w-4 h-4" />;
-      case "THORN": return <ShieldIcon className="w-4 h-4" />;
-      case "SONIC_BOOM": return <Sparkles className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusEffectColor = (type: StatusEffectType) => {
-    switch (type) {
-      case "VULNERABLE": return "text-yellow-400 bg-yellow-400/20 border-yellow-400/50";
-      case "WEAK": return "text-blue-400 bg-blue-400/20 border-blue-400/50";
-      case "POISON": return "text-green-400 bg-green-400/20 border-green-400/50";
-      case "STRENGTH": return "text-red-400 bg-red-400/20 border-red-400/50";
-      case "THORN": return "text-purple-400 bg-purple-400/20 border-purple-400/50";
-      case "SONIC_BOOM": return "text-sonic-purple bg-sonic-purple/20 border-sonic-purple/50";
-    }
-  };
-
-  const getStatusEffectName = (type: StatusEffectType) => {
-    switch (type) {
-      case "VULNERABLE": return "易伤";
-      case "WEAK": return "虚弱";
-      case "POISON": return "中毒";
-      case "STRENGTH": return "力量";
-      case "THORN": return "荆棘";
-      case "SONIC_BOOM": return "声爆";
-    }
-  };
-
-  const allStatusEffects = [...entity.buffs, ...entity.debuffs];
-
-  return (
-    <div className="w-48 space-y-2">
-      {/* 玩家名称 */}
-      <div className="flex items-center gap-2 mb-2">
-        {isEnemy ? (
-          <Skull className="w-5 h-5 text-slate-400" />
-        ) : (
-          <User className="w-5 h-5 text-slate-400" />
-        )}
-        <span className="font-bold text-slate-200 font-['Rajdhani']">{playerName}</span>
-      </div>
-
-      {/* HP条 - 前面叠加护甲 */}
-      <div className="space-y-1">
-        {/* 护甲显示 - 如果有护甲，显示在HP条上方 */}
-        {entity.armor > 0 && (
-          <div className="flex items-center gap-2 bg-blue-500/20 px-2 py-1 rounded-lg border border-blue-500/50">
-            <Shield className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-bold text-blue-400">{entity.armor}</span>
-          </div>
-        )}
-
-        {/* HP条 */}
-        <StatBox 
-          name="HP" 
-          current={entity.hp} 
-          max={entity.maxHp} 
-          color="#ef4444" 
-          showIcon={false}
-        />
-      </div>
-
-      {/* 状态栏 - buffs 和 debuffs */}
-      {allStatusEffects.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {allStatusEffects.map((effect, index) => (
-            <div 
-              key={`${effect.type}-${index}`}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-md border text-xs",
-                getStatusEffectColor(effect.type)
-              )}
-              title={`${getStatusEffectName(effect.type)} x${effect.stacks}`}
-            >
-              {getStatusEffectIcon(effect.type)}
-              <span>x{effect.stacks}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+// 给卡牌添加唯一ID的辅助函数
+const addUidsToCards = (cards: Card[]): CardWithUid[] => {
+  return cards.map((card, index) => ({
+    ...card,
+    uid: `${card.id}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+  }));
 };
 
-// 手牌组件 - 平行排列版本
-const HandCard = ({ 
-  card, 
-  index, 
-  total, 
-  isSelected, 
-  onSelect, 
-  canPlay,
-}: { 
-  card: CardWithUid; 
-  index: number; 
-  total: number; 
-  isSelected: boolean; 
-  onSelect: (uid: string) => void;
-  canPlay: boolean;
-}) => {
-  const getBorderColor = (type: CardType) => {
-    switch (type) {
-      case "attack": return "border-danger-red/80";
-      case "skill": return "border-armor-blue/80";
-      case "ability": return "border-gold/80";
-      default: return "border-slate-600";
-    }
-  };
-
-  const getBgColor = (type: CardType) => {
-    switch (type) {
-      case "attack": return "from-red-950/80 to-red-900/60";
-      case "skill": return "from-blue-950/80 to-blue-900/60";
-      case "ability": return "from-yellow-950/80 to-yellow-900/60";
-      default: return "from-slate-900/80 to-slate-800/60";
-    }
-  };
-
-  const getTypeLabel = (type: CardType) => {
-    switch (type) {
-      case "attack": return "攻击";
-      case "skill": return "技能";
-      case "ability": return "能力";
-      default: return "基础";
-    }
-  };
-
-  const getTypeLabelColor = (type: CardType) => {
-    switch (type) {
-      case "attack": return "bg-danger-red text-white";
-      case "skill": return "bg-armor-blue text-white";
-      case "ability": return "bg-gold text-black";
-      default: return "bg-slate-600 text-white";
-    }
-  };
-
-  return (
-    <motion.div
-      className={cn(
-        "relative cursor-pointer",
-        !canPlay && "opacity-50 cursor-not-allowed"
-      )}
-      initial={{ y: 100, opacity: 0 }}
-      animate={{
-        y: isSelected ? -40 : 0,
-        scale: isSelected ? 1.15 : 1,
-        opacity: 1,
-        zIndex: isSelected ? 999 : index,
-      }}
-      whileHover={{
-        y: isSelected ? -40 : -20,
-        scale: isSelected ? 1.15 : 1.08,
-        zIndex: 999,
-      }}
-      onClick={() => onSelect(card.uid)}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-        duration: 0.2,
-      }}
-    >
-      <div className={cn(
-        "w-44 h-60 rounded-xl border-3 bg-gradient-to-br shadow-lg",
-        getBgColor(card.type),
-        getBorderColor(card.type),
-        isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
-      )}>
-        {/* 费用 */}
-        <div className="absolute -top-2 -left-2 w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-sonic-purple/50">
-          {card.cost}
-        </div>
-        
-        {/* 类型标签 */}
-        <div className={cn(
-          "absolute -bottom-2 -left-2 px-3 py-1 rounded-lg text-xs font-bold shadow-lg",
-          getTypeLabelColor(card.type)
-        )}>
-          {getTypeLabel(card.type)}
-        </div>
-        
-        {/* 卡牌内容 */}
-        <div className="p-4 h-full flex flex-col">
-          <h3 className="text-lg font-bold text-slate-100 mb-2 truncate">
-            {card.name}
-          </h3>
-          <p className="text-sm text-slate-400 mb-3">
-            {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
-          </p>
-          <div className="flex-1 text-sm text-slate-300 leading-relaxed overflow-y-auto">
-            {card.effect}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// 全局飘字ID计数器
-let popupIdCounter = 0;
-
-// 独立的浮动文本生成器函数
-const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetStateAction<Array<{ id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER1' | 'PLAYER2' }>>>) => {
-  return (target: 'PLAYER1' | 'PLAYER2', amount: number, type: 'HP' | 'ARMOR') => {
-    // 生成唯一ID
-    const uniqueId = `popup_${Date.now()}_${popupIdCounter++}`;
-    
-    // 使用函数式更新添加飘字
-    setFloatingNumbers(prev => [...prev, {
-      id: uniqueId,
-      amount,
-      type,
-      target
-    }]);
-    
-    // 1000ms后清理这个飘字
-    setTimeout(() => {
-      setFloatingNumbers(prev => prev.filter(popup => popup.id !== uniqueId));
-    }, 1000);
-  };
-};
-
-export default function MultiplayerBattle() {
-  // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
-  const uidCounterRef = useRef(0);
+export default function MultiplayerPage() {
+  const router = useRouter();
   
-  // 为卡牌数组添加 uid 的辅助函数
-  const addUidsToCards = (cards: Card[]): CardWithUid[] => {
-    return cards.map(card => {
-      uidCounterRef.current++;
-      return { ...card, uid: `${card.id}_${uidCounterRef.current}` };
+  // ========== 玩家1状态 ==========
+  const [player1State, setPlayer1State] = useState({
+    hp: 80,
+    maxHp: 80,
+    armor: 0,
+    buffs: [],
+    debuffs: []
+  });
+  const [player1Deck, setPlayer1Deck] = useState<CardWithUid[]>([]);
+  const [player1Hand, setPlayer1Hand] = useState<CardWithUid[]>([]);
+  const [player1Discard, setPlayer1Discard] = useState<CardWithUid[]>([]);
+  const [player1Ap, setPlayer1Ap] = useState(3);
+  const [player1ActiveAbilities, setPlayer1ActiveAbilities] = useState<ActiveAbility[]>([]);
+  
+  // ========== 玩家2状态 ==========
+  const [player2State, setPlayer2State] = useState({
+    hp: 80,
+    maxHp: 80,
+    armor: 0,
+    buffs: [],
+    debuffs: []
+  });
+  const [player2Deck, setPlayer2Deck] = useState<CardWithUid[]>([]);
+  const [player2Hand, setPlayer2Hand] = useState<CardWithUid[]>([]);
+  const [player2Discard, setPlayer2Discard] = useState<CardWithUid[]>([]);
+  const [player2Ap, setPlayer2Ap] = useState(3);
+  const [player2ActiveAbilities, setPlayer2ActiveAbilities] = useState<ActiveAbility[]>([]);
+  
+  // ========== 通用游戏状态 ==========
+  const [currentPlayer, setCurrentPlayer] = useState<'PLAYER1' | 'PLAYER2'>('PLAYER1');
+  const [turn, setTurn] = useState(1);
+  const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(true);
+  const [showEnergyWarning, setShowEnergyWarning] = useState(false);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  
+  // ========== 当前玩家便捷访问 ==========
+  const getCurrentHand = () => currentPlayer === 'PLAYER1' ? player1Hand : player2Hand;
+  const getCurrentDeck = () => currentPlayer === 'PLAYER1' ? player1Deck : player2Deck;
+  const getCurrentDiscard = () => currentPlayer === 'PLAYER1' ? player1Discard : player2Discard;
+  const getCurrentAp = () => currentPlayer === 'PLAYER1' ? player1Ap : player2Ap;
+  const getCurrentState = () => currentPlayer === 'PLAYER1' ? player1State : player2State;
+  const getCurrentActiveAbilities = () => currentPlayer === 'PLAYER1' ? player1ActiveAbilities : player2ActiveAbilities;
+  
+  const setCurrentHand = (hand: CardWithUid[]) => currentPlayer === 'PLAYER1' ? setPlayer1Hand(hand) : setPlayer2Hand(hand);
+  const setCurrentDeck = (deck: CardWithUid[]) => currentPlayer === 'PLAYER1' ? setPlayer1Deck(deck) : setPlayer2Deck(deck);
+  const setCurrentDiscard = (discard: CardWithUid[]) => currentPlayer === 'PLAYER1' ? setPlayer1Discard(discard) : setPlayer2Discard(discard);
+  const setCurrentAp = (ap: number) => currentPlayer === 'PLAYER1' ? setPlayer1Ap(ap) : setPlayer2Ap(ap);
+  const setCurrentState = (state: any) => currentPlayer === 'PLAYER1' ? setPlayer1State(state) : setPlayer2State(state);
+  const setCurrentActiveAbilities = (abilities: ActiveAbility[]) => currentPlayer === 'PLAYER1' ? setPlayer1ActiveAbilities(abilities) : setPlayer2ActiveAbilities(abilities);
+  
+  // ========== 受伤 ==========
+  const takeDamage = (target: 'PLAYER1' | 'PLAYER2', amount: number, piercing: boolean = false) => {
+    const setState = target === 'PLAYER1' ? setPlayer1State : setPlayer2State;
+    setState(prev => {
+      let newArmor = prev.armor;
+      let newHp = prev.hp;
+      
+      if (!piercing && newArmor > 0) {
+        if (newArmor >= amount) {
+          newArmor -= amount;
+          amount = 0;
+        } else {
+          amount -= newArmor;
+          newArmor = 0;
+        }
+      }
+      
+      if (amount > 0) {
+        newHp = Math.max(0, newHp - amount);
+      }
+      
+      return { ...prev, hp: newHp, armor: newArmor };
     });
   };
   
-  const router = useRouter();
+  // ========== 加护甲 ==========
+  const addArmor = (target: 'PLAYER1' | 'PLAYER2', amount: number) => {
+    const setState = target === 'PLAYER1' ? setPlayer1State : setPlayer2State;
+    setState(prev => ({ ...prev, armor: prev.armor + amount }));
+  };
   
-  // 游戏状态
-  const [turn, setTurn] = useState(1);
-  const [currentPlayer, setCurrentPlayer] = useState<'PLAYER1' | 'PLAYER2'>('PLAYER1');
+  // ========== 抽牌 ==========
+  const drawCards = (count: number) => {
+    const deck = [...getCurrentDeck()];
+    const hand = [...getCurrentHand()];
+    const discard = [...getCurrentDiscard()];
+    
+    for (let i = 0; i < count; i++) {
+      if (deck.length === 0) {
+        if (discard.length === 0) break;
+        const shuffled = [...discard];
+        for (let j = shuffled.length - 1; j > 0; j--) {
+          const k = Math.floor(Math.random() * (j + 1));
+          [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+        }
+        deck.push(...shuffled);
+        discard.length = 0;
+      }
+      
+      if (hand.length >= 6) break;
+      
+      const card = deck.pop();
+      if (card) {
+        hand.push(card);
+      }
+    }
+    
+    setCurrentDeck(deck);
+    setCurrentHand(hand);
+    setCurrentDiscard(discard);
+  };
   
-  // 玩家1实体状态
-  const [player1State, setPlayer1State] = useState<EntityState>({
-    hp: 80,
-    maxHp: 80,
-    armor: 0,
-    buffs: [],
-    debuffs: []
-  });
-  const [player1Ap, setPlayer1Ap] = useState(3);
-  const [player1MaxAp] = useState(3);
-  const [player1ActiveAbilities, setPlayer1ActiveAbilities] = useState<ActiveAbility[]>([]);
-  const [player1Hand, setPlayer1Hand] = useState<CardWithUid[]>([]);
-  const [player1Deck, setPlayer1Deck] = useState<Card[]>([]);
-  const [player1Discard, setPlayer1Discard] = useState<Card[]>([]);
+  // ========== 开始回合 ==========
+  const startTurn = () => {
+    setCurrentAp(3);
+    drawCards(2);
+    setTimeLeft(30);
+    
+    const hasFrequencyAnchor = getCurrentActiveAbilities().find(a => a.id === "FREQUENCY_ANCHOR");
+    if (hasFrequencyAnchor) {
+      addArmor(currentPlayer, abilityConfig.FREQUENCY_ANCHOR.armorPerTurn!);
+    }
+    
+    setShowHint(true);
+    setTimeout(() => setShowHint(false), 2000);
+  };
   
-  // 玩家2实体状态
-  const [player2State, setPlayer2State] = useState<EntityState>({
-    hp: 80,
-    maxHp: 80,
-    armor: 0,
-    buffs: [],
-    debuffs: []
-  });
-  const [player2Ap, setPlayer2Ap] = useState(3);
-  const [player2MaxAp] = useState(3);
-  const [player2ActiveAbilities, setPlayer2ActiveAbilities] = useState<ActiveAbility[]>([]);
-  const [player2Hand, setPlayer2Hand] = useState<CardWithUid[]>([]);
-  const [player2Deck, setPlayer2Deck] = useState<Card[]>([]);
-  const [player2Discard, setPlayer2Discard] = useState<Card[]>([]);
+  // ========== 结束回合 ==========
+  const handleEndTurn = () => {
+    if (isProcessing || gameOver) return;
+    
+    setIsProcessing(true);
+    setSelectedCardUid(null);
+    setShowHint(false);
+    
+    const hasFinalTuning = getCurrentActiveAbilities().find(a => a.id === "FINAL_TUNING");
+    const currentState = getCurrentState();
+    if (hasFinalTuning && currentState.hp <= abilityConfig.FINAL_TUNING.lowHpThreshold!) {
+      takeDamage(currentPlayer, abilityConfig.FINAL_TUNING.lowHpDotDamage!, true);
+    }
+    
+    const currentHand = getCurrentHand();
+    const cardsToDiscard = currentHand.filter(c => !c.retain);
+    const cardsToKeep = currentHand.filter(c => c.retain);
+    setCurrentHand(cardsToKeep);
+    const newDiscard = [...getCurrentDiscard(), ...cardsToDiscard];
+    if (currentPlayer === 'PLAYER1') {
+      setPlayer1Discard(newDiscard);
+    } else {
+      setPlayer2Discard(newDiscard);
+    }
+    
+    const nextPlayer = currentPlayer === 'PLAYER1' ? 'PLAYER2' : 'PLAYER1';
+    setCurrentPlayer(nextPlayer);
+    setTurn(prev => prev + 1);
+    
+    setTimeout(() => {
+      setIsProcessing(false);
+      startTurn();
+    }, 500);
+  };
   
-  // 初始化游戏
+  // ========== 倒计时逻辑 ==========
   useEffect(() => {
-    // 洗牌
+    if (isProcessing || gameOver) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setShowTimeoutWarning(true);
+          setTimeout(() => {
+            setShowTimeoutWarning(false);
+            handleEndTurn();
+          }, 2000);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isProcessing, currentPlayer, gameOver]);
+  
+  // ========== 检查游戏结束 ==========
+  useEffect(() => {
+    if (player1State.hp <= 0) {
+      setGameOver(true);
+      setWinner('玩家2');
+    } else if (player2State.hp <= 0) {
+      setGameOver(true);
+      setWinner('玩家1');
+    }
+  }, [player1State.hp, player2State.hp]);
+  
+  // ========== 初始化游戏 ==========
+  useEffect(() => {
     const shuffleDeck = (deck: Card[]) => {
       const shuffled = [...deck];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -430,158 +270,28 @@ export default function MultiplayerBattle() {
       return shuffled;
     };
     
-    const p1DeckShuffled = shuffleDeck([...zhongLvCards]);
-    const p2DeckShuffled = shuffleDeck([...zhongLvCards]);
+    const p1Deck = shuffleDeck([...zhongLvCards]);
+    const p2Deck = shuffleDeck([...zhongLvCards]);
     
-    const p1Hand = addUidsToCards(p1DeckShuffled.slice(0, 5));
-    const p2Hand = addUidsToCards(p2DeckShuffled.slice(0, 5));
+    const p1Hand = addUidsToCards(p1Deck.slice(0, 5));
+    const p2Hand = addUidsToCards(p2Deck.slice(0, 5));
     
-    setPlayer1Deck(p1DeckShuffled.slice(5));
+    setPlayer1Deck(p1Deck.slice(5) as CardWithUid[]);
     setPlayer1Hand(p1Hand);
     setPlayer1Discard([]);
     
-    setPlayer2Deck(p2DeckShuffled.slice(5));
+    setPlayer2Deck(p2Deck.slice(5) as CardWithUid[]);
     setPlayer2Hand(p2Hand);
     setPlayer2Discard([]);
+    
+    setTimeout(() => {
+      setShowHint(true);
+      setTimeout(() => setShowHint(false), 2000);
+    }, 500);
   }, []);
   
-  // 当前玩家相关
-  const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // 动画状态
-  const [isAttacking, setIsAttacking] = useState(false);
-  
-  // 飘字状态 - 单一数据源，统一管理所有飘字
-  type FloatingNumber = { id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER1' | 'PLAYER2' };
-  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
-  
-  // 创建独立的浮动文本生成器实例
-  const addFloatingText = createAddFloatingText(setFloatingNumbers);
-  
-  // 回合倒计时
-  const [turnTime, setTurnTime] = useState(30);
-  
-  useEffect(() => {
-    if (isProcessing) return;
-    
-    const timer = setInterval(() => {
-      setTurnTime(prev => {
-        if (prev <= 1) {
-          handleEndTurn();
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [isProcessing, currentPlayer]);
-  
-  // 获取当前玩家的便捷访问
-  const getCurrentHand = () => currentPlayer === 'PLAYER1' ? player1Hand : player2Hand;
-  const getCurrentAp = () => currentPlayer === 'PLAYER1' ? player1Ap : player2Ap;
-  const getCurrentMaxAp = () => currentPlayer === 'PLAYER1' ? player1MaxAp : player2MaxAp;
-  const getCurrentState = () => currentPlayer === 'PLAYER1' ? player1State : player2State;
-  const getCurrentActiveAbilities = () => currentPlayer === 'PLAYER1' ? player1ActiveAbilities : player2ActiveAbilities;
-  
-  const getEnemyState = () => currentPlayer === 'PLAYER1' ? player2State : player1State;
-  const getEnemyHand = () => currentPlayer === 'PLAYER1' ? player2Hand : player1Hand;
-  
-  // 处理伤害
-  const takeDamage = (target: 'PLAYER1' | 'PLAYER2', amount: number) => {
-    const setState = target === 'PLAYER1' ? setPlayer1State : setPlayer2State;
-    const currentState = target === 'PLAYER1' ? player1State : player2State;
-    
-    setState(prev => {
-      let armor = prev.armor;
-      let trueDamage = amount;
-      
-      if (armor > 0) {
-        if (armor >= trueDamage) {
-          addFloatingText(target, trueDamage, 'ARMOR');
-          armor -= trueDamage;
-          trueDamage = 0;
-        } else {
-          addFloatingText(target, armor, 'ARMOR');
-          trueDamage -= armor;
-          armor = 0;
-        }
-      }
-      
-      if (trueDamage > 0) {
-        addFloatingText(target, trueDamage, 'HP');
-      }
-      
-      const newHp = Math.max(0, prev.hp - trueDamage);
-      
-      return {
-        ...prev,
-        hp: newHp,
-        armor,
-      };
-    });
-  };
-  
-  // 处理选牌
-  const handleSelectCard = (uid: string) => {
-    if (isProcessing) return;
-    
-    if (selectedCardUid === uid) {
-      setSelectedCardUid(null);
-    } else {
-      setSelectedCardUid(uid);
-    }
-  };
-  
-  // 抽牌
-  const drawCards = (count: number, forPlayer: 'PLAYER1' | 'PLAYER2') => {
-    const setHand = forPlayer === 'PLAYER1' ? setPlayer1Hand : setPlayer2Hand;
-    const setDeck = forPlayer === 'PLAYER1' ? setPlayer1Deck : setPlayer2Deck;
-    const setDiscard = forPlayer === 'PLAYER1' ? setPlayer1Discard : setPlayer2Discard;
-    
-    const currentDeck = forPlayer === 'PLAYER1' ? player1Deck : player2Deck;
-    const currentHand = forPlayer === 'PLAYER1' ? player1Hand : player2Hand;
-    const currentDiscard = forPlayer === 'PLAYER1' ? player1Discard : player2Discard;
-    
-    setDeck(prevDeck => {
-      let deck = [...prevDeck];
-      let discard = [...currentDiscard];
-      let hand = [...currentHand];
-      let cardsToDraw = count;
-      
-      for (let i = 0; i < cardsToDraw; i++) {
-        if (hand.length >= MAX_HAND_SIZE) break;
-        
-        if (deck.length === 0) {
-          if (discard.length === 0) break;
-          
-          const shuffledDiscard = [...discard];
-          for (let j = shuffledDiscard.length - 1; j > 0; j--) {
-            const k = Math.floor(Math.random() * (j + 1));
-            [shuffledDiscard[j], shuffledDiscard[k]] = [shuffledDiscard[k], shuffledDiscard[j]];
-          }
-          deck = shuffledDiscard;
-          discard = [];
-        }
-        
-        if (deck.length > 0) {
-          const card = deck.shift()!;
-          hand.push({
-            ...card,
-            uid: `${card.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          });
-        }
-      }
-      
-      setHand(hand);
-      setDiscard(discard);
-      return deck;
-    });
-  };
-  
-  // 处理出牌
-  const handlePlayCard = async () => {
+  // ========== 处理出牌 ==========
+  const handlePlayCard = () => {
     if (!selectedCardUid || isProcessing) return;
     
     const currentHand = getCurrentHand();
@@ -589,133 +299,111 @@ export default function MultiplayerBattle() {
     if (!card) return;
     
     const currentAp = getCurrentAp();
-    if (currentAp < card.cost) return;
+    if (currentAp < card.cost) {
+      setShowEnergyWarning(true);
+      setTimeout(() => setShowEnergyWarning(false), 1500);
+      return;
+    }
     
     setIsProcessing(true);
+    setShowHint(false);
     
-    // 消耗AP
-    const setAp = currentPlayer === 'PLAYER1' ? setPlayer1Ap : setPlayer2Ap;
-    setAp(prev => prev - card.cost);
+    setCurrentAp(currentAp - card.cost);
     
-    // 从手牌移除
-    const setHand = currentPlayer === 'PLAYER1' ? setPlayer1Hand : setPlayer2Hand;
-    const setDiscard = currentPlayer === 'PLAYER1' ? setPlayer1Discard : setPlayer2Discard;
-    setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
-    setDiscard(prev => [...prev, card]);
+    let damage = card.baseDamage || 0;
+    const selfDamage = card.selfDamage || 0;
+    const armorGain = card.baseArmor || 0;
     
-    // 执行卡牌效果
-    const setState = currentPlayer === 'PLAYER1' ? setPlayer1State : setPlayer2State;
-    const setActiveAbilities = currentPlayer === 'PLAYER1' ? setPlayer1ActiveAbilities : setPlayer2ActiveAbilities;
-    const enemyPlayer = currentPlayer === 'PLAYER1' ? 'PLAYER2' : 'PLAYER1';
+    const hasPainEcho = getCurrentActiveAbilities().find(a => a.id === "PAIN_ECHO");
+    if (hasPainEcho && selfDamage > 0) {
+      const bonus = Math.min(selfDamage * abilityConfig.PAIN_ECHO.selfDamageBonusPerPoint!, abilityConfig.PAIN_ECHO.maxBonus!);
+      damage += bonus;
+    }
     
-    // 伤害
-    if (card.baseDamage) {
-      if (card.type === 'attack') {
-        setIsAttacking(true);
-        await new Promise(r => setTimeout(r, 500));
-        takeDamage(enemyPlayer, card.baseDamage);
-        setIsAttacking(false);
+    const hasFinalTuning = getCurrentActiveAbilities().find(a => a.id === "FINAL_TUNING");
+    const currentState = getCurrentState();
+    if (hasFinalTuning && currentState.hp <= abilityConfig.FINAL_TUNING.lowHpThreshold!) {
+      damage += abilityConfig.FINAL_TUNING.lowHpDamageBonus!;
+    }
+    
+    if (damage > 0) {
+      const opponent = currentPlayer === 'PLAYER1' ? 'PLAYER2' : 'PLAYER1';
+      takeDamage(opponent, damage);
+    }
+    
+    if (armorGain > 0) {
+      addArmor(currentPlayer, armorGain);
+    }
+    
+    if (selfDamage > 0) {
+      takeDamage(currentPlayer, selfDamage, true);
+    }
+    
+    if (card.id === 'INFRASONIC_COLLAPSE') {
+      const armorLost = Math.floor(currentState.armor / 2);
+      if (armorLost > 0) {
+        const newState = { ...currentState, armor: Math.max(0, currentState.armor - armorLost) };
+        if (currentPlayer === 'PLAYER1') {
+          setPlayer1State(newState);
+        } else {
+          setPlayer2State(newState);
+        }
       }
     }
     
-    // 护甲
-    if (card.baseArmor !== undefined) {
-      setState(prev => ({
-        ...prev,
-        armor: prev.armor + card.baseArmor!,
-      }));
+    if (card.id === 'LOW_FREQUENCY_RESONANCE') {
+      const opponent = currentPlayer === 'PLAYER1' ? 'PLAYER2' : 'PLAYER1';
+      const threshold = abilityConfig.LOW_FREQUENCY_RESONANCE.armorThreshold!;
+      const dmgPerThreshold = abilityConfig.LOW_FREQUENCY_RESONANCE.damagePerThreshold!;
+      const totalDmg = Math.floor(currentState.armor / threshold) * dmgPerThreshold;
+      if (totalDmg > 0) {
+        takeDamage(opponent, totalDmg);
+      }
     }
     
-    // 自伤
-    if (card.selfDamage) {
-      takeDamage(currentPlayer, card.selfDamage);
-    }
-    
-    // 能力牌
     if (card.type === 'ability') {
       const abilityId = card.id as AbilityType;
-      setActiveAbilities(prev => [...prev, { id: abilityId, cardId: card.id }]);
+      const newAbilities = [...getCurrentActiveAbilities(), { id: abilityId, cardId: card.id }];
+      if (currentPlayer === 'PLAYER1') {
+        setPlayer1ActiveAbilities(newAbilities);
+      } else {
+        setPlayer2ActiveAbilities(newAbilities);
+      }
+    }
+    
+    const newHand = currentHand.filter(c => c.uid !== card.uid);
+    setCurrentHand(newHand);
+    const newDiscard = [...getCurrentDiscard(), card];
+    if (currentPlayer === 'PLAYER1') {
+      setPlayer1Discard(newDiscard);
+    } else {
+      setPlayer2Discard(newDiscard);
     }
     
     setSelectedCardUid(null);
-    setIsProcessing(false);
-  };
-  
-  // 结束回合
-  const handleEndTurn = () => {
-    if (isProcessing) return;
     
-    setIsProcessing(true);
-    
-    // 当前玩家的回合结束效果
-    const currentActiveAbilities = getCurrentActiveAbilities();
-    const setState = currentPlayer === 'PLAYER1' ? setPlayer1State : setPlayer2State;
-    const currentState = getCurrentState();
-    
-    // 频率锚定效果
-    const hasFrequencyAnchor = currentActiveAbilities.some(a => a.id === 'FREQUENCY_ANCHOR');
-    if (hasFrequencyAnchor) {
-      setState(prev => ({
-        ...prev,
-        armor: prev.armor + abilityConfig.FREQUENCY_ANCHOR.armorPerTurn!,
-      }));
-    }
-    
-    // 终末定音DOT效果
-    const hasFinalTuning = currentActiveAbilities.some(a => a.id === 'FINAL_TUNING');
-    if (hasFinalTuning && currentState.hp <= abilityConfig.FINAL_TUNING.lowHpThreshold!) {
-      takeDamage(currentPlayer, abilityConfig.FINAL_TUNING.lowHpDotDamage!);
-    }
-    
-    // 切换玩家
-    const nextPlayer = currentPlayer === 'PLAYER1' ? 'PLAYER2' : 'PLAYER1';
-    setCurrentPlayer(nextPlayer);
-    setTurn(prev => prev + 1);
-    setTurnTime(30);
-    
-    // 恢复AP
-    const setNextAp = nextPlayer === 'PLAYER1' ? setPlayer1Ap : setPlayer2Ap;
-    const nextMaxAp = nextPlayer === 'PLAYER1' ? player1MaxAp : player2MaxAp;
-    setNextAp(nextMaxAp);
-    
-    // 抽新牌
     setTimeout(() => {
-      drawCards(DRAW_PER_TURN, nextPlayer);
       setIsProcessing(false);
-    }, 300);
-    
-    setSelectedCardUid(null);
+    }, 800);
   };
   
-  // 重新开始
+  // ========== 重新开始 ==========
   const handleRestart = () => {
-    // 重置所有状态
-    setPlayer1State({
-      hp: 80,
-      maxHp: 80,
-      armor: 0,
-      buffs: [],
-      debuffs: []
-    });
+    setPlayer1State({ hp: 80, maxHp: 80, armor: 0, buffs: [], debuffs: [] });
     setPlayer1Ap(3);
     setPlayer1ActiveAbilities([]);
     
-    setPlayer2State({
-      hp: 80,
-      maxHp: 80,
-      armor: 0,
-      buffs: [],
-      debuffs: []
-    });
+    setPlayer2State({ hp: 80, maxHp: 80, armor: 0, buffs: [], debuffs: [] });
     setPlayer2Ap(3);
     setPlayer2ActiveAbilities([]);
     
     setTurn(1);
     setCurrentPlayer('PLAYER1');
     setSelectedCardUid(null);
-    setTurnTime(30);
+    setTimeLeft(30);
+    setGameOver(false);
+    setWinner(null);
     
-    // 重新初始化牌组
     const shuffleDeck = (deck: Card[]) => {
       const shuffled = [...deck];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -731,228 +419,376 @@ export default function MultiplayerBattle() {
     const p1Hand = addUidsToCards(p1DeckShuffled.slice(0, 5));
     const p2Hand = addUidsToCards(p2DeckShuffled.slice(0, 5));
     
-    setPlayer1Deck(p1DeckShuffled.slice(5));
+    setPlayer1Deck(p1DeckShuffled.slice(5) as CardWithUid[]);
     setPlayer1Hand(p1Hand);
     setPlayer1Discard([]);
     
-    setPlayer2Deck(p2DeckShuffled.slice(5));
+    setPlayer2Deck(p2DeckShuffled.slice(5) as CardWithUid[]);
     setPlayer2Hand(p2Hand);
     setPlayer2Discard([]);
+    
+    setTimeout(() => {
+      startTurn();
+    }, 500);
   };
-  
-  // 检查游戏结束
-  useEffect(() => {
-    if (player1State.hp <= 0 || player2State.hp <= 0) {
-      // 游戏结束
-    }
-  }, [player1State.hp, player2State.hp]);
   
   const currentHand = getCurrentHand();
   const currentAp = getCurrentAp();
-  const currentMaxAp = getCurrentMaxAp();
   const selectedCard = currentHand.find(c => c.uid === selectedCardUid);
   const canPlaySelected = selectedCard && currentAp >= selectedCard.cost;
   
-  if (player1State.hp <= 0 || player2State.hp <= 0) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold font-['Rajdhani'] text-slate-200 mb-4">
-            游戏结束
-          </h1>
-          <p className="text-2xl font-['Rajdhani'] text-sonic-purple mb-8">
-            {player1State.hp <= 0 ? '玩家2' : '玩家1'} 获胜！
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Button onClick={handleRestart} className="bg-sonic-purple hover:bg-violet-500">
-              再来一局
-            </Button>
-            <Button onClick={() => router.push('/')} variant="secondary">
-              返回主页
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const opponentState = currentPlayer === 'PLAYER1' ? player2State : player1State;
+  const opponentDeck = currentPlayer === 'PLAYER1' ? player2Deck : player1Deck;
+  const opponentDiscard = currentPlayer === 'PLAYER1' ? player2Discard : player1Discard;
   
   return (
     <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden">
-      {/* 背景声波效果 */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-r from-sonic-purple/10 via-transparent to-transparent animate-pulse" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-r from-transparent via-sonic-purple/5 to-transparent animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-r from-purple-500/10 via-transparent to-transparent animate-pulse" />
       </div>
-
-      <div className="relative z-20 p-8 h-screen flex flex-col">
-        {/* 返回按钮 */}
-        <div className="absolute top-8 left-8 z-50">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/')}
-            className="w-16 h-16 rounded-full bg-slate-900/80 hover:bg-slate-800/80 border-2 border-slate-700/50 text-slate-300 hover:text-white"
-          >
-            <DoorOpen className="w-8 h-8" />
-          </Button>
-        </div>
-
-        {/* 顶部：玩家2（对手） */}
-        <div className="flex justify-center items-start pt-8">
-          <div className="relative">
-            <EntityStatusPanel
-              entity={player2State}
-              isEnemy={currentPlayer !== 'PLAYER2'}
-              playerName="玩家2"
-            />
-            {/* 玩家2的飘字 */}
-            {floatingNumbers
-              .filter(n => n.target === 'PLAYER2')
-              .map((number, index) => (
-                <motion.div
-                  key={number.id}
-                  className={cn(
-                    "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50",
-                    number.type === 'ARMOR' ? "text-armor-blue" : "text-danger-red"
-                  )}
-                  style={{ top: index * 35, left: "50%", transform: "translateX(-50%)" }}
-                  initial={{ opacity: 1, y: 0, scale: 1 }}
-                  animate={{ opacity: 0, y: -60, scale: 1.3 }}
-                  transition={{ duration: 1, ease: "easeOut", delay: index * 0.1 }}
-                >
-                  {number.type === 'ARMOR' && (
-                    <span className="text-2xl">🛡️</span>
-                  )}
-                  -{number.amount}
-                </motion.div>
-              ))}
-          </div>
-        </div>
-
-        {/* 中央区域：回合信息 + 操作按钮 */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <h2 className="text-3xl font-bold font-['Rajdhani'] text-slate-300">
-            {currentPlayer === 'PLAYER1' ? '玩家1' : '玩家2'} 的回合
-          </h2>
-          
-          <div className="text-xl text-slate-500">
-            回合 {turn} · 剩余 {turnTime} 秒
-          </div>
-          
-          {selectedCard ? (
-            <div className="space-y-4">
-              <p className="text-lg text-sonic-purple font-bold">
-                已选择: {selectedCard.name}
-              </p>
-              <div className="flex gap-4">
-                <Button
-                  onClick={handlePlayCard}
-                  disabled={!canPlaySelected || isProcessing}
-                  className="bg-gradient-to-r from-green-600 to-green-400 hover:from-green-500 hover:to-green-300 text-white font-bold text-xl px-8 py-4 rounded-xl shadow-lg shadow-green-500/30"
-                >
-                  出牌
-                </Button>
-                <Button
-                  onClick={() => setSelectedCardUid(null)}
-                  variant="secondary"
-                  className="text-xl px-8 py-4 rounded-xl"
-                >
-                  取消
-                </Button>
+      
+      <div className="fixed top-8 left-8 z-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push('/')}
+          className="w-16 h-16 rounded-full bg-slate-900/80 hover:bg-slate-800/80 border-2 border-slate-700/50"
+        >
+          <DoorOpen className="w-8 h-8" />
+        </Button>
+      </div>
+      
+      <div className="fixed top-8 left-1/2 -translate-x-1/2 z-30">
+        <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 shadow-xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
+              <User className="w-6 h-6 text-slate-400" />
+            </div>
+            <div>
+              <div className="font-bold text-lg text-slate-200">
+                {currentPlayer === 'PLAYER1' ? '玩家2' : '玩家1'}
               </div>
             </div>
-          ) : (
-            <div className="space-y-2 text-center">
-              <p className="text-xl text-slate-500">
+          </div>
+          
+          <div className="mb-2 w-48">
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-red-500 font-bold">HP</span>
+              <span className="text-slate-200 font-bold">
+                {opponentState.hp}/{opponentState.maxHp}
+              </span>
+            </div>
+            <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all"
+                style={{ width: `${(opponentState.hp / opponentState.maxHp) * 100}%` }}
+              />
+            </div>
+          </div>
+          
+          {opponentState.armor > 0 && (
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-500" />
+              <span className="font-bold text-blue-500">{opponentState.armor} 护甲</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="fixed top-8 right-8 z-30 space-y-4">
+        <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50">
+          <div className="text-slate-400 text-sm font-bold mb-1">对手牌库</div>
+          <div className="text-2xl font-bold text-purple-500 font-['Rajdhani']">{opponentDeck.length}</div>
+        </div>
+        <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50">
+          <div className="text-slate-400 text-sm font-bold mb-1">弃牌堆</div>
+          <div className="text-2xl font-bold text-slate-500 font-['Rajdhani']">{opponentDiscard.length}</div>
+        </div>
+      </div>
+      
+      <AnimatePresence>
+        {showHint && !gameOver && (
+          <motion.div
+            className="fixed top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <div className="bg-black/80 backdrop-blur-md px-8 py-4 rounded-xl border border-purple-500/40">
+              <p className="text-xl font-bold text-purple-500 text-center">
+                {currentPlayer === 'PLAYER1' ? '玩家1' : '玩家2'} 的回合
+              </p>
+              <p className="text-sm text-slate-400 text-center mt-1">
                 选择卡牌进行出牌，或点击「结束回合」
               </p>
             </div>
-          )}
-          
-          {!selectedCard && (
-            <Button
-              onClick={handleEndTurn}
-              disabled={isProcessing}
-              className="bg-gradient-to-r from-sonic-purple to-violet-500 hover:from-sonic-purple hover:to-violet-400 text-white font-bold text-xl px-12 py-6 rounded-2xl shadow-xl shadow-sonic-purple/40 transition-all hover:scale-105"
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
+        {showEnergyWarning && !gameOver && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <div className="bg-black/90 backdrop-blur-md px-8 py-5 rounded-xl border border-red-500/60">
+              <p className="text-xl font-bold text-red-500 text-center">⚠️ 体力不足！</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
+        {showTimeoutWarning && !gameOver && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <div className="bg-black/90 backdrop-blur-md px-8 py-5 rounded-xl border border-purple-500/60">
+              <p className="text-xl font-bold text-purple-500 text-center">⏰ 时间到！</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 flex justify-center items-end h-64 z-40">
+        <div className="relative flex items-end justify-center -space-x-6">
+          {currentHand.map((card, index) => (
+            <div
+              key={card.uid}
+              className="relative"
+              style={{ 
+                transform: `translateX(${(index - (currentHand.length - 1) / 2) * 30}px) rotate(${(index - (currentHand.length - 1) / 2) * 4}deg)`,
+                transformOrigin: "bottom center"
+              }}
             >
-              结束回合
-            </Button>
-          )}
+              <motion.div
+                className={cn(
+                  "w-36 h-48 rounded-xl border-2 cursor-pointer transition-all",
+                  selectedCardUid === card.uid 
+                    ? "border-purple-500 bg-slate-900/95 shadow-[0_0_30px_rgba(139,92,246,0.6)] -translate-y-4"
+                    : "border-slate-600 bg-slate-900/80 hover:border-slate-400 hover:-translate-y-2",
+                  card.type === 'attack' ? "border-red-500/50" : 
+                  card.type === 'skill' ? "border-blue-500/50" : 
+                  "border-yellow-500/50"
+                )}
+                onClick={() => {
+                  if (isProcessing) return;
+                  if (selectedCardUid === card.uid) {
+                    setSelectedCardUid(null);
+                  } else {
+                    setSelectedCardUid(card.uid);
+                  }
+                }}
+              >
+                <div className="p-3 h-full flex flex-col">
+                  <div className="flex justify-between items-start">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-xl font-black",
+                      card.type === 'attack' ? "bg-red-500" : 
+                      card.type === 'skill' ? "bg-blue-500" : 
+                      "bg-yellow-500"
+                    )}>
+                      {card.cost}
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-center mt-2">
+                    <h3 className="text-lg font-black text-slate-100 font-['Rajdhani']">
+                      {card.name}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {card.type === 'attack' ? '单体' : card.type === 'skill' ? '自身' : '永久'}
+                    </p>
+                    <p className="text-sm text-slate-300 mt-2 leading-relaxed">
+                      {card.effect}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-2">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-sm font-bold",
+                      card.type === 'attack' ? "bg-red-500" : 
+                      card.type === 'skill' ? "bg-blue-500" : 
+                      "bg-yellow-500 text-slate-900"
+                    )}>
+                      {card.type === 'attack' ? '攻击' : card.type === 'skill' ? '技能' : '能力'}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          ))}
         </div>
-
-        {/* 底部：当前玩家状态 + 手牌 */}
-        <div className="pb-8">
-          <div className="flex items-end justify-between gap-8">
-            {/* 左下角：当前玩家 */}
-            <div className="flex-shrink-0 relative">
-              <EntityStatusPanel
-                entity={currentPlayer === 'PLAYER1' ? player1State : player2State}
-                isEnemy={false}
-                playerName={currentPlayer === 'PLAYER1' ? '玩家1' : '玩家2'}
-              />
-              
-              {/* AP显示 */}
-              <div className="mt-2 bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="w-3 h-3 text-sonic-purple" />
-                  <span className="text-xs font-bold text-sonic-purple">AP</span>
-                  <span className="text-xs text-slate-300">{currentAp}/{currentMaxAp}</span>
+      </div>
+      
+      <div className="fixed bottom-8 left-0 right-0 z-50">
+        <div className="max-w-md mx-auto mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-slate-400 font-bold font-['Rajdhani']">回合时间</span>
+            <span className={cn(
+              "font-bold text-2xl font-['Rajdhani']",
+              timeLeft <= 10 ? "text-red-500 animate-pulse" : "text-purple-500"
+            )}>
+              {timeLeft}秒
+            </span>
+          </div>
+          <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full transition-all duration-1000",
+                timeLeft <= 10 ? "bg-gradient-to-r from-red-500 to-red-400" : "bg-gradient-to-r from-purple-500 to-purple-400"
+              )}
+              style={{ width: `${(timeLeft / 30) * 100}%` }}
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-between items-end px-8">
+          <div className="flex-shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 shadow-xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center">
+                  <User className="w-7 h-7 text-slate-400" />
                 </div>
-                <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-sonic-purple to-violet-400"
-                    initial={{ width: "100%" }}
-                    animate={{ width: `${(currentAp / currentMaxAp) * 100}%` }}
-                    transition={{ duration: 0.5 }}
+                <div>
+                  <div className="font-bold text-xl text-slate-200">
+                    {currentPlayer === 'PLAYER1' ? '玩家1' : '玩家2'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mb-2 w-48">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-red-500 font-bold">HP</span>
+                  <span className="text-slate-200 font-bold">
+                    {getCurrentState().hp}/{getCurrentState().maxHp}
+                  </span>
+                </div>
+                <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all"
+                    style={{ width: `${(getCurrentState().hp / getCurrentState().maxHp) * 100}%` }}
                   />
                 </div>
               </div>
               
-              {/* 玩家1的飘字 */}
-              {floatingNumbers
-                .filter(n => n.target === (currentPlayer === 'PLAYER1' ? 'PLAYER1' : 'PLAYER2'))
-                .map((number, index) => (
-                  <motion.div
-                    key={number.id}
-                    className={cn(
-                      "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50",
-                      number.type === 'ARMOR' ? "text-armor-blue" : "text-danger-red"
-                    )}
-                    style={{ top: index * 35, left: "50%", transform: "translateX(-50%)" }}
-                    initial={{ opacity: 1, y: 0, scale: 1 }}
-                    animate={{ opacity: 0, y: -60, scale: 1.3 }}
-                    transition={{ duration: 1, ease: "easeOut", delay: index * 0.1 }}
+              <div className="w-48 mb-2">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-purple-500 font-bold flex items-center gap-1">
+                    <Zap className="w-4 h-4" /> AP
+                  </span>
+                  <span className="text-slate-200 font-bold font-['Rajdhani']">
+                    {currentAp}/3
+                  </span>
+                </div>
+                <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all"
+                    style={{ width: `${(currentAp / 3) * 100}%` }}
+                  />
+                </div>
+              </div>
+              
+              {getCurrentState().armor > 0 && (
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-500" />
+                  <span className="font-bold text-blue-500">{getCurrentState().armor} 护甲</span>
+                </div>
+              )}
+              
+              {getCurrentActiveAbilities().length > 0 && (
+                <div className="mt-3">
+                  <div className="text-xs font-bold text-slate-400 mb-2">永久能力</div>
+                  <div className="flex gap-1">
+                    {getCurrentActiveAbilities().map((a, i) => (
+                      <div key={i} className={cn(
+                        "w-6 h-6 rounded-full border border-slate-600",
+                        a.id === "FREQUENCY_ANCHOR" ? "bg-blue-500" :
+                        a.id === "LOW_FREQUENCY_RESONANCE" ? "bg-purple-500" :
+                        a.id === "PAIN_ECHO" ? "bg-red-500" :
+                        "bg-yellow-500"
+                      )} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex-1" />
+          
+          <div className="flex items-end gap-4">
+            <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50">
+              <div className="text-slate-400 text-sm font-bold mb-1">我的牌库</div>
+              <div className="text-2xl font-bold text-purple-500 font-['Rajdhani']">{getCurrentDeck().length}</div>
+            </div>
+            
+            <div className="bg-slate-900/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700/50">
+              <div className="text-slate-400 text-sm font-bold mb-1">弃牌堆</div>
+              <div className="text-2xl font-bold text-slate-500 font-['Rajdhani']">{getCurrentDiscard().length}</div>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <AnimatePresence>
+                {selectedCardUid && !gameOver && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={handlePlayCard}
+                    disabled={!canPlaySelected || isProcessing}
+                    className="px-12 py-6 text-2xl font-extrabold bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-lg transition-all disabled:opacity-50"
                   >
-                    {number.type === 'ARMOR' && (
-                      <span className="text-2xl">🛡️</span>
-                    )}
-                    -{number.amount}
-                  </motion.div>
-                ))}
+                    使用卡牌
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              
+              <button
+                onClick={handleEndTurn}
+                disabled={isProcessing || gameOver}
+                className="px-10 py-4 text-xl font-extrabold bg-purple-500 hover:bg-purple-400 text-white rounded-xl shadow-lg transition-all disabled:opacity-50"
+              >
+                结束回合
+              </button>
             </div>
-
-            {/* 中央：手牌 */}
-            <div className="flex-1 flex justify-center items-end">
-              <div className="flex items-end gap-[-24px]">
-                {currentHand.map((card, index) => (
-                  <HandCard
-                    key={card.uid}
-                    card={card}
-                    index={index}
-                    total={currentHand.length}
-                    isSelected={selectedCardUid === card.uid}
-                    onSelect={handleSelectCard}
-                    canPlay={currentAp >= card.cost}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* 右下角：占位，保持平衡 */}
-            <div className="flex-shrink-0 w-48" />
           </div>
         </div>
       </div>
+      
+      <AnimatePresence>
+        {gameOver && (
+          <motion.div
+            className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div
+              className="bg-black/95 backdrop-blur-xl p-12 rounded-2xl border-2 border-purple-500/50 text-center"
+              initial={{ scale: 0.8, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+            >
+              <Skull className="w-24 h-24 mx-auto mb-6 text-purple-500" />
+              <h1 className="text-4xl font-bold font-['Rajdhani'] text-slate-200 mb-4">游戏结束</h1>
+              <p className="text-2xl font-['Rajdhani'] text-purple-500 mb-8">{winner} 获胜！</p>
+              <div className="flex gap-4 justify-center">
+                <Button onClick={handleRestart} className="bg-purple-500 hover:bg-purple-400">
+                  再来一局
+                </Button>
+                <Button onClick={() => router.push('/')} variant="secondary">
+                  返回主页
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
