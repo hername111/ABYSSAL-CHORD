@@ -325,6 +325,9 @@ export default function MultiplayerBattle() {
   
   // 倒计时状态
   const [turnTimeLeft, setTurnTimeLeft] = useState(TURN_DURATION);
+  
+  // 本地回合状态（用于倒计时）
+  const [turn, setTurn] = useState(1);
 
   // 连接到游戏服务器
   useEffect(() => {
@@ -339,6 +342,7 @@ export default function MultiplayerBattle() {
       playerName,
       onGameStateUpdate: (state) => {
         setGameState(state);
+        setTurn(state.turnNumber);
         setIsJoining(false);
         // 游戏开始时重置activeAbilities
         if (state.turnNumber === 1) {
@@ -447,7 +451,7 @@ export default function MultiplayerBattle() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState?.currentPlayerId, isMyTurn, handleEndTurn]);
+  }, [turn, isMyTurn, handleEndTurn]);
 
   // 处理卡牌选择
   const handleCardSelect = useCallback((uid: string) => {
