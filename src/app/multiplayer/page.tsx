@@ -31,6 +31,58 @@ interface CardWithUid extends Card {
   uid: string;
 }
 
+// 能力配置
+const abilityConfig: Record<AbilityType, {
+  armorPerTurn?: number;
+  armorThreshold?: number;
+  damagePerThreshold?: number;
+  selfDamageBonusPerPoint?: number;
+  maxBonus?: number;
+  lowHpThreshold?: number;
+  lowHpDamageBonus?: number;
+  lowHpDotDamage?: number;
+}> = {
+  FREQUENCY_ANCHOR: {
+    armorPerTurn: 3,
+  },
+  LOW_FREQUENCY_RESONANCE: {
+    armorThreshold: 5,
+    damagePerThreshold: 3,
+  },
+  PAIN_ECHO: {
+    selfDamageBonusPerPoint: 1,
+    maxBonus: 8,
+  },
+  FINAL_TUNING: {
+    lowHpThreshold: 20,
+    lowHpDamageBonus: 5,
+    lowHpDotDamage: 2,
+  },
+};
+
+// 能力名称和描述映射
+const abilityNames: Record<AbilityType, string> = {
+  FREQUENCY_ANCHOR: "频率锚定",
+  LOW_FREQUENCY_RESONANCE: "低频共振",
+  PAIN_ECHO: "痛觉回响",
+  FINAL_TUNING: "终末定音",
+};
+
+const abilityDescriptions: Record<AbilityType, string> = {
+  FREQUENCY_ANCHOR: "每回合开始时获得3点护甲",
+  LOW_FREQUENCY_RESONANCE: "每获得5点护甲时，对敌人造成3点声波伤害",
+  PAIN_ECHO: "每受到1点来自自身卡牌的伤害，下一张攻击牌伤害+1（最多叠加至+8）",
+  FINAL_TUNING: "当你的生命值降至20以下时，你所有攻击牌伤害+5，但你每回合结束受到2点穿透伤害",
+};
+
+// 能力图标映射
+const abilityIcons: Record<AbilityType, React.ElementType> = {
+  FREQUENCY_ANCHOR: Shield,
+  LOW_FREQUENCY_RESONANCE: Sparkles,
+  PAIN_ECHO: Swords,
+  FINAL_TUNING: Skull,
+};
+
 // 全局常量
 const MAX_HAND_SIZE = 6;
 const DRAW_PER_TURN = 2;
@@ -268,6 +320,9 @@ export default function MultiplayerBattle() {
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   
+  // 能力状态
+  const [activeAbilities, setActiveAbilities] = useState<ActiveAbility[]>([]);
+  
   // 倒计时状态
   const [turnTimeLeft, setTurnTimeLeft] = useState(TURN_DURATION);
 
@@ -285,6 +340,10 @@ export default function MultiplayerBattle() {
       onGameStateUpdate: (state) => {
         setGameState(state);
         setIsJoining(false);
+        // 游戏开始时重置activeAbilities
+        if (state.turnNumber === 1) {
+          setActiveAbilities([]);
+        }
       },
       onOpen: () => {
         setIsConnected(true);
@@ -338,6 +397,21 @@ export default function MultiplayerBattle() {
 
     // 检查AP是否足够
     if (currentPlayer.ap < card.cost) return;
+
+    // 如果是能力牌，添加到activeAbilities
+    if (card.type === 'ability') {
+      const abilityId = card.id.toUpperCase().replace(/-/g, '_') as AbilityType;
+      const config = abilityConfig[abilityId];
+      if (config) {
+        const newAbility: ActiveAbility = {
+          id: abilityId,
+          cardId: card.id,
+          name: card.name,
+          effect: card.effect
+        };
+        setActiveAbilities(prev => [...prev, newAbility]);
+      }
+    }
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
@@ -587,7 +661,7 @@ export default function MultiplayerBattle() {
               </div>
               
               {/* 永久属性加成显示 */}
-              {currentPlayer.permanentAbilities.length > 0 && (
+              {activeAbilities.length > 0 && (
                 <div className="mt-3 w-64 group relative">
                   <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
                   
@@ -597,13 +671,13 @@ export default function MultiplayerBattle() {
                       {(() => {
                         // 统计能力叠加次数
                         const abilityCounts: Record<string, number> = {};
-                        currentPlayer.permanentAbilities.forEach(a => {
+                        activeAbilities.forEach(a => {
                           abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
                         });
                         
                         return Object.entries(abilityCounts).map(([id, count]) => {
                           let iconColor = "";
-                          switch (id) {
+                          switch (id as AbilityType) {
                             case "FREQUENCY_ANCHOR": iconColor = "bg-armor-blue"; break;
                             case "LOW_FREQUENCY_RESONANCE": iconColor = "bg-sonic-purple"; break;
                             case "PAIN_ECHO": iconColor = "bg-danger-red"; break;
@@ -627,7 +701,7 @@ export default function MultiplayerBattle() {
                       })()}
                     </div>
                     <div className="flex-1 text-xs text-slate-400">
-                      {currentPlayer.permanentAbilities.length} 项能力生效
+                      {activeAbilities.length} 项能力生效
                     </div>
                   </div>
                   
@@ -637,16 +711,16 @@ export default function MultiplayerBattle() {
                     <div className="space-y-2">
                       {(() => {
                         const abilityCounts: Record<string, number> = {};
-                        currentPlayer.permanentAbilities.forEach(a => {
+                        activeAbilities.forEach(a => {
                           abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
                         });
                         
                         return Object.entries(abilityCounts).map(([id, count]) => {
-                          const ability = currentPlayer.permanentAbilities.find(a => a.id === id);
+                          const ability = activeAbilities.find(a => a.id === id);
                           if (!ability) return null;
                           
                           let borderColor = "";
-                          switch (id) {
+                          switch (id as AbilityType) {
                             case "FREQUENCY_ANCHOR": borderColor = "border-armor-blue/50 bg-armor-blue/10"; break;
                             case "LOW_FREQUENCY_RESONANCE": borderColor = "border-sonic-purple/50 bg-sonic-purple/10"; break;
                             case "PAIN_ECHO": borderColor = "border-danger-red/50 bg-danger-red/10"; break;
