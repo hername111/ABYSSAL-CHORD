@@ -1,7 +1,90 @@
 import { NextRequest } from "next/server";
-import { LLMClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
 
-const SYSTEM_PROMPT = `你是《深渊协奏》(Abyssal Chord) 桌游的AI裁判助手。你精通这款1-4人合作型DBG桌游的全部规则，负责为玩家提供权威的规则裁决和游戏辅助。
+// arkclaw服务器配置
+// 请将此处替换为你的arkclaw服务器实际地址
+const ARKCLAW_SERVER_URL = process.env.ARKCLAW_SERVER_URL || "https://your-arkclaw-server.com";
+const ARKCLAW_SKILL_PATH = "/api/skills/abyssal-chord-referee";
+
+// 判断是否使用arkclaw
+const USE_ARKCLAW = process.env.USE_ARKCLAW === "true" || !!process.env.ARKCLAW_SERVER_URL;
+
+export async function POST(request: NextRequest) {
+  try {
+    const { messages: chatMessages, gameContext } = await request.json();
+    
+    // 如果配置了arkclaw，使用arkclaw
+    if (USE_ARKCLAW) {
+      return proxyToArkclaw(chatMessages, gameContext, request);
+    }
+    
+    // 否则使用原有的直接调用doubao的方式（保持向后兼容）
+    return callDirectLLM(chatMessages, request);
+    
+  } catch (error) {
+    console.error('[Agent API] Error:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+/**
+ * 代理请求到arkclaw服务器
+ */
+async function proxyToArkclaw(
+  messages: any[],
+  gameContext: any,
+  request: NextRequest
+) {
+  const arkclawUrl = `${ARKCLAW_SERVER_URL}${ARKCLAW_SKILL_PATH}`;
+  
+  console.log(`[Agent API] Proxying to arkclaw: ${arkclawUrl}`);
+  
+  // 转发请求头
+  const headers = new Headers();
+  request.headers.forEach((value, key) => {
+    // 跳过一些不需要转发的头
+    if (!['host', 'content-length'].includes(key.toLowerCase())) {
+      headers.set(key, value);
+    }
+  });
+  headers.set('Content-Type', 'application/json');
+  
+  const response = await fetch(arkclawUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      messages,
+      gameContext
+    }),
+  });
+  
+  if (!response.ok) {
+    console.error(`[Agent API] Arkclaw returned error: ${response.status}`);
+    throw new Error(`Arkclaw error: ${response.status}`);
+  }
+  
+  // 直接转发arkclaw的流式响应
+  return new Response(response.body, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+/**
+ * 直接调用LLM（原有的方式，保持向后兼容）
+ */
+async function callDirectLLM(chatMessages: any[], request: NextRequest) {
+  const { LLMClient, Config, HeaderUtils } = await import("coze-coding-dev-sdk");
+  
+  const SYSTEM_PROMPT = `你是《深渊协奏》(Abyssal Chord) 桌游的AI裁判助手。你精通这款1-4人合作型DBG桌游的全部规则，负责为玩家提供权威的规则裁决和游戏辅助。
 
 ## 你的核心职责
 1. **规则裁决**：当玩家对规则产生争议时，给出明确的判定和规则引用
@@ -44,8 +127,6 @@ const SYSTEM_PROMPT = `你是《深渊协奏》(Abyssal Chord) 桌游的AI裁判
 - 必要时分步骤展示计算过程
 - 用中文回答`;
 
-export async function POST(request: NextRequest) {
-  const { messages: chatMessages } = await request.json();
   const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
   const config = new Config();
