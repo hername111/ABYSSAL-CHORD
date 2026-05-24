@@ -461,6 +461,7 @@ export default function MultiplayerBattle() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showEnergyWarning, setShowEnergyWarning] = useState(false);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
+  const [isSwordSwinging, setIsSwordSwinging] = useState(false);
   
 
 
@@ -543,6 +544,12 @@ export default function MultiplayerBattle() {
     // 显示打牌图标效果
     const effectType = card.type === "attack" ? "attack" : "skill";
     setShowCardPlayEffect({ show: true, type: effectType });
+
+    // 如果是攻击牌，触发剑挥舞动画
+    if (card.type === "attack") {
+      setIsSwordSwinging(true);
+      setTimeout(() => setIsSwordSwinging(false), 400);
+    }
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
@@ -742,9 +749,16 @@ export default function MultiplayerBattle() {
               <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-8 h-8 text-slate-400" />
                 {/* 剑的图标 */}
-                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
+                <motion.div 
+                  className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
+                  animate={isSwordSwinging ? {
+                    rotate: [0, -45, 45, 0],
+                    scale: [1, 1.3, 1],
+                    transition: { duration: 0.4 }
+                  } : {}}
+                >
                   <Sword className="w-8 h-8" />
-                </div>
+                </motion.div>
               </div>
             </div>
             <EntityStatusPanel 
