@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MultiplayerGameState, AbilityType, ActiveAbility } from "@/lib/multiplayer/types";
 import { createMultiplayerWsConnection } from "@/lib/multiplayer/ws-client";
+import { useBGM } from "@/hooks/useBGM";
 
 // 带唯一实例 ID 的卡牌类型
 interface CardWithUid extends Card {
@@ -353,6 +354,9 @@ const HandCard = ({
 };
 
 export default function MultiplayerBattle() {
+  // 播放联机模式背景音乐
+  useBGM("/sounds/bgm_multi.mp3");
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const roomId = searchParams.get('roomId') || '';

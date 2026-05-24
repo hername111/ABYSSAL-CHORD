@@ -24,6 +24,7 @@ import { Card, CardType, CardTarget, INITIAL_HAND_CARDS, zhongLvCards } from "@/
 import { getPollutionLevel, pollutionLevels } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useBGM } from "@/hooks/useBGM";
 
 // 带唯一实例 ID 的卡牌类型
 interface CardWithUid extends Card {
@@ -703,6 +704,9 @@ const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetState
 };
 
 export default function BattleArena() {
+  // 播放单人模式背景音乐
+  useBGM("/sounds/bgm_single.mp3");
+
   // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
   const uidCounterRef = useRef(0);
   

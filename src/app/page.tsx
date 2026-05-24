@@ -4,8 +4,12 @@ import { motion } from "framer-motion";
 import { Play, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useBGM } from "@/hooks/useBGM";
 
 export default function MainMenu() {
+  // 播放首页背景音乐
+  useBGM("/sounds/bgm_menu.mp3");
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
       {/* 背景声波脉冲动画 */}
