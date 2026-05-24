@@ -392,6 +392,18 @@ export function handlePlayCard(
   }
 
   // ============================================
+  // 抽牌效果
+  // ============================================
+  if (card.draw && card.draw > 0) {
+    for (let i = 0; i < card.draw && player.deck.length > 0 && player.hand.length < MAX_HAND_SIZE; i++) {
+      const cardToDraw = player.deck.shift();
+      if (cardToDraw) {
+        player.hand.push(cardToDraw);
+      }
+    }
+  }
+
+  // ============================================
   // 检查游戏结束
   // ============================================
   if (enemy && enemy.hp <= 0) {

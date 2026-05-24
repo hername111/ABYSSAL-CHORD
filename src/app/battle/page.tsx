@@ -1542,6 +1542,11 @@ export default function BattleArena() {
     setHand(prev => prev.filter(c => c.uid !== selectedCardUid));
     setSelectedCardUid(null);
     
+    // 抽牌效果
+    if (selectedCard.draw && selectedCard.draw > 0) {
+      drawCard(selectedCard.draw);
+    }
+    
     // 次声崩塌：失去一半护甲
     if (isInfrasonicCollapse && armorLost > 0) {
       setPlayerState(prev => ({ ...prev, armor: Math.max(0, prev.armor - armorLost) }));
