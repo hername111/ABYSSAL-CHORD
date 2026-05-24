@@ -799,6 +799,9 @@ export default function BattleArena() {
   const [activeAbilities, setActiveAbilities] = useState<ActiveAbility[]>([]);
   const [angerBonus, setAngerBonus] = useState(0);
   
+  // 谐波叠加效果：本回合是否已激活
+  const [harmonicStackActive, setHarmonicStackActive] = useState(false);
+  
   // 本回合获得的护甲总数（用于低频共振能力）
   const [armorGainedThisTurn, setArmorGainedThisTurn] = useState(0);
   
@@ -1027,6 +1030,7 @@ export default function BattleArena() {
     setHasTakenSelfDamageThisTurn(false);
     setFreeSecondAttackAvailable(false);
     setNextAttackDamageBonus(0);
+    setHarmonicStackActive(false);
     
     // ========== "回合开始"检查点 ==========
     // 遍历持久化能力列表，如果有对应的能力，则自动执行后台操作
@@ -1248,17 +1252,12 @@ export default function BattleArena() {
       // ========== 谐波叠加 ==========
       // 获得3点护甲。你本回合每打出一张牌，再获得2点护甲。
       const baseArmorGain = 3;
-      const bonusArmorPerCard = 2;
-      // 注意：cardsPlayedThisTurn在出牌前已经+1了，所以要减去1
-      const extraArmorGain = Math.max(0, (cardsPlayedThisTurn - 1)) * bonusArmorPerCard;
-      armorGain = baseArmorGain + extraArmorGain;
+      armorGain = baseArmorGain;
       
-      const parts: string[] = [];
-      parts.push(`基础护甲 ${baseArmorGain} 点`);
-      if (extraArmorGain > 0) {
-        parts.push(`额外护甲 ${extraArmorGain} 点（已打${cardsPlayedThisTurn - 1}张牌）`);
-      }
-      aiMessage = `你使用了【${selectedCard.name}】，${parts.join('，')}，总计获得 ${armorGain} 点护甲！`;
+      // 激活谐波叠加效果
+      setHarmonicStackActive(true);
+      
+      aiMessage = `你使用了【${selectedCard.name}】，获得 ${armorGain} 点护甲！本回合后续每打出一张牌，再获得2点护甲！`;
     } else if (isResonanceBulwark) {
       // ========== 共振壁垒 ==========
       // 获得14点护甲。若本回合你的护甲总量超过20点，对全体敌人造成等同于溢出值的声波伤害。
@@ -1365,6 +1364,16 @@ export default function BattleArena() {
       } else {
         aiMessage = `你使用了【${selectedCard.name}】！`;
       }
+    }
+    
+    // ========== 谐波叠加：后续打出卡牌时加护甲 ==========
+    // 如果谐波叠加已激活，且当前打出的不是谐波叠加本身，则获得2点护甲
+    if (harmonicStackActive && !isHarmonicStack) {
+      const harmonicBonusArmor = 2;
+      armorGain += harmonicBonusArmor;
+      
+      // 添加AI裁判说明
+      aiMessage += `【谐波叠加】触发！额外获得 ${harmonicBonusArmor} 点护甲！`;
     }
     
     // AI裁判台词
