@@ -28,7 +28,14 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
     hand,
     deck,
     discard: [],
-    permanentAbilities: []
+    permanentAbilities: [],
+    permanentBonuses: {
+      damageBonus: 0,
+      armorPerTurn: 0,
+      extraCardsPerTurn: 0,
+      extraDamagePerArmor: 0,
+      freeSecondAttack: false
+    }
   };
 }
 
@@ -147,14 +154,44 @@ export function applyCardEffect(
   const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
   const enemy = enemyPlayerId ? newState.players[enemyPlayerId] : null;
 
+  // 如果是能力牌，先添加到永久能力列表并设置加成
+  if (card.type === 'ability') {
+    // 添加到永久能力数组
+    const abilityId = card.id.toUpperCase().replace(/-/g, '_');
+    player.permanentAbilities.push({
+      id: abilityId,
+      cardId: card.id,
+      name: card.name,
+      effect: card.effect
+    });
+
+    // 根据具体能力牌设置加成
+    switch (card.id) {
+      case 'zl-ability-01': // 频率锚定：每回合+3护甲
+        player.permanentBonuses.armorPerTurn += 3;
+        break;
+      case 'zl-ability-02': // 低频共振：每5护甲造成3伤害
+        // 这个需要在获得护甲时触发，暂存标记
+        player.permanentBonuses.extraDamagePerArmor += 0.6; // 3伤害/5护甲 = 0.6
+        break;
+      case 'zl-ability-03': // 痛觉回响：自伤+伤害
+        // 这个需要在自伤时触发，暂不处理复杂逻辑
+        player.permanentBonuses.damageBonus += 0;
+        break;
+      case 'zl-ability-04': // 终末定音：20血以下+5伤害但受2穿透
+        player.permanentBonuses.damageBonus += 5;
+        break;
+    }
+  }
+
   // 应用卡牌效果
   if (card.baseDamage && enemy) {
     // 计算伤害
-    let damage = card.baseDamage + player.permanentAbilities.damageBonus;
+    let damage = card.baseDamage + player.permanentBonuses.damageBonus;
     
     // 额外伤害（基于护甲）
-    if (player.permanentAbilities.extraDamagePerArmor > 0) {
-      damage += player.armor * player.permanentAbilities.extraDamagePerArmor;
+    if (player.permanentBonuses.extraDamagePerArmor > 0) {
+      damage += Math.floor(player.armor * player.permanentBonuses.extraDamagePerArmor);
     }
 
     // 应用护甲
@@ -208,22 +245,7 @@ export function applyCardEffect(
 
   // 免费二次攻击
   if (card.freeSecondAttack) {
-    player.permanentAbilities.freeSecondAttack = true;
-  }
-
-  // 能力牌：每回合+护甲
-  if (card.type === 'ability' && card.baseArmor) {
-    player.permanentAbilities.armorPerTurn += card.baseArmor;
-  }
-
-  // 能力牌：伤害加成
-  if (card.type === 'ability' && card.baseDamage) {
-    player.permanentAbilities.damageBonus += card.baseDamage;
-  }
-
-  // 能力牌：每回合额外抽牌
-  if (card.type === 'ability' && card.drawCards) {
-    player.permanentAbilities.extraCardsPerTurn += card.drawCards;
+    player.permanentBonuses.freeSecondAttack = true;
   }
 
   // 添加动作日志
@@ -293,12 +315,12 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
   nextPlayerState.ap = nextPlayerState.maxAp;
 
   // 每回合+护甲
-  if (nextPlayerState.permanentAbilities.armorPerTurn > 0) {
-    nextPlayerState.armor += nextPlayerState.permanentAbilities.armorPerTurn;
+  if (nextPlayerState.permanentBonuses.armorPerTurn > 0) {
+    nextPlayerState.armor += nextPlayerState.permanentBonuses.armorPerTurn;
   }
 
   // 抽牌
-  const cardsToDraw = 3 + nextPlayerState.permanentAbilities.extraCardsPerTurn;
+  const cardsToDraw = 3 + nextPlayerState.permanentBonuses.extraCardsPerTurn;
   newState = drawCards(newState, newState.currentPlayerId, cardsToDraw);
 
   // 增加回合数

@@ -26,8 +26,16 @@ export interface MultiplayerPlayer {
   deck: Card[];
   discard: Card[];
   isWinner?: boolean;
-  // 永久能力 - 与单人模式一致
+  // 永久能力 - 数组格式用于UI显示
   permanentAbilities: ActiveAbility[];
+  // 永久能力加成 - 对象格式用于效果计算
+  permanentBonuses: {
+    damageBonus: number;
+    armorPerTurn: number;
+    extraCardsPerTurn: number;
+    extraDamagePerArmor: number;
+    freeSecondAttack: boolean;
+  };
 }
 
 export interface ActionLog {
