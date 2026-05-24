@@ -899,54 +899,52 @@ export default function BattleArena() {
 
   // 统一的伤害与护甲结算函数 - 彻底重构，单一数据源
   const takeDamage = (target: "player" | "enemy", amount: number, isPiercing: boolean = false) => {
-    // 统一的伤害处理逻辑
-    const processDamage = (prev: EntityState) => {
-      // 第1步：护甲抵御计算
-      const targetArmor = isPiercing ? 0 : prev.armor;
-      
-      // 第2步：计算穿透护甲后的真实伤害
-      const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
-      
-      // 第3步：计算消耗的护甲值
-      const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
-      
-      // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
-      const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
-      
-      // 第5步：更新目标生命值（在计算出trueDamage之后才扣除）
-      const newHp = Math.max(0, prev.hp - trueDamage);
-      
-      // 第6步：处理飘字（使用独立的浮动文本生成器）
-      const targetType = target === "player" ? 'PLAYER' : 'ENEMY';
-      
-      // 如果有护甲消耗，添加ARMOR类型的飘字
-      if (armorConsumed > 0) {
-        addFloatingText(targetType, armorConsumed, 'ARMOR');
-      }
-      
-      // 如果有真实伤害，添加HP类型的飘字
-      if (trueDamage > 0) {
-        addFloatingText(targetType, trueDamage, 'HP');
-      }
-      
-      // 第7步：生死判定
-      const isPlayer = target === "player";
-      setTimeout(() => {
-        if (newHp <= 0) {
-          setGameOver(true);
-          setGameResult(isPlayer ? 'defeat' : 'victory');
-        }
-      }, 100);
-      
-      return { ...prev, hp: newHp, armor: newArmor };
-    };
+    // 获取当前状态用于计算
+    const currentState = target === "player" ? playerState : enemyState;
     
-    // 执行更新
-    if (target === "player") {
-      setPlayerState(prev => processDamage(prev));
-    } else {
-      setEnemyState(prev => processDamage(prev));
+    // 第1步：护甲抵御计算
+    const targetArmor = isPiercing ? 0 : currentState.armor;
+    
+    // 第2步：计算穿透护甲后的真实伤害
+    const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
+    
+    // 第3步：计算消耗的护甲值
+    const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
+    
+    // 第4步：计算新的护甲值（穿透伤害不消耗护甲）
+    const newArmor = isPiercing ? currentState.armor : Math.max(0, targetArmor - amount);
+    
+    // 第5步：计算新的生命值
+    const newHp = Math.max(0, currentState.hp - trueDamage);
+    
+    // 第6步：处理飘字（使用独立的浮动文本生成器）- 在同一层级执行，不嵌套
+    const targetType = target === "player" ? 'PLAYER' : 'ENEMY';
+    
+    // 如果有护甲消耗，添加ARMOR类型的飘字
+    if (armorConsumed > 0) {
+      addFloatingText(targetType, armorConsumed, 'ARMOR');
     }
+    
+    // 如果有真实伤害，添加HP类型的飘字
+    if (trueDamage > 0) {
+      addFloatingText(targetType, trueDamage, 'HP');
+    }
+    
+    // 第7步：更新状态 - 在同一层级执行，不嵌套
+    if (target === "player") {
+      setPlayerState(prev => ({ ...prev, hp: newHp, armor: newArmor }));
+    } else {
+      setEnemyState(prev => ({ ...prev, hp: newHp, armor: newArmor }));
+    }
+    
+    // 第8步：生死判定 - 在同一层级执行，不嵌套
+    const isPlayer = target === "player";
+    setTimeout(() => {
+      if (newHp <= 0) {
+        setGameOver(true);
+        setGameResult(isPlayer ? 'defeat' : 'victory');
+      }
+    }, 100);
   };
   
   // ========== 获得护甲检查点 ==========
