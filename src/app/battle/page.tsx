@@ -734,44 +734,20 @@ export default function BattleArena() {
     buffs: [],
     debuffs: []
   });
-  // 测试牌组：包含所有新添加的卡牌类型（和重新挑战时一致）
-  const testDeck: Card[] = [
-    // 基础牌（保持适量）
-    zhongLvCards[0],  // 重频打击
-    zhongLvCards[1],  // 重频打击
-    zhongLvCards[4],  // 声学壁垒
-    zhongLvCards[5],  // 声学壁垒
-    zhongLvCards[8],  // 稳频调谐
-    zhongLvCards[9],  // 余音震击
-    
+  // 测试牌组：包含所有新添加的卡牌类型
+  const testDeck = [
     // 低频堡垒流技能牌
-    zhongLvCards[10], // 共振壁垒
-    zhongLvCards[11], // 谐波叠加
-    zhongLvCards[12], // 次声崩塌
-    
+    ...zhongLvCards.filter(c => ['zl-fortress-01', 'zl-fortress-02', 'zl-fortress-03'].includes(c.id)),
     // 过载冲击流技能牌
-    zhongLvCards[13], // 过载轰鸣
-    zhongLvCards[14], // 反馈回路
-    zhongLvCards[15], // 断弦极限
-    
+    ...zhongLvCards.filter(c => ['zl-overload-01', 'zl-overload-02', 'zl-overload-03'].includes(c.id)),
     // 全部能力牌
-    zhongLvCards[16], // 频率锚定
-    zhongLvCards[17], // 低频共振
-    zhongLvCards[18], // 痛觉回响
-    zhongLvCards[19], // 终末定音
-    
-    // 再补充一些基础牌保证卡组大小
-    zhongLvCards[0],  // 重频打击
-    zhongLvCards[1],  // 重频打击
-    zhongLvCards[4],  // 声学壁垒
-    zhongLvCards[5],  // 声学壁垒
+    ...zhongLvCards.filter(c => ['zl-ability-01', 'zl-ability-02', 'zl-ability-03', 'zl-ability-04'].includes(c.id)),
+    // 基础牌
+    ...zhongLvCards.filter(c => ['zl-basic-01', 'zl-basic-01', 'zl-basic-01', 'zl-basic-02', 'zl-basic-02', 'zl-basic-02', 'zl-basic-03', 'zl-basic-04'].includes(c.id)),
   ];
   
-  // 初始牌库 = 完整牌库 - 初始手牌
-  const initialDeck = testDeck.filter(card => !INITIAL_HAND_CARDS.includes(card));
-  
   const [hand, setHand] = useState<CardWithUid[]>(
-    addUidsToCards(INITIAL_HAND_CARDS)
+    addUidsToCards(testDeck.slice(0, 5))
   );
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [currentIntention, setCurrentIntention] = useState<SimpleEnemyBehavior>(getSimpleEnemyIntention());
@@ -806,7 +782,7 @@ export default function BattleArena() {
   
   // 牌库、弃牌堆和游戏结束状态
   const [deck, setDeck] = useState<CardWithUid[]>(
-    addUidsToCards(initialDeck)
+    addUidsToCards(testDeck.slice(5))
   );
   const [discardPile, setDiscardPile] = useState<CardWithUid[]>([]);
   const [gameOver, setGameOver] = useState(false);

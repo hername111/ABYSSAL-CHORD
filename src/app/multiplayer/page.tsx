@@ -320,7 +320,8 @@ export default function MultiplayerBattle() {
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   
-
+  // 能力状态
+  const [activeAbilities, setActiveAbilities] = useState<ActiveAbility[]>([]);
   
   // 倒计时状态
   const [turnTimeLeft, setTurnTimeLeft] = useState(TURN_DURATION);
@@ -343,6 +344,10 @@ export default function MultiplayerBattle() {
         setGameState(state);
         setTurn(state.turnNumber);
         setIsJoining(false);
+        // 游戏开始时重置activeAbilities
+        if (state.turnNumber === 1) {
+          setActiveAbilities([]);
+        }
       },
       onOpen: () => {
         setIsConnected(true);
@@ -397,31 +402,25 @@ export default function MultiplayerBattle() {
     // 检查AP是否足够
     if (currentPlayer.ap < card.cost) return;
 
+    // 如果是能力牌，添加到activeAbilities
+    if (card.type === 'ability') {
+      const abilityId = card.id.toUpperCase().replace(/-/g, '_') as AbilityType;
+      const config = abilityConfig[abilityId];
+      if (config) {
+        const newAbility: ActiveAbility = {
+          id: abilityId,
+          cardId: card.id,
+          name: card.name,
+          effect: card.effect
+        };
+        setActiveAbilities(prev => [...prev, newAbility]);
+      }
+    }
+
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
     setSelectedCardUid(null);
-    
-    // 【关键修复】立刻更新本地状态：移除已打出的牌
-    // 注意：这里使用 cardUid（唯一标识）来匹配，避免删除同名牌
-    const newState = JSON.parse(JSON.stringify(gameState));
-    const player = newState.players[playerId];
-    if (player) {
-      const handCardIndex = player.hand.findIndex((c: CardWithUid, index: number) => 
-        `${c.id}_${index}` === cardUid
-      );
-      if (handCardIndex !== -1) {
-        const [removedCard] = player.hand.splice(handCardIndex, 1);
-        if (!removedCard.exhaust) {
-          player.discard.push(removedCard);
-        } else {
-          player.exiled.push(removedCard);
-        }
-        player.ap -= removedCard.cost;
-        player.turnState.cardsPlayed = (player.turnState.cardsPlayed || 0) + 1;
-      }
-    }
-    setGameState(newState);
-  }, [gameState, getCurrentPlayer, isMyTurn, playerId]);
+  }, [gameState, getCurrentPlayer, isMyTurn]);
 
   // 处理结束回合
   const handleEndTurn = useCallback(() => {
@@ -598,7 +597,7 @@ export default function MultiplayerBattle() {
               playerName={enemyPlayer.name}
             />
             {/* 敌方永久属性加成显示 */}
-            {enemyPlayer?.permanentAbilities?.length > 0 && (
+            {enemyPlayer.permanentAbilities && enemyPlayer.permanentAbilities.length > 0 && (
               <div className="mt-2 w-48 group relative">
                 <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">敌方永久能力</div>
                 
@@ -825,7 +824,7 @@ export default function MultiplayerBattle() {
               </div>
               
               {/* 永久属性加成显示 */}
-              {currentPlayer?.permanentAbilities?.length > 0 && (
+              {activeAbilities.length > 0 && (
                 <div className="mt-3 w-64 group relative">
                   <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
                   
@@ -835,7 +834,7 @@ export default function MultiplayerBattle() {
                       {(() => {
                         // 统计能力叠加次数
                         const abilityCounts: Record<string, number> = {};
-                        currentPlayer.permanentAbilities.forEach(a => {
+                        activeAbilities.forEach(a => {
                           abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
                         });
                         
@@ -865,7 +864,7 @@ export default function MultiplayerBattle() {
                       })()}
                     </div>
                     <div className="flex-1 text-xs text-slate-400">
-                      {currentPlayer.permanentAbilities.length} 项能力生效
+                      {activeAbilities.length} 项能力生效
                     </div>
                   </div>
                   
@@ -875,12 +874,12 @@ export default function MultiplayerBattle() {
                     <div className="space-y-2">
                       {(() => {
                         const abilityCounts: Record<string, number> = {};
-                        currentPlayer.permanentAbilities.forEach(a => {
+                        activeAbilities.forEach(a => {
                           abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
                         });
                         
                         return Object.entries(abilityCounts).map(([id, count]) => {
-                          const ability = currentPlayer.permanentAbilities.find(a => a.id === id);
+                          const ability = activeAbilities.find(a => a.id === id);
                           if (!ability) return null;
                           
                           let borderColor = "";

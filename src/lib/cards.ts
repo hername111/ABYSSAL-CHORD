@@ -293,7 +293,7 @@ export const targetConfig: Record<CardTarget, { label: string; icon: string }> =
   aoe: { label: '群体', icon: '💫' },
 };
 
-// 初始手牌 - 从钟律牌库中选取前6张
+// 初始手牌 - 从钟律牌库中选取前7张
 export const INITIAL_HAND_CARDS: Card[] = [
   zhongLvCards[0],  // 重频打击
   zhongLvCards[1],  // 重频打击
@@ -301,4 +301,5 @@ export const INITIAL_HAND_CARDS: Card[] = [
   zhongLvCards[5],  // 声学壁垒
   zhongLvCards[8],  // 稳频调谐
   zhongLvCards[9],  // 余音震击
+  zhongLvCards[12], // 谐波叠加
 ];

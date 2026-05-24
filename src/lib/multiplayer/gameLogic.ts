@@ -35,14 +35,7 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
       extraCardsPerTurn: 0,
       extraDamagePerArmor: 0,
       freeSecondAttack: false
-    },
-    turnState: {
-      cardsPlayed: 0,
-      hasTakenSelfDamage: false,
-      nextAttackDamageBonus: 0,
-      harmonicStackArmor: 0
-    },
-    exiled: []
+    }
   };
 }
 
@@ -141,7 +134,7 @@ export function discardCard(
   return newState;
 }
 
-// 应用卡牌效果（完全复⽤单人模式逻辑）
+// 应用卡牌效果（完全复用单人模式逻辑）
 export function applyCardEffect(
   gameState: MultiplayerGameState,
   playerId: string,
@@ -161,221 +154,111 @@ export function applyCardEffect(
   const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
   const enemy = enemyPlayerId ? newState.players[enemyPlayerId] : null;
 
-  // ============================================
-  // 特殊卡牌效果处理（按卡牌ID）
-  // ============================================
-  let harmonicStackBonus = 0;
-  
-  switch (card.id) {
-    // 共振壁垒：获得14护甲，护甲超过20点时造成溢出伤害
-    case 'zl-fortress-01':
-      player.armor += 14;
-      // 如果护甲超过20，造成溢出伤害
-      if (player.armor > 20 && enemy) {
-        const overflowDamage = player.armor - 20;
-        // 溢出伤害直接作用于生命值（声波伤害）
-        enemy.hp = Math.max(0, enemy.hp - overflowDamage);
-      }
-      break;
+  // 如果是能力牌，先添加到永久能力列表并设置加成
+  if (card.type === 'ability') {
+    // 添加到永久能力数组
+    const abilityId = card.id.toUpperCase().replace(/-/g, '_');
+    player.permanentAbilities.push({
+      id: abilityId,
+      cardId: card.id,
+      name: card.name,
+      effect: card.effect
+    });
 
-    // 谐波叠加：获得3护甲，本回合每打出一张牌再获得2护甲
-    case 'zl-fortress-02':
-      player.armor += 3;
-      // 记录本回合已打出的卡牌数量，用于后续加成
-      harmonicStackBonus = 2; // 每打一张牌加2护甲
-      break;
-
-    // 次声崩塌：造成护甲50%伤害，失去一半护甲
-    case 'zl-fortress-03':
-      if (enemy) {
-        const damage = Math.floor(player.armor * 0.5);
-        // 先造成伤害
-        let actualDamage = damage;
-        if (enemy.armor > 0) {
-          if (enemy.armor >= actualDamage) {
-            enemy.armor -= actualDamage;
-            actualDamage = 0;
-          } else {
-            actualDamage -= enemy.armor;
-            enemy.armor = 0;
-          }
-        }
-        if (actualDamage > 0) {
-          enemy.hp = Math.max(0, enemy.hp - actualDamage);
-        }
-      }
-      // 失去一半护甲
-      player.armor = Math.floor(player.armor / 2);
-      break;
-
-    // 过载轰鸣：造成16伤害，对自身造成5伤害
-    case 'zl-overload-01':
-      if (enemy) {
-        let damage = 16 + player.permanentBonuses.damageBonus;
-        // 应用护甲
-        if (enemy.armor > 0) {
-          if (enemy.armor >= damage) {
-            enemy.armor -= damage;
-            damage = 0;
-          } else {
-            damage -= enemy.armor;
-            enemy.armor = 0;
-          }
-        }
-        // 应用伤害
-        if (damage > 0) {
-          enemy.hp = Math.max(0, enemy.hp - damage);
-        }
-      }
-      // 自伤5点
-      player.hp = Math.max(0, player.hp - 5);
-      player.turnState.hasTakenSelfDamage = true;
-      break;
-
-    // 反馈回路：造成4伤害，若已受自伤则伤害翻倍（8点）
-    case 'zl-overload-02':
-      if (enemy) {
-        let baseDamage = 4 + player.permanentBonuses.damageBonus;
-        // 检查本回合是否已受自伤
-        if (player.turnState.hasTakenSelfDamage) {
-          baseDamage *= 2; // 伤害翻倍
-        }
-        // 应用伤害
-        let damage = baseDamage;
-        if (enemy.armor > 0) {
-          if (enemy.armor >= damage) {
-            enemy.armor -= damage;
-            damage = 0;
-          } else {
-            damage -= enemy.armor;
-            enemy.armor = 0;
-          }
-        }
-        if (damage > 0) {
-          enemy.hp = Math.max(0, enemy.hp - damage);
-        }
-      }
-      break;
-
-    // 断弦极限：失去10生命，获得2AP，下一张攻击牌+10伤害
-    case 'zl-overload-03':
-      player.hp = Math.max(0, player.hp - 10);
-      player.ap += 2;
-      player.turnState.nextAttackDamageBonus += 10;
-      break;
-
-    default:
-      // 普通卡牌效果处理
-      // ============================================
-      // 如果是能力牌，先添加到永久能力列表并设置加成
-      // ============================================
-      if (card.type === 'ability') {
-        // 添加到永久能力数组
-        const abilityId = card.id.toUpperCase().replace(/-/g, '_');
-        player.permanentAbilities.push({
-          id: abilityId,
-          cardId: card.id,
-          name: card.name,
-          effect: card.effect
-        });
-
-        // 根据具体能力牌设置加成
-        switch (card.id) {
-          case 'zl-ability-01': // 频率锚定：每回合+3护甲
-            player.permanentBonuses.armorPerTurn += 3;
-            break;
-          case 'zl-ability-02': // 低频共振：每5护甲造成3伤害
-            player.permanentBonuses.extraDamagePerArmor += 0.6; // 3伤害/5护甲 = 0.6
-            break;
-          case 'zl-ability-03': // 痛觉回响：自伤+伤害（简化处理）
-            break;
-          case 'zl-ability-04': // 终末定音：+5伤害加成
-            player.permanentBonuses.damageBonus += 5;
-            break;
-        }
-      }
-
-      // ============================================
-      // 普通卡牌效果（非特殊卡牌）
-      // ============================================
-      if (card.baseDamage && enemy) {
-        // 计算伤害
-        let damage = card.baseDamage + player.permanentBonuses.damageBonus;
-        
-        // 加上断弦极限的下一张攻击牌加成
-        damage += player.turnState.nextAttackDamageBonus;
-        
-        // 额外伤害（基于护甲）
-        if (player.permanentBonuses.extraDamagePerArmor > 0) {
-          damage += Math.floor(player.armor * player.permanentBonuses.extraDamagePerArmor);
-        }
-
-        // 应用护甲
-        if (enemy.armor > 0) {
-          if (enemy.armor >= damage) {
-            enemy.armor -= damage;
-            damage = 0;
-          } else {
-            damage -= enemy.armor;
-            enemy.armor = 0;
-          }
-        }
-
-        // 应用伤害
-        if (damage > 0) {
-          enemy.hp = Math.max(0, enemy.hp - damage);
-        }
-
-        // 自伤
-        if (card.selfDamage) {
-          player.hp = Math.max(0, player.hp - card.selfDamage);
-          player.turnState.hasTakenSelfDamage = true;
-        }
-      }
-
-      // 护甲
-      if (card.baseArmor) {
-        player.armor += card.baseArmor;
-      }
-
-      // 半甲效果
-      if (card.halfArmor && enemy) {
-        enemy.armor = Math.floor(enemy.armor / 2);
-      }
-
-      // 声爆效果
-      if (card.sonicBoom && enemy) {
-        const sonicDamage = player.armor;
-        if (enemy.armor >= sonicDamage) {
-          enemy.armor -= sonicDamage;
-        } else {
-          const remaining = sonicDamage - enemy.armor;
-          enemy.armor = 0;
-          enemy.hp = Math.max(0, enemy.hp - remaining);
-        }
-      }
+    // 根据具体能力牌设置加成
+    switch (card.id) {
+      case 'zl-ability-01': // 频率锚定：每回合+3护甲
+        player.permanentBonuses.armorPerTurn += 3;
+        break;
+      case 'zl-ability-02': // 低频共振：每5护甲造成3伤害
+        // 这个需要在获得护甲时触发，暂存标记
+        player.permanentBonuses.extraDamagePerArmor += 0.6; // 3伤害/5护甲 = 0.6
+        break;
+      case 'zl-ability-03': // 痛觉回响：自伤+伤害
+        // 这个需要在自伤时触发，暂不处理复杂逻辑
+        player.permanentBonuses.damageBonus += 0;
+        break;
+      case 'zl-ability-04': // 终末定音：20血以下+5伤害但受2穿透
+        player.permanentBonuses.damageBonus += 5;
+        break;
+    }
   }
 
-  // ============================================
-  // 本回合卡牌计数和谐波叠加加成
-  // ============================================
-  player.turnState.cardsPlayed += 1;
-  
-  // 如果有谐波叠加，且已经打出过至少2张牌（包括这张），则获得2护甲
-  if (player.turnState.cardsPlayed > 1) {
-    // 检查之前是否打过谐波叠加（通过 permanentAbilities 或者其他方式）
-    // 简单处理：每次打第二张牌开始都加2护甲
-    player.armor += 2;
+  // 应用卡牌效果
+  if (card.baseDamage && enemy) {
+    // 计算伤害
+    let damage = card.baseDamage + player.permanentBonuses.damageBonus;
+    
+    // 额外伤害（基于护甲）
+    if (player.permanentBonuses.extraDamagePerArmor > 0) {
+      damage += Math.floor(player.armor * player.permanentBonuses.extraDamagePerArmor);
+    }
+
+    // 应用护甲
+    if (enemy.armor > 0) {
+      if (enemy.armor >= damage) {
+        enemy.armor -= damage;
+        damage = 0;
+      } else {
+        damage -= enemy.armor;
+        enemy.armor = 0;
+      }
+    }
+
+    // 应用伤害
+    if (damage > 0) {
+      enemy.hp = Math.max(0, enemy.hp - damage);
+    }
+
+    // 自伤
+    if (card.selfDamage) {
+      player.hp = Math.max(0, player.hp - card.selfDamage);
+    }
   }
 
-  // 清除断弦极限的下一张攻击牌加成（只对下一张攻击牌有效）
-  if (card.type === 'attack') {
-    player.turnState.nextAttackDamageBonus = 0;
+  // 护甲
+  if (card.baseArmor) {
+    player.armor += card.baseArmor;
   }
 
-  // ============================================
+  // 污染度变化
+  if (card.pollutionModifier) {
+    // 这里可以根据需要实现污染度逻辑
+  }
+
+  // 半甲效果
+  if (card.halfArmor && enemy) {
+    enemy.armor = Math.floor(enemy.armor / 2);
+  }
+
+  // 声爆效果
+  if (card.sonicBoom && enemy) {
+    const sonicDamage = player.armor;
+    if (enemy.armor >= sonicDamage) {
+      enemy.armor -= sonicDamage;
+    } else {
+      const remaining = sonicDamage - enemy.armor;
+      enemy.armor = 0;
+      enemy.hp = Math.max(0, enemy.hp - remaining);
+    }
+  }
+
+  // 免费二次攻击
+  if (card.freeSecondAttack) {
+    player.permanentBonuses.freeSecondAttack = true;
+  }
+
+  // 添加动作日志
+  const actionLog: ActionLog = {
+    id: Date.now().toString(),
+    timestamp: Date.now(),
+    playerId,
+    playerName: player.name,
+    action: `打出 ${card.name}`
+  };
+  newState.actionLogs.unshift(actionLog);
+
   // 检查游戏结束
-  // ============================================
   if (enemy && enemy.hp <= 0) {
     newState.phase = 'ended';
     player.isWinner = true;
@@ -403,35 +286,11 @@ export function handlePlayCard(
   // 扣除AP
   player.ap -= card.cost;
 
-  // 添加动作日志
-  const actionLog: ActionLog = {
-    id: Date.now().toString(),
-    timestamp: Date.now(),
-    playerId,
-    playerName: player.name,
-    action: `打出 ${card.name}`
-  };
-  newState.actionLogs.unshift(actionLog);
-
-  // 找到卡牌在手牌中的位置
-  const cardIndexInHand = player.hand.findIndex((c: Card) => c.id === cardId);
-
   // 应用卡牌效果
   newState = applyCardEffect(newState, playerId, cardId);
 
-  // 从手牌中移除卡牌
-  if (cardIndexInHand !== -1) {
-    player.hand.splice(cardIndexInHand, 1);
-  }
-
-  // 检查卡牌是否是 exhaust（消耗）词缀
-  if (card.exhaust) {
-    // 加入移出游戏堆
-    player.exiled.push(card);
-  } else {
-    // 加入弃牌堆
-    player.discard.push(card);
-  }
+  // 弃牌
+  newState = discardCard(newState, playerId, cardId);
 
   return newState;
 }
@@ -451,14 +310,6 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
   // 新玩家成为回合玩家
   const nextPlayerState = newState.players[newState.currentPlayerId];
   nextPlayerState.isCurrentTurn = true;
-
-  // 重置回合状态
-  nextPlayerState.turnState = {
-    cardsPlayed: 0,
-    hasTakenSelfDamage: false,
-    nextAttackDamageBonus: 0,
-    harmonicStackArmor: 0
-  };
 
   // 重置AP
   nextPlayerState.ap = nextPlayerState.maxAp;
