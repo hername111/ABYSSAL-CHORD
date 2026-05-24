@@ -473,19 +473,38 @@ const EntityStatusPanel = ({
 };
 
 // 伤害数字组件
-const DamageNumber = ({ damage, x, y, color }: { damage: number; x: number; y: number; color: string }) => {
+const DamageNumber = ({ 
+  amount, 
+  type, 
+  target, 
+  x, 
+  y, 
+  color,
+  delay = 0 
+}: { 
+  amount: number; 
+  type: 'HP' | 'ARMOR'; 
+  target: 'PLAYER' | 'ENEMY'; 
+  x: number; 
+  y: number; 
+  color: string;
+  delay?: number;
+}) => {
   return (
     <motion.div
       className={cn(
-        "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50",
+        "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50 flex items-center gap-2",
         color
       )}
       style={{ left: x, top: y }}
       initial={{ opacity: 1, y: 0, scale: 1 }}
       animate={{ opacity: 0, y: -60, scale: 1.3 }}
-      transition={{ duration: 1, ease: "easeOut" }}
+      transition={{ duration: 1, ease: "easeOut", delay }}
     >
-      -{damage}
+      {type === 'ARMOR' && (
+        <span className="text-2xl">🛡️</span>
+      )}
+      -{amount}
     </motion.div>
   );
 };
@@ -874,8 +893,9 @@ export default function BattleArena() {
         
         // ========== 添加飘字事件 ==========
         const baseTime = Date.now();
-        const baseX = target === "player" ? 100 : 300;
+        const baseX = 100; // 玩家固定位置
         const baseY = 350;
+        const targetType = 'PLAYER';
         
         // 如果有护甲消耗，添加ARMOR类型的飘字
         if (armorConsumed > 0) {
@@ -883,7 +903,7 @@ export default function BattleArena() {
             id: baseTime, 
             amount: armorConsumed, 
             type: 'ARMOR', 
-            target: 'PLAYER', 
+            target: targetType, 
             x: baseX, 
             y: baseY, 
             color: "text-armor-blue" 
@@ -896,7 +916,7 @@ export default function BattleArena() {
             id: baseTime + 1, 
             amount: trueDamage, 
             type: 'HP', 
-            target: 'PLAYER', 
+            target: targetType, 
             x: baseX, 
             y: baseY + 30, 
             color: "text-danger-red" 
@@ -932,8 +952,9 @@ export default function BattleArena() {
         
         // ========== 添加飘字事件 ==========
         const baseTime = Date.now();
-        const baseX = target === "player" ? 100 : 300;
+        const baseX = 300; // 敌人固定位置
         const baseY = 350;
+        const targetType = 'ENEMY';
         
         // 如果有护甲消耗，添加ARMOR类型的飘字
         if (armorConsumed > 0) {
@@ -941,7 +962,7 @@ export default function BattleArena() {
             id: baseTime, 
             amount: armorConsumed, 
             type: 'ARMOR', 
-            target: 'ENEMY', 
+            target: targetType, 
             x: baseX, 
             y: baseY, 
             color: "text-armor-blue" 
@@ -954,7 +975,7 @@ export default function BattleArena() {
             id: baseTime + 1, 
             amount: trueDamage, 
             type: 'HP', 
-            target: 'ENEMY', 
+            target: targetType, 
             x: baseX, 
             y: baseY + 30, 
             color: "text-danger-red" 
@@ -1420,12 +1441,10 @@ export default function BattleArena() {
       setTimeout(() => setShowSonicWave(true), 150);
       setTimeout(() => setIsEnemyHit(true), 300);
       
-      // 伤害数字
+      // 伤害数字 - 现在由takeDamage函数处理，不需要再单独设置
       setTimeout(() => {
         // 添加愤怒加成到最终伤害
         const finalDamageWithBonus = totalDamage + angerBonus;
-        
-        setDamageNumbers(prev => [...prev, { id: Date.now(), damage: finalDamageWithBonus, x: 200, y: 250, color: "text-danger-red" }]);
         
         // 必须且只能将经过加成后的 finalDamage 传入 takeDamage 扣血函数中
         takeDamage("enemy", finalDamageWithBonus);
@@ -1462,8 +1481,7 @@ export default function BattleArena() {
         // ========== 共振壁垒：溢出伤害处理 ==========
         if (isResonanceBulwark && resonanceOverflowDamage > 0) {
           setTimeout(() => {
-            // 对敌人造成溢出伤害
-            setDamageNumbers(prev => [...prev, { id: Date.now() + 100, damage: resonanceOverflowDamage, x: 200, y: 250, color: "text-sonic-purple" }]);
+            // 对敌人造成溢出伤害 - 飘字由takeDamage函数处理
             takeDamage("enemy", resonanceOverflowDamage);
           }, 400);
         }
@@ -1625,9 +1643,7 @@ export default function BattleArena() {
         await new Promise(resolve => setTimeout(resolve, 300));
         
         if (finalEnemyDamage > 0) {
-          setDamageNumbers(prev => [...prev, { id: Date.now(), damage: finalEnemyDamage, x: 100, y: 400, color: "text-danger-red" }]);
-          
-          // 使用统一的伤害结算函数
+          // 使用统一的伤害结算函数 - 飘字由takeDamage函数处理
           takeDamage("player", finalEnemyDamage);
         }
         
@@ -1739,15 +1755,42 @@ export default function BattleArena() {
       </AnimatePresence>
 
       {/* 伤害数字 */}
-      {damageNumbers.map(dn => (
-        <DamageNumber
-          key={dn.id}
-          damage={dn.damage}
-          x={dn.x}
-          y={dn.y}
-          color={dn.color}
-        />
-      ))}
+      {damageNumbers.map((dn, index) => {
+        // 动态定位：根据target确定位置
+        let finalX = dn.x;
+        let finalY = dn.y;
+        let finalColor = dn.color;
+        
+        if (dn.target === 'ENEMY') {
+          // 敌人的飘字：紧贴在污染物模型的旁边（右边）
+          finalX = 600;
+          finalY = 200 + (index * 35);
+        } else {
+          // 玩家的飘字：保持原有位置
+          finalX = dn.x;
+          finalY = dn.y + (index * 35);
+        }
+        
+        // 样式区分：根据type确定颜色
+        if (dn.type === 'ARMOR') {
+          finalColor = "text-armor-blue";
+        } else {
+          finalColor = "text-danger-red";
+        }
+        
+        return (
+          <DamageNumber
+            key={dn.id}
+            amount={dn.amount}
+            type={dn.type}
+            target={dn.target}
+            x={finalX}
+            y={finalY}
+            color={finalColor}
+            delay={index * 0.1}
+          />
+        );
+      })}
 
       {/* 玩家角色 - 固定在左侧底部 */}
       <div className="fixed bottom-1/4 left-10 z-30">
