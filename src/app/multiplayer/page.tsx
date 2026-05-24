@@ -596,6 +596,29 @@ export default function MultiplayerBattle() {
               isEnemy={true}
               playerName={enemyPlayer.name}
             />
+            {/* 敌方回合时在敌方状态栏下方显示倒计时 */}
+            {!isMyTurn() && (
+              <div className="w-full bg-black/50 rounded-lg p-3 border border-sonic-purple/30">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-400 font-bold text-sm">敌方回合时间</span>
+                  <span className={`font-extrabold text-lg ${
+                    turnTimeLeft <= 5 ? "text-danger-red" : "text-sonic-purple"
+                  }`}>
+                    {turnTimeLeft}秒
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full ${
+                      turnTimeLeft <= 5 ? "bg-danger-red" : "bg-sonic-purple"
+                    }`}
+                    initial={{ width: "100%" }}
+                    animate={{ width: `${(turnTimeLeft / TURN_DURATION) * 100}%` }}
+                    transition={{ duration: 1, ease: "linear" }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
