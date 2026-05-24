@@ -40,7 +40,8 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
       cardsPlayed: 0,
       hasTakenSelfDamage: false,
       nextAttackDamageBonus: 0,
-      harmonicStackArmor: 0
+      harmonicStackArmor: 0,
+      harmonicStackActive: false
     },
     exiled: [],
     debuffs: []
@@ -156,6 +157,8 @@ export function handlePlayCard(
     // 谐波叠加：获得3护甲，本回合每打出一张牌再获得2护甲
     case 'zl-fortress-02':
       player.armor += 3;
+      // 标记本回合已激活谐波叠加
+      player.turnState.harmonicStackActive = true;
       break;
 
     // 次声崩塌：造成护甲值50%伤害，失去一半护甲
@@ -377,9 +380,8 @@ export function handlePlayCard(
   // ============================================
   player.turnState.cardsPlayed += 1;
   
-  // 如果有谐波叠加，且已经打出过至少2张牌（包括这张），则获得2护甲
-  if (player.turnState.cardsPlayed > 1) {
-    // 简单处理：每次打第二张牌开始都加2护甲
+  // 如果谐波叠加已激活，且当前打出的不是谐波叠加本身，则获得2护甲
+  if (player.turnState.harmonicStackActive && card.id !== 'zl-fortress-02') {
     player.armor += 2;
   }
 
@@ -453,7 +455,8 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
     cardsPlayed: 0,
     hasTakenSelfDamage: false,
     nextAttackDamageBonus: 0,
-    harmonicStackArmor: 0
+    harmonicStackArmor: 0,
+    harmonicStackActive: false
   };
 
   // 抽牌（标准3张）

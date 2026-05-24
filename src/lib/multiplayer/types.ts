@@ -48,6 +48,7 @@ export interface MultiplayerPlayer {
     hasTakenSelfDamage: boolean; // 本回合是否已受到自伤
     nextAttackDamageBonus: number; // 下一张攻击牌的伤害加成
     harmonicStackArmor: number; // 谐波叠加的护甲加成
+    harmonicStackActive: boolean; // 本回合是否已激活谐波叠加
   };
   // 移出游戏的卡牌
   exiled: Card[];
