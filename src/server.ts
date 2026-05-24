@@ -258,7 +258,13 @@ lobbyWss.on('connection', (ws: WebSocket) => {
             room.gameState.players[0].isCurrentTurn = true;
           }
           
-          // 广播游戏状态
+          // 先发送game-started消息，让lobby页面跳转
+          broadcastToRoom(currentRoomId, {
+            type: 'game-started',
+            payload: {}
+          });
+          
+          // 然后广播游戏状态
           broadcastToRoom(currentRoomId, {
             type: 'game-state',
             payload: {
