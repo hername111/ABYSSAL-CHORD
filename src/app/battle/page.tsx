@@ -472,34 +472,29 @@ const EntityStatusPanel = ({
   );
 };
 
-// 伤害数字组件
+// 伤害数字组件 - 简化版，在实体内部渲染
 const DamageNumber = ({ 
   amount, 
   type, 
-  target, 
-  x, 
-  y, 
-  color,
-  delay = 0 
+  index = 0
 }: { 
   amount: number; 
   type: 'HP' | 'ARMOR'; 
-  target: 'PLAYER' | 'ENEMY'; 
-  x: number; 
-  y: number; 
-  color: string;
-  delay?: number;
+  index?: number;
 }) => {
+  const color = type === 'ARMOR' ? "text-armor-blue" : "text-danger-red";
+  const verticalOffset = index * 35;
+  
   return (
     <motion.div
       className={cn(
         "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50 flex items-center gap-2",
         color
       )}
-      style={{ left: x, top: y }}
+      style={{ top: verticalOffset, left: "50%", transform: "translateX(-50%)" }}
       initial={{ opacity: 1, y: 0, scale: 1 }}
       animate={{ opacity: 0, y: -60, scale: 1.3 }}
-      transition={{ duration: 1, ease: "easeOut", delay }}
+      transition={{ duration: 1, ease: "easeOut", delay: index * 0.1 }}
     >
       {type === 'ARMOR' && (
         <span className="text-2xl">🛡️</span>
@@ -744,8 +739,12 @@ export default function BattleArena() {
   const [isEnemyCharging, setIsEnemyCharging] = useState(false);
   const [showSonicWave, setShowSonicWave] = useState(false);
   const [showRedFlash, setShowRedFlash] = useState(false);
-  const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER' | 'ENEMY'; x: number; y: number; color: string }>>([]);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
+  
+  // 飘字状态 - 单一数据源，每个实体有自己的飘字
+  type FloatingNumber = { id: number; amount: number; type: 'HP' | 'ARMOR' };
+  const [playerFloatingNumbers, setPlayerFloatingNumbers] = useState<FloatingNumber[]>([]);
+  const [enemyFloatingNumbers, setEnemyFloatingNumbers] = useState<FloatingNumber[]>([]);
   // 敌人动画状态：idle(待机), attack(攻击), defend(防御), buff(强化), hit(受击)
   const [enemyAnimationState, setEnemyAnimationState] = useState<"idle" | "attack" | "defend" | "buff" | "hit">("idle");
   
@@ -785,6 +784,21 @@ export default function BattleArena() {
   const [nextAttackDamageBonus, setNextAttackDamageBonus] = useState(0);
   
   const router = useRouter();
+  
+  // 定期清理飘字，防止堆积
+  useEffect(() => {
+    const cleanupTimer = setInterval(() => {
+      const now = Date.now();
+      setPlayerFloatingNumbers(prev => 
+        prev.filter(num => now - num.id < 2000)
+      );
+      setEnemyFloatingNumbers(prev => 
+        prev.filter(num => now - num.id < 2000)
+      );
+    }, 500);
+    
+    return () => clearInterval(cleanupTimer);
+  }, []);
   
   // 倒计时逻辑
   useEffect(() => {
@@ -872,126 +886,66 @@ export default function BattleArena() {
     setDiscardPile(currentDiscard);
   };
 
-  // 统一的伤害与护甲结算函数 - 严格按照4步执行
+  // 统一的伤害与护甲结算函数 - 彻底重构，单一数据源
   const takeDamage = (target: "player" | "enemy", amount: number, isPiercing: boolean = false) => {
+    // 统一的伤害处理逻辑
+    const processDamage = (prev: EntityState) => {
+      // 第1步：护甲抵御计算
+      const targetArmor = isPiercing ? 0 : prev.armor;
+      
+      // 第2步：计算穿透护甲后的真实伤害
+      const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
+      
+      // 第3步：计算消耗的护甲值
+      const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
+      
+      // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
+      const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
+      
+      // 第5步：更新目标生命值（在计算出trueDamage之后才扣除）
+      const newHp = Math.max(0, prev.hp - trueDamage);
+      
+      // 第6步：处理飘字（单一数据源，每个实体有自己的飘字）
+      const baseTime = Date.now();
+      
+      // 获取对应的飘字setter
+      const setFloatingNumbers = target === "player" ? setPlayerFloatingNumbers : setEnemyFloatingNumbers;
+      
+      // 如果有护甲消耗，添加ARMOR类型的飘字
+      if (armorConsumed > 0) {
+        setFloatingNumbers(prev => [...prev, { 
+          id: baseTime, 
+          amount: armorConsumed, 
+          type: 'ARMOR' 
+        }]);
+      }
+      
+      // 如果有真实伤害，添加HP类型的飘字
+      if (trueDamage > 0) {
+        setFloatingNumbers(prev => [...prev, { 
+          id: baseTime + 1, 
+          amount: trueDamage, 
+          type: 'HP' 
+        }]);
+      }
+      
+      // 第7步：生死判定
+      const isPlayer = target === "player";
+      setTimeout(() => {
+        if (newHp <= 0) {
+          setGameOver(true);
+          setGameResult(isPlayer ? 'defeat' : 'victory');
+        }
+      }, 100);
+      
+      return { ...prev, hp: newHp, armor: newArmor };
+    };
+    
+    // 执行更新
     if (target === "player") {
-      setPlayerState(prev => {
-        // 第1步：获取目标当前的护甲值
-        const targetArmor = isPiercing ? 0 : prev.armor;
-        
-        // 第2步：计算穿透护甲后的实际伤害
-        const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
-        
-        // 第3步：计算消耗的护甲值
-        const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
-        
-        // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
-        const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
-        
-        // 第5步：更新目标生命值
-        const newHp = Math.max(0, prev.hp - trueDamage);
-        
-        // ========== 添加飘字事件 ==========
-        const baseTime = Date.now();
-        const baseX = 100; // 玩家固定位置
-        const baseY = 350;
-        const targetType = 'PLAYER';
-        
-        // 如果有护甲消耗，添加ARMOR类型的飘字
-        if (armorConsumed > 0) {
-          setDamageNumbers(prev => [...prev, { 
-            id: baseTime, 
-            amount: armorConsumed, 
-            type: 'ARMOR', 
-            target: targetType, 
-            x: baseX, 
-            y: baseY, 
-            color: "text-armor-blue" 
-          }]);
-        }
-        
-        // 如果有真实伤害，添加HP类型的飘字
-        if (trueDamage > 0) {
-          setDamageNumbers(prev => [...prev, { 
-            id: baseTime + 1, 
-            amount: trueDamage, 
-            type: 'HP', 
-            target: targetType, 
-            x: baseX, 
-            y: baseY + 30, 
-            color: "text-danger-red" 
-          }]);
-        }
-        
-        // 生死判定
-        setTimeout(() => {
-          if (newHp <= 0) {
-            setGameOver(true);
-            setGameResult('defeat');
-          }
-        }, 100);
-        
-        return { ...prev, hp: newHp, armor: newArmor };
-      });
+      setPlayerState(prev => processDamage(prev));
     } else {
-      setEnemyState(prev => {
-        // 第1步：获取目标当前的护甲值
-        const targetArmor = isPiercing ? 0 : prev.armor;
-        
-        // 第2步：计算穿透护甲后的实际伤害
-        const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
-        
-        // 第3步：计算消耗的护甲值
-        const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
-        
-        // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
-        const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
-        
-        // 第5步：更新目标生命值
-        const newHp = Math.max(0, prev.hp - trueDamage);
-        
-        // ========== 添加飘字事件 ==========
-        const baseTime = Date.now();
-        const baseX = 300; // 敌人固定位置
-        const baseY = 350;
-        const targetType = 'ENEMY';
-        
-        // 如果有护甲消耗，添加ARMOR类型的飘字
-        if (armorConsumed > 0) {
-          setDamageNumbers(prev => [...prev, { 
-            id: baseTime, 
-            amount: armorConsumed, 
-            type: 'ARMOR', 
-            target: targetType, 
-            x: baseX, 
-            y: baseY, 
-            color: "text-armor-blue" 
-          }]);
-        }
-        
-        // 如果有真实伤害，添加HP类型的飘字
-        if (trueDamage > 0) {
-          setDamageNumbers(prev => [...prev, { 
-            id: baseTime + 1, 
-            amount: trueDamage, 
-            type: 'HP', 
-            target: targetType, 
-            x: baseX, 
-            y: baseY + 30, 
-            color: "text-danger-red" 
-          }]);
-        }
-        
-        // 生死判定
-        setTimeout(() => {
-          if (newHp <= 0) {
-            setGameOver(true);
-            setGameResult('victory');
-          }
-        }, 100);
-        
-        return { ...prev, hp: newHp, armor: newArmor };
-      });
+      setEnemyState(prev => processDamage(prev));
     }
   };
   
@@ -1168,7 +1122,8 @@ export default function BattleArena() {
     setGameResult(null);
     setTimeLeft(30);
     setDialogMessages([]);
-    setDamageNumbers([]);
+    setPlayerFloatingNumbers([]);
+    setEnemyFloatingNumbers([]);
     setShowHint(true);
     setShowEnergyWarning(false);
     setShowTimeoutWarning(false);
@@ -1754,43 +1709,7 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* 伤害数字 */}
-      {damageNumbers.map((dn, index) => {
-        // 动态定位：根据target确定位置
-        let finalX = dn.x;
-        let finalY = dn.y;
-        let finalColor = dn.color;
-        
-        if (dn.target === 'ENEMY') {
-          // 敌人的飘字：紧贴在污染物模型的旁边（右边）
-          finalX = 600;
-          finalY = 200 + (index * 35);
-        } else {
-          // 玩家的飘字：保持原有位置
-          finalX = dn.x;
-          finalY = dn.y + (index * 35);
-        }
-        
-        // 样式区分：根据type确定颜色
-        if (dn.type === 'ARMOR') {
-          finalColor = "text-armor-blue";
-        } else {
-          finalColor = "text-danger-red";
-        }
-        
-        return (
-          <DamageNumber
-            key={dn.id}
-            amount={dn.amount}
-            type={dn.type}
-            target={dn.target}
-            x={finalX}
-            y={finalY}
-            color={finalColor}
-            delay={index * 0.1}
-          />
-        );
-      })}
+
 
       {/* 玩家角色 - 固定在左侧底部 */}
       <div className="fixed bottom-1/4 left-10 z-30">
@@ -1802,6 +1721,18 @@ export default function BattleArena() {
           } : {}}
           transition={{ duration: 0.4 }}
         >
+          {/* 玩家飘字 - 在角色上方 */}
+          <div className="absolute -top-20 left-0 right-0 flex justify-center">
+            {playerFloatingNumbers.map((fn, index) => (
+              <DamageNumber
+                key={fn.id}
+                amount={fn.amount}
+                type={fn.type}
+                index={index}
+              />
+            ))}
+          </div>
+          
           {/* 能力牌发光效果 */}
           <AnimatePresence>
             {isUsingAbility && (
@@ -1941,6 +1872,18 @@ export default function BattleArena() {
               : {}
           }
         >
+          {/* 敌人飘字 - 在角色上方 */}
+          <div className="absolute -top-20 left-0 right-0 flex justify-center">
+            {enemyFloatingNumbers.map((fn, index) => (
+              <DamageNumber
+                key={fn.id}
+                amount={fn.amount}
+                type={fn.type}
+                index={index}
+              />
+            ))}
+          </div>
+          
           {/* 敌人身体 */}
           <div 
             className={cn(
