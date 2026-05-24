@@ -613,6 +613,12 @@ export default function MultiplayerBattle() {
   useEffect(() => {
     if (!gameState) return;
 
+    // 第一次只保存状态，不做比较
+    if (!prevGameStateRef.current) {
+      prevGameStateRef.current = gameState;
+      return;
+    }
+
     const currentPlayer = getCurrentPlayer();
     const enemy = getEnemyPlayer();
     
@@ -626,6 +632,41 @@ export default function MultiplayerBattle() {
         playFail();
       }
     }
+    
+    // 检测自己受伤，播放对应音效
+    if (currentPlayer && prevGameStateRef.current) {
+      const prevPlayer = prevGameStateRef.current.players[playerId];
+      if (prevPlayer) {
+        const prevHp = prevPlayer.hp;
+        const prevArmor = prevPlayer.armor;
+        const currentHp = currentPlayer.hp;
+        const currentArmor = currentPlayer.armor;
+        
+        // 检测到 hp 或 armor 变化，说明受到了伤害
+        if (prevHp !== currentHp || prevArmor !== currentArmor) {
+          // 计算伤害相关数值
+          const armorLost = prevArmor - currentArmor;
+          const hpLost = prevHp - currentHp;
+          const totalDamage = armorLost + hpLost;
+          
+          if (totalDamage > 0) {
+            if (prevArmor >= totalDamage) {
+              // 完全抵挡：伤害被护甲全额吸收
+              playShieldBlock();
+            } else if (prevArmor > 0 && prevArmor < totalDamage) {
+              // 破甲重击：击穿护甲并造成生命值伤害
+              playRealAttack();
+            } else if (prevArmor === 0) {
+              // 直接受损：没有护甲，直接承受伤害
+              playEeeee();
+            }
+          }
+        }
+      }
+    }
+    
+    // 保存当前状态为上一次的状态
+    prevGameStateRef.current = gameState;
 
     // 检查我的剑是否需要挥舞（检测上升沿）
     if (currentPlayer?.turnState.isSwordSwinging && !prevMySwordSwingRef.current) {
@@ -640,7 +681,7 @@ export default function MultiplayerBattle() {
       setTimeout(() => setShowEnemySwordSwing(false), 500);
     }
     prevEnemySwordSwingRef.current = enemy?.turnState.isSwordSwinging || false;
-  }, [gameState, getCurrentPlayer, getEnemyPlayer]);
+  }, [gameState, getCurrentPlayer, getEnemyPlayer, playShieldBlock, playRealAttack, playEeeee, playVictory, playFail]);
 
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
