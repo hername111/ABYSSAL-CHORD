@@ -416,27 +416,21 @@ export function handlePlayCard(
   // 找到卡牌在手牌中的位置
   const cardIndexInHand = player.hand.findIndex((c: Card) => c.id === cardId);
 
-  // 先保存 exhaust 信息，后面要用
-  const isExhaust = !!card.exhaust;
-  
-  // 先从手牌中移除卡牌
+  // 应用卡牌效果
+  newState = applyCardEffect(newState, playerId, cardId);
+
+  // 从手牌中移除卡牌
   if (cardIndexInHand !== -1) {
     player.hand.splice(cardIndexInHand, 1);
   }
 
-  // 应用卡牌效果
-  newState = applyCardEffect(newState, playerId, cardId);
-
-  // 从新状态中获取玩家（因为 applyCardEffect 返回了新状态）
-  const updatedPlayer = newState.players[playerId];
-
-  // 处理弃牌
-  if (isExhaust) {
+  // 检查卡牌是否是 exhaust（消耗）词缀
+  if (card.exhaust) {
     // 加入移出游戏堆
-    updatedPlayer.exiled.push(card);
+    player.exiled.push(card);
   } else {
     // 加入弃牌堆
-    updatedPlayer.discard.push(card);
+    player.discard.push(card);
   }
 
   return newState;

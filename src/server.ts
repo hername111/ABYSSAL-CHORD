@@ -165,15 +165,6 @@ lobbyWss.on('connection', (ws: WebSocket) => {
             break;
           }
 
-          // 检查房间人数是否已满（最多2人）
-          if (room.players.size >= 2) {
-            ws.send(JSON.stringify({
-              type: 'error',
-              payload: { message: '房间已满' }
-            }));
-            break;
-          }
-
           room.players.set(playerId, {
             id: playerId,
             name: playerName,
