@@ -609,12 +609,18 @@ export default function MultiplayerBattle() {
           </div>
         </div>
 
-        {/* 下方：玩家手牌区 */}
-        <div className="w-full pb-4">
-          <div className="flex justify-center items-end gap-2 px-4">
-            {handWithUids.map((card, index) => (
+      </div>
+
+      {/* 手牌容器 - 动态扇形布局，和单人模式一样 */}
+      <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
+        <div className="relative flex items-end justify-center -space-x-6" style={{ transformOrigin: "bottom center" }}>
+          {handWithUids.map((card, index) => (
+            <div
+              key={card.uid}
+              className="relative"
+              style={{ transformOrigin: "bottom center" }}
+            >
               <HandCard
-                key={card.uid}
                 card={card}
                 index={index}
                 total={handWithUids.length}
@@ -622,13 +628,13 @@ export default function MultiplayerBattle() {
                 onSelect={handleCardSelect}
                 canPlay={canPlayCard(card)}
               />
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 底部：玩家自己状态 + 操作按钮 */}
-      <div className="absolute bottom-8 left-8 z-20">
+      {/* 底部：玩家自己状态 + 操作按钮 - 往上移动一些 */}
+      <div className="absolute bottom-20 left-8 z-20">
         {currentPlayer && (
           <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
             <div className="flex items-center gap-4 mb-3">
