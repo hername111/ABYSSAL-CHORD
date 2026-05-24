@@ -739,8 +739,12 @@ export default function MultiplayerBattle() {
                 </h2>
                 <p className="text-slate-400 text-sm">调音师</p>
               </div>
-              <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-8 h-8 text-slate-400" />
+                {/* 剑的图标 */}
+                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
+                  <Sword className="w-8 h-8" />
+                </div>
               </div>
             </div>
             <EntityStatusPanel 
@@ -947,8 +951,12 @@ export default function MultiplayerBattle() {
         {currentPlayer && (
           <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
             <div className="flex items-center gap-4 mb-3">
-              <div className="w-20 h-20 rounded-full bg-sonic-purple/20 border-4 border-sonic-purple/50 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-sonic-purple/20 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-10 h-10 text-sonic-purple" />
+                {/* 剑的图标 */}
+                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
+                  <Sword className="w-8 h-8" />
+                </div>
               </div>
               <div>
                 <h2 className="text-3xl font-black text-slate-100">
