@@ -136,7 +136,7 @@ export const zhongLvCards: Card[] = [
     archetype: 'basic',
     cost: 1,
     target: 'self',
-    effect: '获得 3 点护甲，降低 10 点污染度。',
+    effect: '获得 3 点护甲。',
     designNote: '3护甲+10净化=13点等效值（1净化≈1点等效），提供早期污染控制手段。',
     baseArmor: 3,
     purification: 10,
@@ -248,7 +248,7 @@ export const zhongLvCards: Card[] = [
     archetype: 'fortress',
     cost: 2,
     target: 'self',
-    effect: '【永久】你每获得 5 点护甲时，对随机一个敌人造成 3 点声波伤害。',
+    effect: '【永久】你每获得 5 点护甲时，对对手造成 3 点声波伤害。',
     designNote: '2AP=10护甲的等价投资，按每回合获得约10护甲计=6点/回合自动伤害。让"叠甲"本身就成为攻击。',
   },
   {
