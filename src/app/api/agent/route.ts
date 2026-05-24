@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 
 // arkclaw服务器配置
-// 请将此处替换为你的arkclaw服务器实际地址
-const ARKCLAW_SERVER_URL = process.env.ARKCLAW_SERVER_URL || "https://your-arkclaw-server.com";
-const ARKCLAW_SKILL_PATH = "/api/skills/abyssal-chord-referee";
+const ARKCLAW_SERVER_URL = process.env.ARKCLAW_SERVER_URL || "http://66.32.30.22:3000";
+const ARKCLAW_SKILL_PATH = "/api/referee/chat";
 
 // 判断是否使用arkclaw
 const USE_ARKCLAW = process.env.USE_ARKCLAW === "true" || !!process.env.ARKCLAW_SERVER_URL;
