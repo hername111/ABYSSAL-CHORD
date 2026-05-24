@@ -19,10 +19,20 @@ import {
   Sparkles,
   Target,
   User,
+  MessageSquare,
+  Send,
+  Trash2,
+  Bot,
 } from "lucide-react";
 import { Card, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card as UICard,
+  CardContent,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { MultiplayerGameState, AbilityType, ActiveAbility } from "@/lib/multiplayer/types";
 import { createMultiplayerWsConnection } from "@/lib/multiplayer/ws-client";
 import { useBGM } from "@/hooks/useBGM";
@@ -490,6 +500,13 @@ export default function MultiplayerBattle() {
   const prevMySwordSwingRef = useRef(false);
   const prevEnemySwordSwingRef = useRef(false);
   
+  // AI裁判对话框状态
+  const [showAgentDialog, setShowAgentDialog] = useState(false);
+  const [agentMessages, setAgentMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [agentInput, setAgentInput] = useState('');
+  const [isAgentLoading, setIsAgentLoading] = useState(false);
+  const agentMessagesEndRef = useRef<HTMLDivElement>(null);
+  
   // 飘字状态 - 单一数据源，统一管理所有飘字
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
   const addFloatingText = createAddFloatingText(setFloatingNumbers);
@@ -799,6 +816,97 @@ export default function MultiplayerBattle() {
     return currentPlayer.ap >= card.cost;
   }, [getCurrentPlayer, isMyTurn]);
 
+  // 发送消息给AI裁判
+  const sendAgentMessage = useCallback(async () => {
+    if (!agentInput.trim() || isAgentLoading) return;
+
+    const userMessage = agentInput.trim();
+    setAgentInput('');
+    setAgentMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsAgentLoading(true);
+
+    try {
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...agentMessages, { role: 'user', content: userMessage }],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('请求失败');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = '';
+
+      if (reader) {
+        setAgentMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  assistantMessage += parsed.content;
+                  setAgentMessages(prev => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1] = { 
+                      role: 'assistant', 
+                      content: assistantMessage 
+                    };
+                    return newMessages;
+                  });
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('AI裁判请求失败:', error);
+      setAgentMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '抱歉，我现在无法回答你的问题。请稍后再试。' 
+      }]);
+    } finally {
+      setIsAgentLoading(false);
+    }
+  }, [agentInput, isAgentLoading, agentMessages]);
+
+  // 清空聊天记录
+  const clearAgentChat = useCallback(() => {
+    setAgentMessages([]);
+  }, []);
+
+  // 自动滚动到最新消息
+  useEffect(() => {
+    agentMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [agentMessages]);
+
+  // 处理键盘回车发送
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendAgentMessage();
+    }
+  }, [sendAgentMessage]);
+
   // 渲染游戏结束界面
   if (gameState?.phase === 'ended') {
     const winnerId = Object.values(gameState.players).find(p => p.isWinner)?.id;
@@ -868,8 +976,8 @@ export default function MultiplayerBattle() {
         <div className="absolute inset-0 bg-gradient-radial from-sonic-purple/5 via-transparent to-transparent animate-pulse"></div>
       </div>
 
-      {/* 左上角：退出按钮 */}
-      <div className="absolute top-4 left-4 z-50">
+      {/* 左上角：退出按钮 + AI裁判 */}
+      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
         <Button
           variant="default"
           onClick={() => setShowExitConfirm(true)}
@@ -878,6 +986,14 @@ export default function MultiplayerBattle() {
           <X className="w-4 h-4 mr-2" />
           退出
         </Button>
+        
+        {/* AI裁判区 - 点击打开对话框 */}
+        <div 
+          className="w-12 h-12 bg-sonic-purple rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform cursor-pointer"
+          onClick={() => setShowAgentDialog(true)}
+        >
+          <MessageSquare className="w-6 h-6 text-white" />
+        </div>
       </div>
 
       {/* 右上角：敌方玩家状态 */}
@@ -1340,6 +1456,182 @@ export default function MultiplayerBattle() {
                 >
                   确认退出
                 </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI裁判对话框 */}
+      <AnimatePresence>
+        {showAgentDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-2xl bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-sonic-purple/50 shadow-2xl overflow-hidden"
+            >
+              {/* 对话框头部 */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-100">AI 裁判</h3>
+                    <p className="text-xs text-slate-400">深渊协奏规则顾问</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={clearAgentChat}
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-200"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    清空
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setShowAgentDialog(false)}
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* 对话区域 */}
+              <div className="h-96 overflow-y-auto p-4 space-y-4 bg-slate-950/50">
+                {agentMessages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-16 h-16 bg-sonic-purple/20 rounded-full flex items-center justify-center mb-2">
+                      <MessageSquare className="w-8 h-8 text-sonic-purple" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-200 mb-1">你好，调音师</h4>
+                      <p className="text-sm text-slate-400 max-w-sm">
+                        我是深渊协奏的AI裁判。你可以问我任何关于出牌策略、卡牌效果或游戏规则的问题。
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                      <Badge 
+                        variant="outline" 
+                        className="bg-sonic-purple/10 border-sonic-purple/30 text-sonic-purple cursor-pointer hover:bg-sonic-purple/20 transition-colors"
+                        onClick={() => {
+                          setAgentInput("现在我应该出什么牌？");
+                        }}
+                      >
+                        现在我应该出什么牌？
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className="bg-sonic-purple/10 border-sonic-purple/30 text-sonic-purple cursor-pointer hover:bg-sonic-purple/20 transition-colors"
+                        onClick={() => {
+                          setAgentInput("解释一下声爆机制");
+                        }}
+                      >
+                        解释声爆机制
+                      </Badge>
+                    </div>
+                  </div>
+                ) : (
+                  agentMessages.map((message, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: message.role === 'user' ? 20 : -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={cn(
+                        "flex gap-3 max-w-[85%]",
+                        message.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        message.role === 'user' ? "bg-slate-600" : "bg-sonic-purple"
+                      )}>
+                        {message.role === 'user' ? (
+                          <User className="w-4 h-4 text-white" />
+                        ) : (
+                          <Bot className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+                      <div className={cn(
+                        "px-4 py-3 rounded-xl",
+                        message.role === 'user' 
+                          ? "bg-slate-700 rounded-tr-sm" 
+                          : "bg-slate-800 rounded-tl-sm border border-slate-700/50"
+                      )}>
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                          {message.content}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+                {isAgentLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex gap-3 max-w-[85%] mr-auto"
+                  >
+                    <div className="w-8 h-8 bg-sonic-purple rounded-full flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="px-4 py-3 bg-slate-800 rounded-xl rounded-tl-sm border border-slate-700/50">
+                      <div className="flex gap-1">
+                        <motion.div
+                          className="w-2 h-2 bg-sonic-purple rounded-full"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                        />
+                        <motion.div
+                          className="w-2 h-2 bg-sonic-purple rounded-full"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                        />
+                        <motion.div
+                          className="w-2 h-2 bg-sonic-purple rounded-full"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                <div ref={agentMessagesEndRef} />
+              </div>
+
+              {/* 输入区域 */}
+              <div className="p-4 border-t border-slate-700/50 bg-slate-900/80">
+                <div className="flex gap-3">
+                  <Input
+                    value={agentInput}
+                    onChange={(e) => setAgentInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="询问出牌策略或游戏规则..."
+                    className="flex-1 bg-slate-800/50 border-slate-700/50 text-slate-200 placeholder:text-slate-500 focus-visible:ring-sonic-purple"
+                    disabled={isAgentLoading}
+                  />
+                  <Button
+                    variant="default"
+                    onClick={sendAgentMessage}
+                    disabled={!agentInput.trim() || isAgentLoading}
+                    className="bg-sonic-purple hover:bg-sonic-purple/80 text-white"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    发送
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
