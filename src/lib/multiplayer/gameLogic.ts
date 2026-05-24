@@ -127,24 +127,48 @@ export function handlePlayCard(
   playerId: string,
   cardId: string
 ): MultiplayerGameState {
+  console.log('=== handlePlayCard 被调用 ===');
+  console.log('playerId:', playerId);
+  console.log('cardId:', cardId);
+  
   // 先深拷贝整个状态
   let newState = JSON.parse(JSON.stringify(gameState));
   const player = newState.players[playerId];
 
-  if (!player) return newState;
+  if (!player) {
+    console.log('找不到玩家');
+    return newState;
+  }
+  
+  console.log('玩家手牌数量:', player.hand.length);
+  console.log('玩家手牌卡牌:', player.hand.map((c: Card) => c.id));
 
   // 第一步：找到卡牌
   const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
-  if (cardIndex === -1) return newState;
+  console.log('找到的卡牌索引:', cardIndex);
+  if (cardIndex === -1) {
+    console.log('卡牌不在手牌中');
+    return newState;
+  }
 
   const card = player.hand[cardIndex];
-  if (!card) return newState;
+  if (!card) {
+    console.log('卡牌为空');
+    return newState;
+  }
+  
+  console.log('找到卡牌:', card.name);
 
   // 检查AP是否足够
-  if (player.ap < card.cost) return newState;
+  if (player.ap < card.cost) {
+    console.log('AP不足');
+    return newState;
+  }
 
   // 第二步：从手牌中移除卡牌
+  console.log('从手牌中移除卡牌，索引:', cardIndex);
   player.hand.splice(cardIndex, 1);
+  console.log('移除后手牌数量:', player.hand.length);
 
   // 第三步：根据卡牌词缀决定是弃牌还是移出游戏
   if (card.exhaust) {

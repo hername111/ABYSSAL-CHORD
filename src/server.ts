@@ -398,6 +398,14 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
           
           const cardId = msg.payload.cardId;
           
+          console.log('=== DEBUG card:play ===');
+          console.log('cardId:', cardId);
+          console.log('playerId:', currentPlayerId);
+          
+          const playerBefore = gameRoom.gameState.players[currentPlayerId];
+          console.log('手牌数量（前）:', playerBefore.hand.length);
+          console.log('手牌卡牌:', playerBefore.hand.map((c: any) => c.id));
+          
           // 验证是否是当前玩家的回合
           if (!isCurrentPlayerTurn(gameRoom.gameState, currentPlayerId)) {
             ws.send(JSON.stringify({
@@ -413,6 +421,11 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
             currentPlayerId,
             cardId
           );
+          
+          const playerAfter = gameRoom.gameState.players[currentPlayerId];
+          console.log('手牌数量（后）:', playerAfter.hand.length);
+          console.log('手牌卡牌:', playerAfter.hand.map((c: any) => c.id));
+          console.log('=== END DEBUG ===');
           
           // 广播游戏状态给所有玩家
           broadcastGameState(currentRoomId);
