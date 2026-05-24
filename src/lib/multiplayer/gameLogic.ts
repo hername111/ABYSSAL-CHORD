@@ -145,17 +145,13 @@ export function discardCard(
 export function applyCardEffect(
   gameState: MultiplayerGameState,
   playerId: string,
-  cardId: string
+  cardId: string,
+  card: Card
 ): MultiplayerGameState {
   let newState = JSON.parse(JSON.stringify(gameState));
   const player = newState.players[playerId];
 
   if (!player) return newState;
-
-  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
-  if (cardIndex === -1) return newState;
-
-  const card = player.hand[cardIndex];
 
   // 找到对手
   const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
@@ -338,11 +334,6 @@ export function applyCardEffect(
         player.armor += card.baseArmor;
       }
 
-      // 半甲效果
-      if (card.halfArmor && enemy) {
-        enemy.armor = Math.floor(enemy.armor / 2);
-      }
-
       // 声爆效果
       if (card.sonicBoom && enemy) {
         const sonicDamage = player.armor;
@@ -403,6 +394,24 @@ export function handlePlayCard(
   // 扣除AP
   player.ap -= card.cost;
 
+  // 找到卡牌在手牌中的位置
+  const cardIndexInHand = player.hand.findIndex((c: Card) => c.id === cardId);
+
+  // 先从手牌中移除卡牌
+  if (cardIndexInHand !== -1) {
+    player.hand.splice(cardIndexInHand, 1);
+  }
+
+  // 检查卡牌是否是 exhaust（消耗）词缀，并加入对应堆
+  if (card.exhaust) {
+    player.exiled.push(card);
+  } else {
+    player.discard.push(card);
+  }
+
+  // 应用卡牌效果（传递已获取的 card 对象）
+  newState = applyCardEffect(newState, playerId, cardId, card);
+
   // 添加动作日志
   const actionLog: ActionLog = {
     id: Date.now().toString(),
@@ -412,26 +421,6 @@ export function handlePlayCard(
     action: `打出 ${card.name}`
   };
   newState.actionLogs.unshift(actionLog);
-
-  // 找到卡牌在手牌中的位置
-  const cardIndexInHand = player.hand.findIndex((c: Card) => c.id === cardId);
-
-  // 应用卡牌效果
-  newState = applyCardEffect(newState, playerId, cardId);
-
-  // 从手牌中移除卡牌
-  if (cardIndexInHand !== -1) {
-    player.hand.splice(cardIndexInHand, 1);
-  }
-
-  // 检查卡牌是否是 exhaust（消耗）词缀
-  if (card.exhaust) {
-    // 加入移出游戏堆
-    player.exiled.push(card);
-  } else {
-    // 加入弃牌堆
-    player.discard.push(card);
-  }
 
   return newState;
 }
