@@ -458,13 +458,13 @@ export default function MultiplayerBattle() {
     if (!isMyTurn()) return;
 
     if (selectedCardUid === uid) {
-      // 再次点击相同卡牌，则出牌
-      handlePlayCard(uid);
+      // 再次点击相同卡牌，则取消选中
+      setSelectedCardUid(null);
     } else {
       // 选择新卡牌
       setSelectedCardUid(uid);
     }
-  }, [selectedCardUid, handlePlayCard, isMyTurn]);
+  }, [selectedCardUid, isMyTurn]);
 
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
