@@ -431,7 +431,7 @@ export default function MultiplayerBattle() {
 
   // 倒计时逻辑
   useEffect(() => {
-    if (!gameState || !isMyTurn()) {
+    if (!gameState) {
       setTurnTimeLeft(TURN_DURATION);
       return;
     }
