@@ -425,6 +425,30 @@ export default function MultiplayerBattle() {
     setSelectedCardUid(null);
   }, [isMyTurn]);
 
+  // 倒计时逻辑
+  useEffect(() => {
+    if (!gameState || !isMyTurn()) {
+      setTurnTimeLeft(TURN_DURATION);
+      return;
+    }
+
+    setTurnTimeLeft(TURN_DURATION);
+
+    const interval = setInterval(() => {
+      setTurnTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (isMyTurn()) {
+            handleEndTurn();
+          }
+          return TURN_DURATION;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState?.currentPlayerId, isMyTurn, handleEndTurn]);
+
   // 处理卡牌选择
   const handleCardSelect = useCallback((uid: string) => {
     if (!isMyTurn()) return;
@@ -622,6 +646,26 @@ export default function MultiplayerBattle() {
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* 底部时间进度条 */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-black/70 backdrop-blur-sm border-t border-slate-800 py-3">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-slate-300 font-bold text-lg">回合时间</span>
+            <span className={`font-extrabold text-xl ${turnTimeLeft <= 10 ? "text-red-500 animate-pulse" : "text-sonic-purple"}`}>
+              {turnTimeLeft}秒
+            </span>
+          </div>
+          <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <motion.div
+              className={`h-full ${turnTimeLeft <= 10 ? "bg-red-500" : "bg-sonic-purple"}`}
+              initial={{ width: "100%" }}
+              animate={{ width: `${(turnTimeLeft / TURN_DURATION) * 100}%` }}
+              transition={{ duration: 0.1 }}
+            />
+          </div>
         </div>
       </div>
 
