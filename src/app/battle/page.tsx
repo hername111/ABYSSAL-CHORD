@@ -1818,51 +1818,116 @@ export default function BattleArena() {
           
           {/* 永久属性加成显示 */}
           {activeAbilities.length > 0 && (
-            <div className="mt-3 w-64">
+            <div className="mt-3 w-64 group relative">
               <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
-              <div className="space-y-1">
-                {activeAbilities.map((ability) => {
-                  const config = abilityConfig[ability.id];
-                  let displayName = "";
-                  let displayDesc = "";
-                  let iconColor = "";
-                  
-                  switch (ability.id) {
-                    case "FREQUENCY_ANCHOR":
-                      displayName = "频率锚定";
-                      displayDesc = `每回合+${config.armorPerTurn}护甲`;
-                      iconColor = "text-armor-blue";
-                      break;
-                    case "LOW_FREQUENCY_RESONANCE":
-                      displayName = "低频共振";
-                      displayDesc = `每${config.armorThreshold}护甲→${config.damagePerThreshold}伤害`;
-                      iconColor = "text-sonic-purple";
-                      break;
-                    case "PAIN_ECHO":
-                      displayName = "痛觉回响";
-                      displayDesc = `自伤1→+${config.selfDamageBonusPerPoint}伤害(最多+${config.maxBonus})`;
-                      iconColor = "text-danger-red";
-                      break;
-                    case "FINAL_TUNING":
-                      displayName = "终末定音";
-                      displayDesc = `≤${config.lowHpThreshold}HP时+${config.lowHpDamageBonus}伤害/${config.lowHpDotDamage}DOT`;
-                      iconColor = "text-gold";
-                      break;
-                  }
-                  
-                  return (
-                    <div 
-                      key={ability.id}
-                      className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/50"
-                    >
-                      <div className={cn("w-2 h-2 rounded-full bg-current", iconColor)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-200 truncate">{displayName}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{displayDesc}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+              
+              {/* 紧凑显示格 */}
+              <div className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/50 cursor-default">
+                <div className="flex -space-x-1">
+                  {(() => {
+                    // 统计能力叠加次数
+                    const abilityCounts: Record<string, number> = {};
+                    activeAbilities.forEach(a => {
+                      abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
+                    });
+                    
+                    return Object.entries(abilityCounts).map(([id, count]) => {
+                      let iconColor = "";
+                      switch (id as AbilityType) {
+                        case "FREQUENCY_ANCHOR": iconColor = "bg-armor-blue"; break;
+                        case "LOW_FREQUENCY_RESONANCE": iconColor = "bg-sonic-purple"; break;
+                        case "PAIN_ECHO": iconColor = "bg-danger-red"; break;
+                        case "FINAL_TUNING": iconColor = "bg-gold"; break;
+                      }
+                      
+                      return (
+                        <div key={id} className="relative">
+                          <div className={cn("w-3 h-3 rounded-full border border-slate-600", iconColor)} />
+                          {count > 1 && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-slate-900 rounded-full flex items-center justify-center">
+                              <span className="text-[8px] font-bold text-white">x{count}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-slate-200">
+                    {activeAbilities.length} 个能力
+                  </div>
+                </div>
+                <div className="text-slate-500 text-xs">
+                  ▼
+                </div>
+              </div>
+              
+              {/* 鼠标悬停时的详细tooltip */}
+              <div className="absolute bottom-full left-0 mb-2 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="bg-slate-900/95 backdrop-blur-sm rounded-xl border border-slate-700/70 p-3 shadow-2xl">
+                  <div className="space-y-2">
+                    {(() => {
+                      // 统计能力叠加次数
+                      const abilityCounts: Record<string, number> = {};
+                      activeAbilities.forEach(a => {
+                        abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
+                      });
+                      
+                      return Object.entries(abilityCounts).map(([id, count]) => {
+                        const config = abilityConfig[id as AbilityType];
+                        let displayName = "";
+                        let displayDesc = "";
+                        let iconColor = "";
+                        
+                        switch (id as AbilityType) {
+                          case "FREQUENCY_ANCHOR":
+                            displayName = "频率锚定";
+                            displayDesc = `每回合+${config.armorPerTurn}护甲`;
+                            iconColor = "text-armor-blue";
+                            break;
+                          case "LOW_FREQUENCY_RESONANCE":
+                            displayName = "低频共振";
+                            displayDesc = `每${config.armorThreshold}护甲→${config.damagePerThreshold}伤害`;
+                            iconColor = "text-sonic-purple";
+                            break;
+                          case "PAIN_ECHO":
+                            displayName = "痛觉回响";
+                            displayDesc = `自伤1→+${config.selfDamageBonusPerPoint}伤害(最多+${config.maxBonus})`;
+                            iconColor = "text-danger-red";
+                            break;
+                          case "FINAL_TUNING":
+                            displayName = "终末定音";
+                            displayDesc = `≤${config.lowHpThreshold}HP时+${config.lowHpDamageBonus}伤害/${config.lowHpDotDamage}DOT`;
+                            iconColor = "text-gold";
+                            break;
+                        }
+                        
+                        return (
+                          <div 
+                            key={id}
+                            className="flex items-center gap-2 bg-slate-800/40 px-3 py-2 rounded-lg border border-slate-700/30"
+                          >
+                            <div className={cn("w-2 h-2 rounded-full bg-current", iconColor)} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-200 truncate">{displayName}</span>
+                                {count > 1 && (
+                                  <span className="text-[10px] font-bold text-sonic-purple bg-sonic-purple/10 px-1.5 py-0.5 rounded">
+                                    x{count}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">{displayDesc}</div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+                {/* 小箭头 */}
+                <div className="absolute -bottom-1 left-6 w-2 h-2 bg-slate-900/95 border-r border-b border-slate-700/70 transform rotate-45" />
               </div>
             </div>
           )}
