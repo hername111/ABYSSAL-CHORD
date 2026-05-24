@@ -27,6 +27,7 @@ interface Room {
   id: string;
   players: Map<string, Player>;
   isGameStarted: boolean;
+  hostId: string; // 房主ID
 }
 
 const rooms = new Map<string, Room>();
@@ -118,7 +119,8 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           const room: Room = {
             id: roomId,
             players: new Map(),
-            isGameStarted: false
+            isGameStarted: false,
+            hostId: playerId // 创建者成为房主
           };
           
           const player: Player = {
@@ -142,9 +144,6 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           // Broadcast room state to all players in the room
           broadcastRoomState(roomId);
-          
-          // Check if game can start
-          checkAndStartGame(roomId);
           break;
         }
 
@@ -190,9 +189,6 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           // Broadcast room state to all players in the room
           broadcastRoomState(roomId);
-          
-          // Check if game can start
-          checkAndStartGame(roomId);
           break;
         }
 
@@ -209,9 +205,48 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           // Broadcast room state to all players in the room
           broadcastRoomState(currentRoomId);
+          break;
+        }
+
+        case 'start-game': {
+          if (!currentRoomId || !currentPlayerId) break;
           
-          // Check if game can start
-          checkAndStartGame(currentRoomId);
+          const room = rooms.get(currentRoomId);
+          if (!room || room.isGameStarted) break;
+          
+          // 只有房主可以开始游戏
+          if (room.hostId !== currentPlayerId) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              payload: { message: '只有房主可以开始游戏' }
+            }));
+            break;
+          }
+          
+          const players = Array.from(room.players.values());
+          
+          // 检查条件：至少2人，且所有人都准备好
+          if (players.length < 2) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              payload: { message: '至少需要2名玩家' }
+            }));
+            break;
+          }
+          
+          if (!players.every(p => p.isReady)) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              payload: { message: '所有玩家必须准备就绪' }
+            }));
+            break;
+          }
+          
+          // 所有条件满足，开始游戏
+          room.isGameStarted = true;
+          broadcastToRoom(currentRoomId, {
+            type: 'game-started'
+          });
           break;
         }
 
@@ -280,7 +315,8 @@ lobbyWss.on('connection', (ws: WebSocket) => {
       payload: {
         roomId: room.id,
         players,
-        isGameStarted: room.isGameStarted
+        isGameStarted: room.isGameStarted,
+        hostId: room.hostId // 房主ID
       }
     });
   }

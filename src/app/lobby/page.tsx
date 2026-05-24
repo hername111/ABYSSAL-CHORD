@@ -19,6 +19,7 @@ interface RoomState {
   roomId: string;
   players: Player[];
   isGameStarted: boolean;
+  hostId: string; // 房主ID
 }
 
 export default function LobbyPage() {
@@ -156,8 +157,20 @@ export default function LobbyPage() {
     }
   }, [currentRoomId]);
 
+  const startGame = useCallback(() => {
+    connRef.current?.send({
+      type: 'start-game',
+      payload: {},
+    });
+  }, []);
+
   // If in a room, show room view
   if (currentRoomId && roomState) {
+    // 计算是否满足开始游戏条件
+    const canStartGame = roomState.players.length >= 2 && roomState.players.every(p => p.isReady);
+    // 检查当前玩家是否是房主
+    const isHost = currentPlayerId === roomState.hostId;
+    
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
         {/* 背景声波脉冲动画 */}
@@ -264,6 +277,7 @@ export default function LobbyPage() {
                       }`}>
                         {player.name}
                         {player.id === currentPlayerId && ' (你)'}
+                        {player.id === roomState.hostId && ' 👑'}
                       </span>
                     </div>
                     <span className={`text-sm font-medium ${
@@ -282,7 +296,7 @@ export default function LobbyPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.7 }}
-            className="flex gap-4"
+            className="flex gap-4 flex-wrap justify-center"
           >
             <Button
               onClick={leaveRoom}
@@ -311,6 +325,28 @@ export default function LobbyPage() {
                 '准备就绪'
               )}
             </Button>
+            
+            {/* 房主可以看到开始游戏按钮 */}
+            {isHost && (
+              <Button
+                onClick={startGame}
+                disabled={isGameStarting || !canStartGame}
+                className={`px-12 py-6 text-white text-xl font-bold rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  canStartGame
+                    ? 'bg-gradient-to-r from-purify-green to-purify-green/70 hover:from-purify-green/90 hover:to-purify-green/60 shadow-[0_0_40px_rgba(34,197,94,0.4)] hover:shadow-[0_0_60px_rgba(34,197,94,0.6)]'
+                    : 'bg-slate-700/50 border border-slate-600/50'
+                }`}
+              >
+                <Play className="w-8 h-8 mr-3" />
+                {isGameStarting ? (
+                  '游戏开始中...'
+                ) : !canStartGame ? (
+                  '等待玩家...'
+                ) : (
+                  '开始游戏'
+                )}
+              </Button>
+            )}
           </motion.div>
 
           {/* 提示信息 */}
@@ -325,14 +361,36 @@ export default function LobbyPage() {
             </motion.div>
           )}
           
-          {roomState.players.length >= 2 && !roomState.isGameStarted && (
+          {roomState.players.length >= 2 && !roomState.players.every(p => p.isReady) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 0.9 }}
               className="text-slate-500 text-center"
             >
-              所有玩家准备就绪后游戏开始
+              等待所有玩家准备就绪...
+            </motion.div>
+          )}
+          
+          {roomState.players.length >= 2 && roomState.players.every(p => p.isReady) && !roomState.isGameStarted && !isHost && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1, delay: 0.9 }}
+              className="text-slate-400 text-center"
+            >
+              等待房主开始游戏...
+            </motion.div>
+          )}
+          
+          {roomState.players.length >= 2 && roomState.players.every(p => p.isReady) && !roomState.isGameStarted && isHost && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1, delay: 0.9 }}
+              className="text-purify-green text-center"
+            >
+              所有玩家已准备就绪！点击「开始游戏」开始！
             </motion.div>
           )}
         </div>
