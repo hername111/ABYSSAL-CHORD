@@ -1128,6 +1128,18 @@ export default function BattleArena() {
     setShowHint(true);
     setShowEnergyWarning(false);
     setShowTimeoutWarning(false);
+    
+    // 重置永久能力
+    setActiveAbilities([]);
+    // 重置本回合累加器
+    setCardsPlayedThisTurn(0);
+    setSelfDamageThisTurn(0);
+    setArmorGainedThisTurn(0);
+    setHasTakenSelfDamageThisTurn(false);
+    setFreeSecondAttackAvailable(false);
+    setNextAttackDamageBonus(0);
+    setHarmonicStackActive(false);
+    setAngerBonus(0);
   };
 
   // 选择卡牌
