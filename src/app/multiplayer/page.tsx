@@ -106,6 +106,31 @@ interface EntityState {
   debuffs: StatusEffect[];
 }
 
+// 打牌图标效果组件
+const CardPlayEffect = ({ 
+  type, 
+  onComplete 
+}: { 
+  type: string; 
+  onComplete: () => void; 
+}) => {
+  return (
+    <motion.div
+      className="fixed left-1/2 bottom-1/4 -translate-x-1/2 z-50 pointer-events-none"
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: [0, 1, 0], scale: [0.5, 1.5, 0.5] }}
+      transition={{ duration: 0.5 }}
+      onAnimationComplete={onComplete}
+    >
+      {type === "attack" ? (
+        <Sword className="w-24 h-24 text-danger-red drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]" />
+      ) : (
+        <ShieldIcon className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]" />
+      )}
+    </motion.div>
+  );
+};
+
 // 可复用的属性面板组件
 const StatBox = ({ 
   name, 
@@ -377,6 +402,7 @@ export default function MultiplayerBattle() {
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showEnergyWarning, setShowEnergyWarning] = useState(false);
+  const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
   
 
 
@@ -455,6 +481,10 @@ export default function MultiplayerBattle() {
 
     // 检查AP是否足够
     if (currentPlayer.ap < card.cost) return;
+
+    // 显示打牌图标效果
+    const effectType = card.type === "attack" ? "attack" : "skill";
+    setShowCardPlayEffect({ show: true, type: effectType });
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
@@ -1050,6 +1080,16 @@ export default function MultiplayerBattle() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 打牌图标效果 */}
+      <AnimatePresence>
+        {showCardPlayEffect.show && (
+          <CardPlayEffect
+            type={showCardPlayEffect.type}
+            onComplete={() => setShowCardPlayEffect({ show: false, type: "attack" })}
+          />
         )}
       </AnimatePresence>
 
