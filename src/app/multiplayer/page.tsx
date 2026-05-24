@@ -968,9 +968,16 @@ export default function MultiplayerBattle() {
               <div className="w-20 h-20 rounded-full bg-sonic-purple/20 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-10 h-10 text-sonic-purple" />
                 {/* 剑的图标 */}
-                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
+                <motion.div 
+                  className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
+                  animate={isSwordSwinging ? {
+                    rotate: [0, 60, -30, 0],
+                    scale: [1, 1.5, 1.2, 1],
+                    transition: { duration: 0.5, times: [0, 0.3, 0.7, 1] }
+                  } : {}}
+                >
                   <Sword className="w-8 h-8" />
-                </div>
+                </motion.div>
               </div>
               <div>
                 <h2 className="text-3xl font-black text-slate-100">
