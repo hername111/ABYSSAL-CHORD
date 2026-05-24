@@ -370,17 +370,25 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
   const currentIndex = newState.playerIds.indexOf(newState.currentPlayerId);
   const nextIndex = (currentIndex + 1) % newState.playerIds.length;
   const nextPlayerId = newState.playerIds[nextIndex];
-
-  // 结算声爆伤害
-  const nextPlayer = newState.players[nextPlayerId];
-  const sonicBoomDebuff = nextPlayer.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
   
-  if (sonicBoomDebuff && sonicBoomDebuff.stacks > 0) {
-    const sonicBoomDamage = sonicBoomDebuff.stacks * 2;
-    nextPlayer.hp = Math.max(0, nextPlayer.hp - sonicBoomDamage);
+  // 当前玩家（即将结束回合）
+  const currentPlayer = newState.players[newState.currentPlayerId];
+  // 敌人（即将接受声爆伤害）
+  const enemyId = newState.playerIds.find((id: string) => id !== newState.currentPlayerId);
+  const enemy = enemyId ? newState.players[enemyId] : null;
+
+  // 在当前玩家回合结束时结算声爆伤害
+  if (enemy) {
+    const sonicBoomDebuff = enemy.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
     
-    // 清除声爆debuff
-    nextPlayer.debuffs = nextPlayer.debuffs.filter((d: Debuff) => d.type !== 'SONIC_BOOM');
+    if (sonicBoomDebuff && sonicBoomDebuff.stacks > 0) {
+      const sonicBoomDamage = sonicBoomDebuff.stacks * 2;
+      // 声爆是真实伤害，直接扣除HP，不经过护甲
+      enemy.hp = Math.max(0, enemy.hp - sonicBoomDamage);
+      
+      // 清除声爆debuff
+      enemy.debuffs = enemy.debuffs.filter((d: Debuff) => d.type !== 'SONIC_BOOM');
+    }
   }
 
   // 切换玩家
