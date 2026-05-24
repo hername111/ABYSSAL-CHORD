@@ -1,4 +1,5 @@
-// 多人对战类型定义
+// 多人对战类型定义 - 完全复⽤单人模式结构
+import { Card } from '@/lib/cards';
 
 export interface MultiplayerPlayer {
   id: string;
@@ -6,10 +7,22 @@ export interface MultiplayerPlayer {
   hp: number;
   maxHp: number;
   armor: number;
+  ap: number;
+  maxAp: number;
   isCurrentTurn: boolean;
   isReady: boolean;
-  hand: string[];
-  pollutionLevel: number;
+  hand: Card[];
+  deck: Card[];
+  discard: Card[];
+  isWinner?: boolean;
+  // 永久能力
+  permanentAbilities: {
+    damageBonus: number;
+    armorPerTurn: number;
+    extraDamagePerArmor: number;
+    freeSecondAttack: boolean;
+    extraCardsPerTurn: number;
+  };
 }
 
 export interface ActionLog {
@@ -23,24 +36,18 @@ export interface ActionLog {
 
 export interface MultiplayerGameState {
   roomId: string;
-  players: MultiplayerPlayer[];
-  currentPlayerIndex: number;
+  players: Record<string, MultiplayerPlayer>; // 改为对象，与单人模式一致
+  playerIds: string[]; // 保持玩家顺序
+  currentPlayerId: string;
   phase: 'waiting' | 'playing' | 'ended';
-  turnCount: number;
-  selectedTargetId: string | null;
-  isSelectingTarget: boolean;
-  pendingCardId: string | null;
-  
-  // 公共牌库机制
-  sharedDeck: string[];
-  sharedDiscard: string[];
-  
-  // 动作日志
+  turnNumber: number;
+  turnTimeLeft: number;
+  selectedCardId: string | null;
   actionLogs: ActionLog[];
 }
 
 export interface MultiplayerWsMessage {
-  type: 'game:start' | 'game:state' | 'player:join' | 'player:leave' | 'player:ready' | 'turn:start' | 'turn:end' | 'card:play' | 'target:select' | 'game:end' | 'deck:shuffle' | 'action:log';
+  type: 'game:start' | 'game:state' | 'player:join' | 'player:leave' | 'player:ready' | 'turn:start' | 'turn:end' | 'card:play' | 'game:end' | 'action:log';
   payload: unknown;
 }
 
@@ -68,7 +75,7 @@ export interface PlayerReadyPayload {
 // 回合开始消息
 export interface TurnStartPayload {
   playerId: string;
-  turnCount: number;
+  turnNumber: number;
 }
 
 // 回合结束消息
@@ -80,23 +87,11 @@ export interface TurnEndPayload {
 export interface CardPlayPayload {
   playerId: string;
   cardId: string;
-  targetId?: string;
-}
-
-// 目标选择消息
-export interface TargetSelectPayload {
-  playerId: string;
-  targetId: string;
 }
 
 // 游戏结束消息
 export interface GameEndPayload {
   winnerId: string;
-}
-
-// 洗牌消息
-export interface DeckShufflePayload {
-  message: string;
 }
 
 // 动作日志消息

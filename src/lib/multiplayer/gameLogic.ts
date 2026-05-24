@@ -1,28 +1,40 @@
-// 多人对战游戏逻辑
-import { zhongLvCards } from '@/lib/cards';
+// 多人对战游戏逻辑 - 完全复⽤单人模式
+import { Card, zhongLvCards, INITIAL_HAND_CARDS } from '@/lib/cards';
 import type { MultiplayerGameState, MultiplayerPlayer, ActionLog } from './types';
 
-// 初始玩家血量
+// 游戏常量
 const INITIAL_HP = 80;
-// 初始玩家护甲
-const INITIAL_ARMOR = 0;
-// 初始手牌数量
-const INITIAL_HAND_SIZE = 5;
-// 每回合抽牌数量
-const CARDS_PER_TURN = 3;
+const INITIAL_AP = 3;
+const TURN_DURATION = 30;
+const MAX_HAND_SIZE = 6;
 
 // 创建初始玩家
 export function createMultiplayerPlayer(id: string, name: string): MultiplayerPlayer {
+  // 洗牌并抽取初始手牌
+  const shuffledDeck = [...zhongLvCards].sort(() => Math.random() - 0.5);
+  const hand = shuffledDeck.slice(0, INITIAL_HAND_CARDS.length);
+  const deck = shuffledDeck.slice(INITIAL_HAND_CARDS.length);
+
   return {
     id,
     name,
     hp: INITIAL_HP,
     maxHp: INITIAL_HP,
-    armor: INITIAL_ARMOR,
+    armor: 0,
+    ap: INITIAL_AP,
+    maxAp: INITIAL_AP,
     isCurrentTurn: false,
     isReady: false,
-    hand: [],
-    pollutionLevel: 0,
+    hand,
+    deck,
+    discard: [],
+    permanentAbilities: {
+      damageBonus: 0,
+      armorPerTurn: 0,
+      extraDamagePerArmor: 0,
+      freeSecondAttack: false,
+      extraCardsPerTurn: 0
+    }
   };
 }
 
@@ -31,52 +43,32 @@ export function createInitialGameState(
   roomId: string,
   players: MultiplayerPlayer[]
 ): MultiplayerGameState {
-  // 创建公共牌库
-  const sharedDeck = createSharedDeck();
-  
-  // 为每位玩家分配初始手牌
-  const playersWithHand = players.map(player => {
-    const hand: string[] = [];
-    for (let i = 0; i < INITIAL_HAND_SIZE && sharedDeck.length > 0; i++) {
-      const card = sharedDeck.pop();
-      if (card) hand.push(card);
-    }
-    return {
-      ...player,
-      hand,
-    };
+  const playersRecord: Record<string, MultiplayerPlayer> = {};
+  const playerIds: string[] = [];
+
+  players.forEach((player) => {
+    playersRecord[player.id] = player;
+    playerIds.push(player.id);
   });
+
+  // 设置第一个玩家为当前回合玩家
+  if (playerIds.length > 0) {
+    playersRecord[playerIds[0]].isCurrentTurn = true;
+    // 确保当前玩家有AP
+    playersRecord[playerIds[0]].ap = INITIAL_AP;
+  }
 
   return {
     roomId,
-    players: playersWithHand,
-    currentPlayerIndex: 0,
+    players: playersRecord,
+    playerIds,
+    currentPlayerId: playerIds[0] || '',
     phase: 'playing',
-    turnCount: 1,
-    selectedTargetId: null,
-    isSelectingTarget: false,
-    pendingCardId: null,
-    sharedDeck,
-    sharedDiscard: [],
-    actionLogs: [],
+    turnNumber: 1,
+    turnTimeLeft: TURN_DURATION,
+    selectedCardId: null,
+    actionLogs: []
   };
-}
-
-// 创建公共牌库
-function createSharedDeck(): string[] {
-  const deck: string[] = [];
-  
-  // 添加基础牌
-  zhongLvCards.forEach(card => {
-    // 每种卡牌添加2-3张到公共牌库
-    const count = card.archetype === 'basic' ? 3 : 2;
-    for (let i = 0; i < count; i++) {
-      deck.push(card.id);
-    }
-  });
-  
-  // 洗牌
-  return shuffleArray(deck);
 }
 
 // 洗牌函数
@@ -95,44 +87,29 @@ export function drawCards(
   playerId: string,
   count: number
 ): MultiplayerGameState {
-  let newState = { ...gameState };
-  const playerIndex = newState.players.findIndex(p => p.id === playerId);
-  
-  if (playerIndex === -1) return newState;
-  
-  const player = newState.players[playerIndex];
-  
+  const newState = JSON.parse(JSON.stringify(gameState));
+  const player = newState.players[playerId];
+
+  if (!player) return newState;
+
   for (let i = 0; i < count; i++) {
-    // 检查公共牌库是否为空
-    if (newState.sharedDeck.length === 0) {
-      // 洗牌：将弃牌堆变为新的抽牌堆
-      if (newState.sharedDiscard.length > 0) {
-        newState.sharedDeck = shuffleArray(newState.sharedDiscard);
-        newState.sharedDiscard = [];
-        
-        // 添加洗牌日志
-        newState = addActionLog(newState, {
-          id: Date.now().toString(),
-          timestamp: Date.now(),
-          playerId: 'system',
-          playerName: '系统',
-          action: '洗牌',
-          details: '公共牌库已洗牌',
-        });
+    if (player.hand.length >= MAX_HAND_SIZE) break;
+
+    if (player.deck.length === 0) {
+      if (player.discard.length > 0) {
+        player.deck = shuffleArray(player.discard);
+        player.discard = [];
       } else {
-        // 没有牌可抽了
         break;
       }
     }
-    
-    // 抽一张牌
-    const card = newState.sharedDeck.pop();
+
+    const card = player.deck.pop();
     if (card) {
       player.hand.push(card);
     }
   }
-  
-  newState.players[playerIndex] = player;
+
   return newState;
 }
 
@@ -142,96 +119,135 @@ export function discardCard(
   playerId: string,
   cardId: string
 ): MultiplayerGameState {
-  let newState = { ...gameState };
-  const playerIndex = newState.players.findIndex(p => p.id === playerId);
-  
-  if (playerIndex === -1) return newState;
-  
-  const player = newState.players[playerIndex];
-  
-  // 从玩家手牌中移除卡牌
-  const cardIndex = player.hand.indexOf(cardId);
+  let newState = JSON.parse(JSON.stringify(gameState));
+  const player = newState.players[playerId];
+
+  if (!player) return newState;
+
+  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
   if (cardIndex !== -1) {
-    player.hand.splice(cardIndex, 1);
-    
-    // 将卡牌加入公共弃牌堆
-    newState.sharedDiscard.push(cardId);
+    const [card] = player.hand.splice(cardIndex, 1);
+    player.discard.push(card);
   }
-  
-  newState.players[playerIndex] = player;
+
   return newState;
 }
 
-// 应用卡牌效果
+// 应用卡牌效果（完全复用单人模式逻辑）
 export function applyCardEffect(
   gameState: MultiplayerGameState,
   playerId: string,
-  cardId: string,
-  targetId?: string
+  cardId: string
 ): MultiplayerGameState {
-  let newState = { ...gameState };
-  const card = zhongLvCards.find(c => c.id === cardId);
-  
-  if (!card) return newState;
-  
-  const playerIndex = newState.players.findIndex(p => p.id === playerId);
-  if (playerIndex === -1) return newState;
-  
-  const player = newState.players[playerIndex];
-  
-  // 记录动作日志
-  let actionDetails = '';
-  
-  // 应用卡牌效果（简化版）
-  if (card.baseDamage && card.target !== 'self') {
-    if (targetId) {
-      const targetIndex = newState.players.findIndex(p => p.id === targetId);
-      if (targetIndex !== -1) {
-        const target = newState.players[targetIndex];
-        
-        // 计算伤害
-        let damage = card.baseDamage;
-        
-        // 应用护甲
-        if (target.armor > 0) {
-          if (target.armor >= damage) {
-            target.armor -= damage;
-            actionDetails = `对 ${target.name} 造成 ${damage} 点伤害（护甲抵挡）`;
-            damage = 0;
-          } else {
-            damage -= target.armor;
-            actionDetails = `对 ${target.name} 造成 ${card.baseDamage} 点伤害（护甲抵挡 ${target.armor} 点）`;
-            target.armor = 0;
-          }
-        } else {
-          actionDetails = `对 ${target.name} 造成 ${damage} 点伤害`;
-        }
-        
-        // 应用伤害
-        if (damage > 0) {
-          target.hp = Math.max(0, target.hp - damage);
-        }
-        
-        newState.players[targetIndex] = target;
+  let newState = JSON.parse(JSON.stringify(gameState));
+  const player = newState.players[playerId];
+
+  if (!player) return newState;
+
+  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
+  if (cardIndex === -1) return newState;
+
+  const card = player.hand[cardIndex];
+
+  // 找到对手
+  const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
+  const enemy = enemyPlayerId ? newState.players[enemyPlayerId] : null;
+
+  // 应用卡牌效果
+  if (card.baseDamage && enemy) {
+    // 计算伤害
+    let damage = card.baseDamage + player.permanentAbilities.damageBonus;
+    
+    // 额外伤害（基于护甲）
+    if (player.permanentAbilities.extraDamagePerArmor > 0) {
+      damage += player.armor * player.permanentAbilities.extraDamagePerArmor;
+    }
+
+    // 应用护甲
+    if (enemy.armor > 0) {
+      if (enemy.armor >= damage) {
+        enemy.armor -= damage;
+        damage = 0;
+      } else {
+        damage -= enemy.armor;
+        enemy.armor = 0;
       }
     }
-  } else if (card.baseArmor) {
-    // 获得护甲
-    player.armor += card.baseArmor;
-    actionDetails = `获得 ${card.baseArmor} 点护甲`;
+
+    // 应用伤害
+    if (damage > 0) {
+      enemy.hp = Math.max(0, enemy.hp - damage);
+    }
+
+    // 自伤
+    if (card.selfDamage) {
+      player.hp = Math.max(0, player.hp - card.selfDamage);
+    }
   }
-  
+
+  // 护甲
+  if (card.baseArmor) {
+    player.armor += card.baseArmor;
+  }
+
+  // 污染度变化
+  if (card.pollutionModifier) {
+    // 这里可以根据需要实现污染度逻辑
+  }
+
+  // 半甲效果
+  if (card.halfArmor && enemy) {
+    enemy.armor = Math.floor(enemy.armor / 2);
+  }
+
+  // 声爆效果
+  if (card.sonicBoom && enemy) {
+    const sonicDamage = player.armor;
+    if (enemy.armor >= sonicDamage) {
+      enemy.armor -= sonicDamage;
+    } else {
+      const remaining = sonicDamage - enemy.armor;
+      enemy.armor = 0;
+      enemy.hp = Math.max(0, enemy.hp - remaining);
+    }
+  }
+
+  // 免费二次攻击
+  if (card.freeSecondAttack) {
+    player.permanentAbilities.freeSecondAttack = true;
+  }
+
+  // 能力牌：每回合+护甲
+  if (card.type === 'ability' && card.baseArmor) {
+    player.permanentAbilities.armorPerTurn += card.baseArmor;
+  }
+
+  // 能力牌：伤害加成
+  if (card.type === 'ability' && card.baseDamage) {
+    player.permanentAbilities.damageBonus += card.baseDamage;
+  }
+
+  // 能力牌：每回合额外抽牌
+  if (card.type === 'ability' && card.drawCards) {
+    player.permanentAbilities.extraCardsPerTurn += card.drawCards;
+  }
+
   // 添加动作日志
-  newState = addActionLog(newState, {
+  const actionLog: ActionLog = {
     id: Date.now().toString(),
     timestamp: Date.now(),
     playerId,
     playerName: player.name,
-    action: `打出 ${card.name}`,
-    details: actionDetails,
-  });
-  
-  newState.players[playerIndex] = player;
+    action: `打出 ${card.name}`
+  };
+  newState.actionLogs.unshift(actionLog);
+
+  // 检查游戏结束
+  if (enemy && enemy.hp <= 0) {
+    newState.phase = 'ended';
+    player.isWinner = true;
+  }
+
   return newState;
 }
 
@@ -239,87 +255,66 @@ export function applyCardEffect(
 export function handlePlayCard(
   gameState: MultiplayerGameState,
   playerId: string,
-  cardId: string,
-  targetId?: string
+  cardId: string
 ): MultiplayerGameState {
-  const card = zhongLvCards.find(c => c.id === cardId);
-  if (!card) return gameState;
+  let newState = JSON.parse(JSON.stringify(gameState));
+  const player = newState.players[playerId];
 
-  let newState = { ...gameState };
+  if (!player) return newState;
 
-  // 处理卡牌效果
-  if (card.type === 'attack' && card.target !== 'self') {
-    // 攻击卡牌需要目标
-    if (!targetId && card.target !== 'aoe') {
-      // 需要选择目标
-      return {
-        ...newState,
-        isSelectingTarget: true,
-        pendingCardId: cardId,
-      };
-    }
-  }
+  const card = player.hand.find((c: Card) => c.id === cardId);
+  if (!card) return newState;
+
+  if (player.ap < card.cost) return newState;
+
+  // 扣除AP
+  player.ap -= card.cost;
 
   // 应用卡牌效果
-  newState = applyCardEffect(newState, playerId, cardId, targetId);
-  
+  newState = applyCardEffect(newState, playerId, cardId);
+
   // 弃牌
   newState = discardCard(newState, playerId, cardId);
 
-  return {
-    ...newState,
-    isSelectingTarget: false,
-    pendingCardId: null,
-  };
+  return newState;
 }
 
 // 切换到下一个玩家
 export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameState {
-  let newState = { ...gameState };
-  
+  let newState = JSON.parse(JSON.stringify(gameState));
+
   // 当前玩家不再是回合玩家
-  newState.players[newState.currentPlayerIndex].isCurrentTurn = false;
-  
-  // 切换到下一个玩家
-  newState.currentPlayerIndex = (newState.currentPlayerIndex + 1) % newState.players.length;
-  
+  newState.players[newState.currentPlayerId].isCurrentTurn = false;
+
+  // 找到下一个玩家索引
+  const currentIndex = newState.playerIds.indexOf(newState.currentPlayerId);
+  const nextIndex = (currentIndex + 1) % newState.playerIds.length;
+  newState.currentPlayerId = newState.playerIds[nextIndex];
+
   // 新玩家成为回合玩家
-  newState.players[newState.currentPlayerIndex].isCurrentTurn = true;
-  
+  const nextPlayerState = newState.players[newState.currentPlayerId];
+  nextPlayerState.isCurrentTurn = true;
+
+  // 重置AP
+  nextPlayerState.ap = nextPlayerState.maxAp;
+
+  // 每回合+护甲
+  if (nextPlayerState.permanentAbilities.armorPerTurn > 0) {
+    nextPlayerState.armor += nextPlayerState.permanentAbilities.armorPerTurn;
+  }
+
+  // 抽牌
+  const cardsToDraw = 3 + nextPlayerState.permanentAbilities.extraCardsPerTurn;
+  newState = drawCards(newState, newState.currentPlayerId, cardsToDraw);
+
   // 增加回合数
-  newState.turnCount++;
-  
-  // 新玩家抽牌
-  const currentPlayer = newState.players[newState.currentPlayerIndex];
-  newState = drawCards(newState, currentPlayer.id, CARDS_PER_TURN);
-  
+  newState.turnNumber++;
+  newState.turnTimeLeft = TURN_DURATION;
+
   return newState;
-}
-
-// 获取当前玩家
-export function getCurrentPlayer(gameState: MultiplayerGameState): MultiplayerPlayer | undefined {
-  return gameState.players[gameState.currentPlayerIndex];
-}
-
-// 获取敌方玩家
-export function getEnemyPlayers(gameState: MultiplayerGameState, currentPlayerId: string): MultiplayerPlayer[] {
-  return gameState.players.filter(p => p.id !== currentPlayerId);
 }
 
 // 检查是否是当前玩家回合
 export function isCurrentPlayerTurn(gameState: MultiplayerGameState, playerId: string): boolean {
-  return gameState.players[gameState.currentPlayerIndex]?.id === playerId;
-}
-
-// 添加动作日志
-function addActionLog(
-  gameState: MultiplayerGameState,
-  log: ActionLog
-): MultiplayerGameState {
-  let newState = { ...gameState };
-  
-  // 保持日志数量不超过50条
-  newState.actionLogs = [log, ...newState.actionLogs].slice(0, 50);
-  
-  return newState;
+  return gameState.currentPlayerId === playerId;
 }

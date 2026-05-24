@@ -4,7 +4,7 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
-import { createInitialGameState, createMultiplayerPlayer, handlePlayCard, nextPlayer, drawCards, discardCard } from './lib/multiplayer/gameLogic';
+import { createInitialGameState, createMultiplayerPlayer, handlePlayCard, nextPlayer, isCurrentPlayerTurn } from './lib/multiplayer/gameLogic';
 import type { MultiplayerGameState, MultiplayerPlayer } from './lib/multiplayer/types';
 
 const dev = process.env.COZE_PROJECT_ENV !== 'PROD';
@@ -98,7 +98,6 @@ function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
 // ─── 注册端点 & 绑定业务逻辑 ──────────────────────
 // 设置 WebSocket 处理器
 const lobbyWss = registerWsEndpoint('/ws/lobby');
-const multiplayerWss = registerWsEndpoint('/ws/multiplayer');
 
 lobbyWss.on('connection', (ws: WebSocket) => {
   console.log('New client connected to lobby');
@@ -113,44 +112,43 @@ lobbyWss.on('connection', (ws: WebSocket) => {
       switch (msg.type) {
         case 'create-room': {
           const roomId = generateRoomId();
-          const playerId = msg.payload.playerId || Math.random().toString(36).substring(2, 12);
-          const playerName = msg.payload.playerName || 'Player 1';
-          
+          const playerId = msg.payload.playerId;
+          const playerName = msg.payload.playerName;
+
           const room: Room = {
             id: roomId,
             players: new Map(),
             isGameStarted: false,
-            hostId: playerId // 创建者成为房主
+            hostId: playerId
           };
-          
-          const player: Player = {
+
+          room.players.set(playerId, {
             id: playerId,
             name: playerName,
             isReady: false,
-            ws
-          };
-          
-          room.players.set(playerId, player);
+            ws,
+          });
+
           rooms.set(roomId, room);
-          
           currentRoomId = roomId;
           currentPlayerId = playerId;
-          
-          // Send room created message back to creator
+
           ws.send(JSON.stringify({
             type: 'room-created',
             payload: { roomId, playerId }
           }));
-          
-          // Broadcast room state to all players in the room
+
+          // 广播房间状态
           broadcastRoomState(roomId);
           break;
         }
 
         case 'join-room': {
-          const roomId = msg.payload.roomId.toUpperCase();
+          const roomId = msg.payload.roomId;
+          const playerId = msg.payload.playerId;
+          const playerName = msg.payload.playerName;
+
           const room = rooms.get(roomId);
-          
           if (!room) {
             ws.send(JSON.stringify({
               type: 'error',
@@ -158,7 +156,7 @@ lobbyWss.on('connection', (ws: WebSocket) => {
             }));
             break;
           }
-          
+
           if (room.isGameStarted) {
             ws.send(JSON.stringify({
               type: 'error',
@@ -166,84 +164,84 @@ lobbyWss.on('connection', (ws: WebSocket) => {
             }));
             break;
           }
-          
-          const playerId = msg.payload.playerId || Math.random().toString(36).substring(2, 12);
-          const playerName = msg.payload.playerName || `Player ${room.players.size + 1}`;
-          
-          const player: Player = {
+
+          room.players.set(playerId, {
             id: playerId,
             name: playerName,
             isReady: false,
-            ws
-          };
-          
-          room.players.set(playerId, player);
+            ws,
+          });
+
           currentRoomId = roomId;
           currentPlayerId = playerId;
-          
-          // Send joined message back to player
+
           ws.send(JSON.stringify({
             type: 'room-joined',
             payload: { roomId, playerId }
           }));
-          
-          // Broadcast room state to all players in the room
+
+          // 广播房间状态
           broadcastRoomState(roomId);
           break;
         }
 
-        case 'toggle-ready': {
+        case 'player-ready': {
           if (!currentRoomId || !currentPlayerId) break;
-          
+
           const room = rooms.get(currentRoomId);
           if (!room) break;
-          
+
           const player = room.players.get(currentPlayerId);
-          if (!player) break;
-          
-          player.isReady = !player.isReady;
-          
-          // Broadcast room state to all players in the room
-          broadcastRoomState(currentRoomId);
+          if (player) {
+            // 房主没有准备状态，只有"开始游戏"功能
+            if (currentPlayerId !== room.hostId) {
+              player.isReady = msg.payload.isReady;
+            }
+            broadcastRoomState(currentRoomId);
+            
+            // 检查是否可以开始游戏
+            checkAndStartGame(currentRoomId);
+          }
           break;
         }
 
         case 'start-game': {
           if (!currentRoomId || !currentPlayerId) break;
-          
+
           const room = rooms.get(currentRoomId);
-          if (!room || room.isGameStarted) break;
-          
+          if (!room) break;
+
           // 只有房主可以开始游戏
-          if (room.hostId !== currentPlayerId) {
+          if (currentPlayerId !== room.hostId) {
             ws.send(JSON.stringify({
               type: 'error',
-              payload: { message: '只有房主可以开始游戏' }
+              payload: { message: 'Only host can start game' }
             }));
             break;
           }
-          
+
           const players = Array.from(room.players.values());
           
-          // 检查条件：至少2人，且所有非房主玩家都准备好
+          // 检查人数是否足够
           if (players.length < 2) {
             ws.send(JSON.stringify({
               type: 'error',
-              payload: { message: '至少需要2名玩家' }
+              payload: { message: 'Need at least 2 players' }
             }));
             break;
           }
-          
-          const nonHostPlayers = players.filter(p => p.id !== room.hostId);
-          if (nonHostPlayers.length > 0 && !nonHostPlayers.every(p => p.isReady)) {
+
+          // 检查除房主外的其他人是否都准备好了
+          const otherPlayers = players.filter(p => p.id !== room.hostId);
+          if (otherPlayers.length > 0 && !otherPlayers.every(p => p.isReady)) {
             ws.send(JSON.stringify({
               type: 'error',
-              payload: { message: '所有非房主玩家必须准备就绪' }
+              payload: { message: 'All players must be ready' }
             }));
             break;
           }
-          
-          // 所有条件满足，开始游戏
+
+          // 开始游戏
           room.isGameStarted = true;
           broadcastToRoom(currentRoomId, {
             type: 'game-started'
@@ -252,26 +250,29 @@ lobbyWss.on('connection', (ws: WebSocket) => {
         }
 
         case 'leave-room': {
-          if (!currentRoomId || !currentPlayerId) break;
-          
-          const room = rooms.get(currentRoomId);
-          if (!room) break;
-          
-          room.players.delete(currentPlayerId);
-          
-          // If room is empty, delete it
-          if (room.players.size === 0) {
-            rooms.delete(currentRoomId);
-          } else {
-            // Broadcast room state to remaining players
-            broadcastRoomState(currentRoomId);
-            
-            // Check if game can start (though unlikely after player leaves)
-            checkAndStartGame(currentRoomId);
+          if (currentRoomId && currentPlayerId) {
+            const room = rooms.get(currentRoomId);
+            if (room) {
+              room.players.delete(currentPlayerId);
+              
+              // 如果房间为空，删除它
+              if (room.players.size === 0) {
+                rooms.delete(currentRoomId);
+              } else {
+                // 如果房主离开，指定新房主
+                if (room.hostId === currentPlayerId) {
+                  const newHost = room.players.values().next().value;
+                  if (newHost) {
+                    room.hostId = newHost.id;
+                  }
+                }
+                // 广播房间状态给剩余玩家
+                broadcastRoomState(currentRoomId);
+              }
+            }
+            currentRoomId = null;
+            currentPlayerId = null;
           }
-          
-          currentRoomId = null;
-          currentPlayerId = null;
           break;
         }
       }
@@ -326,6 +327,8 @@ lobbyWss.on('connection', (ws: WebSocket) => {
 });
 
 // 多人对战 WebSocket 处理
+const multiplayerWss = registerWsEndpoint('/ws/multiplayer');
+
 multiplayerWss.on('connection', (ws: WebSocket) => {
   console.log('New client connected to multiplayer');
   let currentRoomId: string | null = null;
@@ -356,12 +359,8 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
             }
             
             // 创建玩家列表
-            const players: MultiplayerPlayer[] = Array.from(lobbyRoom.players.values()).map((p, index) => {
-              const mpPlayer = createMultiplayerPlayer(p.id, p.name);
-              if (index === 0) {
-                mpPlayer.isCurrentTurn = true;
-              }
-              return mpPlayer;
+            const players: MultiplayerPlayer[] = Array.from(lobbyRoom.players.values()).map((p) => {
+              return createMultiplayerPlayer(p.id, p.name);
             });
             
             // 创建初始游戏状态
@@ -398,11 +397,9 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
           if (!gameRoom) break;
           
           const cardId = msg.payload.cardId;
-          const targetId = msg.payload.targetId;
           
           // 验证是否是当前玩家的回合
-          const currentPlayer = gameRoom.gameState.players[gameRoom.gameState.currentPlayerIndex];
-          if (currentPlayer.id !== currentPlayerId) {
+          if (!isCurrentPlayerTurn(gameRoom.gameState, currentPlayerId)) {
             ws.send(JSON.stringify({
               type: 'error',
               payload: { message: 'Not your turn' }
@@ -414,35 +411,11 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
           gameRoom.gameState = handlePlayCard(
             gameRoom.gameState,
             currentPlayerId,
-            cardId,
-            targetId
+            cardId
           );
           
           // 广播游戏状态给所有玩家
           broadcastGameState(currentRoomId);
-          break;
-        }
-        
-        case 'target:select': {
-          if (!currentRoomId || !currentPlayerId) break;
-          
-          const gameRoom = gameRooms.get(currentRoomId);
-          if (!gameRoom) break;
-          
-          const targetId = msg.payload.targetId;
-          
-          // 如果有待处理的卡牌，则执行
-          if (gameRoom.gameState.pendingCardId) {
-            gameRoom.gameState = handlePlayCard(
-              gameRoom.gameState,
-              currentPlayerId,
-              gameRoom.gameState.pendingCardId,
-              targetId
-            );
-            
-            // 广播游戏状态给所有玩家
-            broadcastGameState(currentRoomId);
-          }
           break;
         }
         
@@ -453,8 +426,7 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
           if (!gameRoom) break;
           
           // 验证是否是当前玩家的回合
-          const currentPlayer = gameRoom.gameState.players[gameRoom.gameState.currentPlayerIndex];
-          if (currentPlayer.id !== currentPlayerId) {
+          if (!isCurrentPlayerTurn(gameRoom.gameState, currentPlayerId)) {
             ws.send(JSON.stringify({
               type: 'error',
               payload: { message: 'Not your turn' }
@@ -490,46 +462,33 @@ multiplayerWss.on('connection', (ws: WebSocket) => {
       }
     }
   });
-
-  // 广播游戏状态给所有玩家
-  function broadcastGameState(roomId: string) {
-    const gameRoom = gameRooms.get(roomId);
-    if (!gameRoom) return;
-    
-    gameRoom.playerWsMap.forEach((playerWs, playerId) => {
-      if (playerWs.readyState === WebSocket.OPEN) {
-        playerWs.send(JSON.stringify({
-          type: 'game:state',
-          payload: { gameState: gameRoom.gameState }
-        }));
-      }
-    });
-  }
 });
 
-app.prepare().then(() => {
-  const server = createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url!, true);
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('Internal server error');
+function broadcastGameState(roomId: string) {
+  const gameRoom = gameRooms.get(roomId);
+  if (!gameRoom) return;
+  
+  gameRoom.playerWsMap.forEach((ws, playerId) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'game:state',
+        payload: { gameState: gameRoom.gameState }
+      }));
     }
   });
-  server.once('error', err => {
-    console.error(err);
-    process.exit(1);
+}
+
+// ─── Next.js 应用初始化 & HTTP 升级────────────────────
+app.prepare().then(() => {
+  const server = createServer((req, res) => {
+    const parsedUrl = parse(req.url!, true);
+    handle(req, res, parsedUrl);
   });
 
+  // 监听 upgrade 事件，分发给对应 WS 端点
   server.on('upgrade', handleUpgrade);
 
   server.listen(port, () => {
-    console.log(
-      `> Server listening at http://${hostname}:${port} as ${
-        dev ? 'development' : process.env.COZE_PROJECT_ENV
-      }`,
-    );
+    console.log(`> Server ready on http://${hostname}:${port}`);
   });
 });
