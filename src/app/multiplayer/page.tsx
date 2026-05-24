@@ -107,9 +107,12 @@ export default function MultiplayerBattlePage() {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const wsRef = useRef<ReturnType<typeof createMultiplayerWsConnection> | null>(null);
 
+  // 判断是否是真实的联机模式（有真实roomId和playerId）
+  const isRealMultiplayer = roomId && playerId && roomId !== 'undefined' && playerId !== 'undefined' && roomId.length > 0 && playerId.length > 0;
+
   useEffect(() => {
-    // 如果没有房间ID或玩家ID，直接使用模拟数据
-    if (!roomId || !playerId) {
+    // 如果不是真实的联机模式，直接使用模拟数据，不连接WebSocket
+    if (!isRealMultiplayer) {
       return;
     }
 
@@ -140,9 +143,9 @@ export default function MultiplayerBattlePage() {
   }, [roomId, playerId, playerName]);
 
   const currentPlayer = gameState?.players[gameState.currentPlayerIndex] || null;
-  const enemyPlayers = gameState && playerId ? gameState.players.filter(p => p.id !== playerId) : [];
-  const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId;
-  const myPlayer = gameState?.players.find(p => p.id === playerId);
+  const enemyPlayers = gameState ? gameState.players.filter(p => p.id !== (isRealMultiplayer ? playerId : 'mock-player-1')) : [];
+  const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === (isRealMultiplayer ? playerId : 'mock-player-1');
+  const myPlayer = gameState?.players.find(p => p.id === (isRealMultiplayer ? playerId : 'mock-player-1'));
   
   // 模拟AP状态（和单人模式一致）
   const [playerAp, setPlayerAp] = useState(3);
@@ -225,8 +228,8 @@ export default function MultiplayerBattlePage() {
     router.push('/lobby');
   };
 
-  // 只在有真实roomId和playerId时才显示错误
-  if (error && roomId && playerId) {
+  // 只在真实的联机模式下才显示错误
+  if (error && isRealMultiplayer) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
         <Card className="bg-[#13131a] border-red-500/50 max-w-md w-full">
@@ -247,8 +250,8 @@ export default function MultiplayerBattlePage() {
     );
   }
 
-  // 只在有真实roomId和playerId时才显示加载状态
-  if (!gameState && roomId && playerId) {
+  // 只在真实的联机模式下才显示加载状态
+  if (!gameState && isRealMultiplayer) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
         <div className="text-center">
