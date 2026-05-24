@@ -583,8 +583,8 @@ export default function MultiplayerBattle() {
           )}
         </div>
 
-        {/* 中间：回合信息区 */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* 中间：回合信息区 - 往上移动一些 */}
+        <div className="flex-1 flex items-start justify-center pt-20">
           <div className="text-center">
             <motion.div
               key={gameState.turnNumber}
@@ -611,8 +611,8 @@ export default function MultiplayerBattle() {
 
       </div>
 
-      {/* 手牌容器 - 动态扇形布局，和单人模式一样 */}
-      <div className="fixed bottom-[180px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
+      {/* 手牌容器 - 往下移动一些 */}
+      <div className="fixed bottom-[200px] left-1/2 -translate-x-1/2 flex justify-center items-end h-72 z-40">
         <div className="relative flex items-end justify-center -space-x-6" style={{ transformOrigin: "bottom center" }}>
           {handWithUids.map((card, index) => (
             <div
