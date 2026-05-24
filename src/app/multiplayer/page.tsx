@@ -158,6 +158,40 @@ const EntityStatusPanel = ({
   isEnemy?: boolean;
   playerName?: string;
 }) => {
+  // 获取状态效果的图标和颜色
+  const getStatusEffectIcon = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return <Target className="w-4 h-4" />;
+      case "WEAK": return <TrendingDown className="w-4 h-4" />;
+      case "POISON": return <Skull className="w-4 h-4" />;
+      case "STRENGTH": return <TrendingUp className="w-4 h-4" />;
+      case "THORN": return <ShieldIcon className="w-4 h-4" />;
+      case "SONIC_BOOM": return <Sparkles className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusEffectColor = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return "text-yellow-400 bg-yellow-400/20 border-yellow-400/50";
+      case "WEAK": return "text-blue-400 bg-blue-400/20 border-blue-400/50";
+      case "POISON": return "text-green-400 bg-green-400/20 border-green-400/50";
+      case "STRENGTH": return "text-red-400 bg-red-400/20 border-red-400/50";
+      case "THORN": return "text-purple-400 bg-purple-400/20 border-purple-400/50";
+      case "SONIC_BOOM": return "text-purple-500 bg-purple-500/20 border-purple-500/50";
+    }
+  };
+
+  const getStatusEffectName = (type: StatusEffectType) => {
+    switch (type) {
+      case "VULNERABLE": return "易伤";
+      case "WEAK": return "虚弱";
+      case "POISON": return "中毒";
+      case "STRENGTH": return "力量";
+      case "THORN": return "荆棘";
+      case "SONIC_BOOM": return "声爆";
+    }
+  };
+
   const allStatusEffects = [...entity.buffs, ...entity.debuffs];
 
   return (
@@ -181,6 +215,25 @@ const EntityStatusPanel = ({
           showIcon={false}
         />
       </div>
+
+      {/* 状态栏 - buffs 和 debuffs */}
+      {allStatusEffects.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {allStatusEffects.map((effect, index) => (
+            <div 
+              key={`${effect.type}-${index}`}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-md border text-xs",
+                getStatusEffectColor(effect.type)
+              )}
+              title={`${getStatusEffectName(effect.type)} x${effect.stacks}`}
+            >
+              {getStatusEffectIcon(effect.type)}
+              <span>x{effect.stacks}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -459,12 +512,18 @@ export default function MultiplayerBattle() {
     if (!player) {
       return { hp: 80, maxHp: 80, armor: 0, buffs: [], debuffs: [] };
     }
+    // 转换 debuffs 格式
+    const convertedDebuffs: StatusEffect[] = player.debuffs?.map((d: any) => ({
+      type: d.type as StatusEffectType,
+      stacks: d.stacks
+    })) || [];
+    
     return {
       hp: player.hp,
       maxHp: player.maxHp,
       armor: player.armor,
       buffs: [],
-      debuffs: []
+      debuffs: convertedDebuffs
     };
   };
 

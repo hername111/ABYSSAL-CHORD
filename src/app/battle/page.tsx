@@ -370,6 +370,7 @@ const EntityStatusPanel = ({
       case "POISON": return <Skull className="w-4 h-4" />;
       case "STRENGTH": return <TrendingUp className="w-4 h-4" />;
       case "THORN": return <ShieldIcon className="w-4 h-4" />;
+      case "SONIC_BOOM": return <Sparkles className="w-4 h-4" />;
     }
   };
 
@@ -380,6 +381,7 @@ const EntityStatusPanel = ({
       case "POISON": return "text-green-400 bg-green-400/20 border-green-400/50";
       case "STRENGTH": return "text-red-400 bg-red-400/20 border-red-400/50";
       case "THORN": return "text-purple-400 bg-purple-400/20 border-purple-400/50";
+      case "SONIC_BOOM": return "text-purple-500 bg-purple-500/20 border-purple-500/50";
     }
   };
 
@@ -390,6 +392,7 @@ const EntityStatusPanel = ({
       case "POISON": return "中毒";
       case "STRENGTH": return "力量";
       case "THORN": return "荆棘";
+      case "SONIC_BOOM": return "声爆";
     }
   };
 

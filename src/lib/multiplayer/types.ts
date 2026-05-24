@@ -14,7 +14,7 @@ export interface ActiveAbility {
 
 // debuff 接口
 export interface Debuff {
-  type: "SONIC_BOOM";
+  type: "SONIC_BOOM" | "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN";
   stacks: number;
 }
 
