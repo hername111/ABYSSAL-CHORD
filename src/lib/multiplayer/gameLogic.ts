@@ -384,7 +384,8 @@ export function handlePlayCard(
   }
 
   // 清除断弦极限的下一张攻击牌加成（只对下一张攻击牌有效）
-  if (card.type === 'attack') {
+  // 注意：断弦极限本身是 attack 类型，所以要跳过它
+  if (card.type === 'attack' && card.id !== 'zl-overload-03') {
     player.turnState.nextAttackDamageBonus = 0;
   }
 
