@@ -719,6 +719,7 @@ export default function BattleArena() {
   // 动画状态
   const [isAttacking, setIsAttacking] = useState(false);
   const [isDefending, setIsDefending] = useState(false);
+  const [isUsingAbility, setIsUsingAbility] = useState(false);
   const [isEnemyHit, setIsEnemyHit] = useState(false);
   const [isPlayerHit, setIsPlayerHit] = useState(false);
   const [isEnemyCharging, setIsEnemyCharging] = useState(false);
@@ -1409,6 +1410,8 @@ export default function BattleArena() {
     // ========== 处理能力牌激活 ==========
     let isAbilityCard = selectedCard.type === "ability";
     if (isAbilityCard) {
+      setIsUsingAbility(true);
+      
       // 根据卡牌id映射到AbilityType
       let abilityType: AbilityType | null = null;
       
@@ -1431,6 +1434,8 @@ export default function BattleArena() {
       if (abilityType && !activeAbilities.find(a => a.id === abilityType)) {
         setActiveAbilities(prev => [...prev, { id: abilityType, cardId: selectedCard.id }]);
       }
+      
+      setTimeout(() => setIsUsingAbility(false), 600);
     }
     
     // 移除打出的手牌，并加入弃牌堆（除非是消耗牌或能力牌）
@@ -1680,24 +1685,54 @@ export default function BattleArena() {
       <div className="fixed bottom-1/4 left-10 z-30">
         <motion.div
           className="relative"
-          animate={isPlayerHit ? { x: [0, -10, 10, -10, 10, 0] } : {}}
+          animate={isPlayerHit ? { x: [0, -10, 10, -10, 10, 0] } : isUsingAbility ? {
+            scale: [1, 1.1, 1],
+            transition: { duration: 0.5 }
+          } : {}}
           transition={{ duration: 0.4 }}
         >
+          {/* 能力牌发光效果 */}
+          <AnimatePresence>
+            {isUsingAbility && (
+              <motion.div
+                className="absolute inset-0 -m-12"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1.5, opacity: [0, 0.6, 0] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="w-full h-full rounded-full border-4 border-sonic-purple/60 shadow-[0_0_40px_rgba(139,92,246,0.8)]" />
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* 人物身体 */}
           <div className="w-20 h-32 bg-gradient-to-b from-slate-700 to-slate-900 rounded-t-3xl rounded-b-lg shadow-2xl relative">
             {/* 头部 */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-b from-slate-600 to-slate-800 rounded-full" />
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-b from-slate-600 to-slate-800 rounded-full relative">
+              {/* 眼睛 */}
+              <div className="absolute top-4 left-2 w-2 h-2 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
+              <div className="absolute top-4 right-2 w-2 h-2 bg-white rounded-full shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
+            </div>
           </div>
           
           {/* 武器 - 声波巨剑 */}
           <motion.div
-            className="absolute -right-12 top-4 origin-left"
+            className="absolute -right-6 top-4 origin-left"
             animate={isAttacking ? {
               rotate: [0, -30, 45, 0],
               transition: { duration: 0.4 }
+            } : isDefending ? {
+              rotate: [0, 15, 0],
+              transition: { duration: 0.3 }
             } : {}}
           >
-            <div className="w-4 h-24 bg-gradient-to-r from-sonic-purple to-sonic-purple/50 rounded-full shadow-[0_0_15px_rgba(139,92,246,0.8)]" />
+            {/* 剑的形状 */}
+            <div className="relative">
+              {/* 剑身 */}
+              <div className="w-3 h-28 bg-gradient-to-r from-sonic-purple to-sonic-purple/50 shadow-[0_0_15px_rgba(139,92,246,0.8)]" />
+              {/* 剑尖 */}
+              <div className="absolute -top-2 left-0 border-l-[6px] border-r-[6px] border-b-[12px] border-l-transparent border-r-transparent border-b-sonic-purple" />
+            </div>
           </motion.div>
           
           {/* 防御动画 */}
@@ -1721,7 +1756,7 @@ export default function BattleArena() {
           <EntityStatusPanel entity={playerState} />
           
           {/* AP条 */}
-          <div className="mt-2">
+          <div className="mt-2 w-48">
             <StatBox 
               name="AP" 
               current={playerAp} 
