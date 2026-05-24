@@ -1,6 +1,6 @@
 // 多人对战游戏逻辑 - 完全复⽤单人模式
 import { Card, zhongLvCards, INITIAL_HAND_CARDS } from '@/lib/cards';
-import type { MultiplayerGameState, MultiplayerPlayer, ActionLog } from './types';
+import type { MultiplayerGameState, MultiplayerPlayer, ActionLog, Debuff } from './types';
 
 // 游戏常量
 const INITIAL_HP = 80;
@@ -42,7 +42,8 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
       nextAttackDamageBonus: 0,
       harmonicStackArmor: 0
     },
-    exiled: []
+    exiled: [],
+    debuffs: []
   };
 }
 
@@ -59,18 +60,15 @@ export function createInitialGameState(
     playerIds.push(player.id);
   });
 
-  // 设置第一个玩家为当前回合玩家
-  if (playerIds.length > 0) {
-    playersRecord[playerIds[0]].isCurrentTurn = true;
-    // 确保当前玩家有AP
-    playersRecord[playerIds[0]].ap = INITIAL_AP;
-  }
+  // 随机选择先手玩家
+  const currentPlayerId = playerIds[Math.floor(Math.random() * playerIds.length)];
+  playersRecord[currentPlayerId].isCurrentTurn = true;
 
   return {
     roomId,
     players: playersRecord,
     playerIds,
-    currentPlayerId: playerIds[0] || '',
+    currentPlayerId,
     phase: 'playing',
     turnNumber: 1,
     turnTimeLeft: TURN_DURATION,
@@ -79,49 +77,15 @@ export function createInitialGameState(
   };
 }
 
-// 洗牌函数
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-// 抽牌逻辑
-export function drawCards(
+// 判断是否是当前玩家回合
+export function isCurrentPlayerTurn(
   gameState: MultiplayerGameState,
-  playerId: string,
-  count: number
-): MultiplayerGameState {
-  const newState = JSON.parse(JSON.stringify(gameState));
-  const player = newState.players[playerId];
-
-  if (!player) return newState;
-
-  for (let i = 0; i < count; i++) {
-    if (player.hand.length >= MAX_HAND_SIZE) break;
-
-    if (player.deck.length === 0) {
-      if (player.discard.length > 0) {
-        player.deck = shuffleArray(player.discard);
-        player.discard = [];
-      } else {
-        break;
-      }
-    }
-
-    const card = player.deck.pop();
-    if (card) {
-      player.hand.push(card);
-    }
-  }
-
-  return newState;
+  playerId: string
+): boolean {
+  return gameState.players[playerId]?.isCurrentTurn ?? false;
 }
 
-// 处理打出卡牌
+// 处理卡牌打出
 export function handlePlayCard(
   gameState: MultiplayerGameState,
   playerId: string,
@@ -130,73 +94,61 @@ export function handlePlayCard(
   console.log('=== handlePlayCard 被调用 ===');
   console.log('playerId:', playerId);
   console.log('cardId:', cardId);
-  
-  // 先深拷贝整个状态
+
   let newState = JSON.parse(JSON.stringify(gameState));
   const player = newState.players[playerId];
+  const enemyId = newState.playerIds.find((id: string) => id !== playerId);
+  const enemy = enemyId ? newState.players[enemyId] : null;
 
-  if (!player) {
-    console.log('找不到玩家');
+  // 检查是否是玩家回合
+  if (!player.isCurrentTurn) {
+    console.log('不是玩家回合');
     return newState;
   }
-  
-  console.log('玩家手牌数量:', player.hand.length);
-  console.log('玩家手牌卡牌:', player.hand.map((c: Card) => c.id));
 
-  // 第一步：找到卡牌
+  // 查找卡牌
   const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
-  console.log('找到的卡牌索引:', cardIndex);
+  console.log('找到卡牌索引:', cardIndex);
+  console.log('移除前手牌数量:', player.hand.length);
+
   if (cardIndex === -1) {
     console.log('卡牌不在手牌中');
     return newState;
   }
 
+  // 获取卡牌对象
   const card = player.hand[cardIndex];
-  if (!card) {
-    console.log('卡牌为空');
-    return newState;
-  }
-  
-  console.log('找到卡牌:', card.name);
+  console.log('找到的卡牌:', card.name);
 
-  // 检查AP是否足够
-  if (player.ap < card.cost) {
-    console.log('AP不足');
-    return newState;
-  }
-
-  // 第二步：从手牌中移除卡牌
-  console.log('从手牌中移除卡牌，索引:', cardIndex);
+  // 第一步：从手牌移除卡牌
   player.hand.splice(cardIndex, 1);
   console.log('移除后手牌数量:', player.hand.length);
 
-  // 第三步：根据卡牌词缀决定是弃牌还是移出游戏
+  // 第二步：处理卡牌词缀
   if (card.exhaust) {
+    // 消耗：移出游戏
     player.exiled.push(card);
+    console.log('卡牌移出游戏堆');
   } else {
+    // 普通：加入弃牌堆
     player.discard.push(card);
+    console.log('卡牌加入弃牌堆');
   }
 
-  // 第四步：扣除AP
-  player.ap -= card.cost;
-
-  // 第五步：应用卡牌效果（直接在这里处理，避免多次深拷贝问题）
-  // 找到对手
-  const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
-  const enemy = enemyPlayerId ? newState.players[enemyPlayerId] : null;
+  // 第三步：扣除 AP
+  if (card.cost && player.ap >= card.cost) {
+    player.ap -= card.cost;
+  }
 
   // ============================================
-  // 特殊卡牌效果处理（按卡牌ID）
+  // 第四步：应用卡牌效果
   // ============================================
-  
   switch (card.id) {
-    // 共振壁垒：获得14护甲，护甲超过20点时造成溢出伤害
+    // 共振壁垒：获得14护甲，护甲超过20时造成溢出伤害
     case 'zl-fortress-01':
       player.armor += 14;
-      // 如果护甲超过20，造成溢出伤害
-      if (player.armor > 20 && enemy) {
+      if (enemy && player.armor > 20) {
         const overflowDamage = player.armor - 20;
-        // 溢出伤害直接作用于生命值（声波伤害）
         enemy.hp = Math.max(0, enemy.hp - overflowDamage);
       }
       break;
@@ -206,12 +158,11 @@ export function handlePlayCard(
       player.armor += 3;
       break;
 
-    // 次声崩塌：造成护甲50%伤害，失去一半护甲
+    // 次声崩塌：造成护甲值50%伤害，失去一半护甲
     case 'zl-fortress-03':
-      if (enemy) {
-        const damage = Math.floor(player.armor * 0.5);
-        // 先造成伤害
-        let actualDamage = damage;
+      if (enemy && player.armor > 0) {
+        const halfDamage = Math.floor(player.armor * 0.5);
+        let actualDamage = halfDamage;
         if (enemy.armor > 0) {
           if (enemy.armor >= actualDamage) {
             enemy.armor -= actualDamage;
@@ -302,15 +253,16 @@ export function handlePlayCard(
 
         // 根据具体能力牌设置加成
         switch (card.id) {
-          case 'zl-ability-01': // 频率锚定：每回合+3护甲
+          case 'zl-ability-01':
+            // 频率锚定：每回合+3护甲
             player.permanentBonuses.armorPerTurn += 3;
             break;
-          case 'zl-ability-02': // 低频共振：每5护甲造成3伤害
-            player.permanentBonuses.extraDamagePerArmor += 0.6; // 3伤害/5护甲 = 0.6
+          case 'zl-ability-02':
+            // 低频共振：每5护甲造成3伤害
+            player.permanentBonuses.extraDamagePerArmor += 3 / 5;
             break;
-          case 'zl-ability-03': // 痛觉回响：自伤+伤害（简化处理）
-            break;
-          case 'zl-ability-04': // 终末定音：+5伤害加成
+          case 'zl-ability-04':
+            // 终末定音：+5伤害
             player.permanentBonuses.damageBonus += 5;
             break;
         }
@@ -359,15 +311,18 @@ export function handlePlayCard(
         player.armor += card.baseArmor;
       }
 
-      // 声爆效果
+      // 声爆效果：给敌方添加声爆 debuff
       if (card.sonicBoom && enemy) {
-        const sonicDamage = player.armor;
-        if (enemy.armor >= sonicDamage) {
-          enemy.armor -= sonicDamage;
+        const sonicBoomStacks = card.sonicBoom;
+        const existingSonicBoom = enemy.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
+        
+        if (existingSonicBoom) {
+          existingSonicBoom.stacks += sonicBoomStacks;
         } else {
-          const remaining = sonicDamage - enemy.armor;
-          enemy.armor = 0;
-          enemy.hp = Math.max(0, enemy.hp - remaining);
+          enemy.debuffs.push({
+            type: 'SONIC_BOOM',
+            stacks: sonicBoomStacks
+          });
         }
       }
   }
@@ -412,47 +367,52 @@ export function handlePlayCard(
 // 切换到下一个玩家
 export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameState {
   let newState = JSON.parse(JSON.stringify(gameState));
-
-  // 当前玩家不再是回合玩家
-  newState.players[newState.currentPlayerId].isCurrentTurn = false;
-
-  // 找到下一个玩家索引
   const currentIndex = newState.playerIds.indexOf(newState.currentPlayerId);
   const nextIndex = (currentIndex + 1) % newState.playerIds.length;
-  newState.currentPlayerId = newState.playerIds[nextIndex];
+  const nextPlayerId = newState.playerIds[nextIndex];
 
-  // 新玩家成为回合玩家
-  const nextPlayerState = newState.players[newState.currentPlayerId];
-  nextPlayerState.isCurrentTurn = true;
+  // 结算声爆伤害
+  const nextPlayer = newState.players[nextPlayerId];
+  const sonicBoomDebuff = nextPlayer.debuffs.find((d: Debuff) => d.type === 'SONIC_BOOM');
+  
+  if (sonicBoomDebuff && sonicBoomDebuff.stacks > 0) {
+    const sonicBoomDamage = sonicBoomDebuff.stacks * 2;
+    nextPlayer.hp = Math.max(0, nextPlayer.hp - sonicBoomDamage);
+    
+    // 清除声爆debuff
+    nextPlayer.debuffs = nextPlayer.debuffs.filter((d: Debuff) => d.type !== 'SONIC_BOOM');
+  }
 
-  // 重置回合状态
-  nextPlayerState.turnState = {
+  // 切换玩家
+  newState.players[newState.currentPlayerId].isCurrentTurn = false;
+  newState.players[nextPlayerId].isCurrentTurn = true;
+  newState.currentPlayerId = nextPlayerId;
+  newState.turnNumber += 1;
+  newState.turnTimeLeft = TURN_DURATION;
+
+  // 新回合重置
+  const player = newState.players[nextPlayerId];
+  player.ap = player.maxAp;
+  
+  // 重置本回合状态
+  player.turnState = {
     cardsPlayed: 0,
     hasTakenSelfDamage: false,
     nextAttackDamageBonus: 0,
     harmonicStackArmor: 0
   };
 
-  // 重置AP
-  nextPlayerState.ap = nextPlayerState.maxAp;
-
-  // 每回合+护甲
-  if (nextPlayerState.permanentBonuses.armorPerTurn > 0) {
-    nextPlayerState.armor += nextPlayerState.permanentBonuses.armorPerTurn;
+  // 抽牌（标准3张）
+  const drawCount = 3 + player.permanentBonuses.extraCardsPerTurn;
+  for (let i = 0; i < drawCount && player.deck.length > 0 && player.hand.length < MAX_HAND_SIZE; i++) {
+    const card = player.deck.shift();
+    if (card) {
+      player.hand.push(card);
+    }
   }
 
-  // 抽牌
-  const cardsToDraw = 3 + nextPlayerState.permanentBonuses.extraCardsPerTurn;
-  newState = drawCards(newState, newState.currentPlayerId, cardsToDraw);
-
-  // 增加回合数
-  newState.turnNumber++;
-  newState.turnTimeLeft = TURN_DURATION;
+  // 每回合获得护甲
+  player.armor += player.permanentBonuses.armorPerTurn;
 
   return newState;
-}
-
-// 检查是否是当前玩家回合
-export function isCurrentPlayerTurn(gameState: MultiplayerGameState, playerId: string): boolean {
-  return gameState.currentPlayerId === playerId;
 }

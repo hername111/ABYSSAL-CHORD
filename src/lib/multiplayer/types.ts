@@ -12,6 +12,12 @@ export interface ActiveAbility {
   effect: string;
 }
 
+// debuff 接口
+export interface Debuff {
+  type: "SONIC_BOOM";
+  stacks: number;
+}
+
 export interface MultiplayerPlayer {
   id: string;
   name: string;
@@ -45,6 +51,8 @@ export interface MultiplayerPlayer {
   };
   // 移出游戏的卡牌
   exiled: Card[];
+  // 减益效果 debuffs
+  debuffs: Debuff[];
 }
 
 export interface ActionLog {
