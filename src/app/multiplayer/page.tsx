@@ -461,7 +461,8 @@ export default function MultiplayerBattle() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showEnergyWarning, setShowEnergyWarning] = useState(false);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
-  const [isSwordSwinging, setIsSwordSwinging] = useState(false);
+  const [isPlayer1SwordSwinging, setIsPlayer1SwordSwinging] = useState(false);
+  const [isPlayer2SwordSwinging, setIsPlayer2SwordSwinging] = useState(false);
   
 
 
@@ -546,15 +547,26 @@ export default function MultiplayerBattle() {
     setShowCardPlayEffect({ show: true, type: effectType });
 
     // 如果是攻击牌，触发剑挥舞动画
-    if (card.type === "attack") {
-      setIsSwordSwinging(true);
-      setTimeout(() => setIsSwordSwinging(false), 400);
+    if (card.type === "attack" && gameState) {
+      // 获取所有玩家ID并排序，确定顺序
+      const playerIds = Object.keys(gameState.players).sort();
+      const currentPlayerIndex = playerIds.indexOf(playerId);
+      
+      if (currentPlayerIndex === 0) {
+        // 我是第一个玩家
+        setIsPlayer1SwordSwinging(true);
+        setTimeout(() => setIsPlayer1SwordSwinging(false), 500);
+      } else {
+        // 我是第二个玩家
+        setIsPlayer2SwordSwinging(true);
+        setTimeout(() => setIsPlayer2SwordSwinging(false), 500);
+      }
     }
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
     setSelectedCardUid(null);
-  }, [gameState, getCurrentPlayer, isMyTurn]);
+  }, [gameState, getCurrentPlayer, isMyTurn, playerId]);
 
   // 处理结束回合
   const handleEndTurn = useCallback(() => {
@@ -748,17 +760,10 @@ export default function MultiplayerBattle() {
               </div>
               <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-8 h-8 text-slate-400" />
-                {/* 剑的图标 */}
-                <motion.div 
-                  className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
-                  animate={isSwordSwinging ? {
-                    rotate: [0, -45, 45, 0],
-                    scale: [1, 1.3, 1],
-                    transition: { duration: 0.4 }
-                  } : {}}
-                >
+                {/* 剑的图标 - 对手的剑不动 */}
+                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
                   <Sword className="w-8 h-8" />
-                </motion.div>
+                </div>
               </div>
             </div>
             <EntityStatusPanel 
@@ -970,7 +975,10 @@ export default function MultiplayerBattle() {
                 {/* 剑的图标 */}
                 <motion.div 
                   className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
-                  animate={isSwordSwinging ? {
+                  animate={(gameState && (
+                    (Object.keys(gameState.players).sort()[0] === playerId && isPlayer1SwordSwinging) ||
+                    (Object.keys(gameState.players).sort()[1] === playerId && isPlayer2SwordSwinging)
+                  )) ? {
                     rotate: [0, 60, -30, 0],
                     scale: [1, 1.5, 1.2, 1],
                     transition: { duration: 0.5, times: [0, 0.3, 0.7, 1] }
