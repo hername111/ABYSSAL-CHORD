@@ -849,7 +849,7 @@ export default function MultiplayerBattle() {
                   </div>
                   
                   {/* 悬停展开详情 */}
-                  <div className="absolute left-0 top-full mt-2 w-80 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute left-0 bottom-full mb-2 w-80 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="text-sm font-bold text-slate-200 mb-3">当前永久效果</div>
                     <div className="space-y-2">
                       {(() => {
