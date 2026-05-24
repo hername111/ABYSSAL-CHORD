@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createMultiplayerWsConnection } from '@/lib/multiplayer/ws-client';
 import type { MultiplayerGameState, MultiplayerPlayer } from '@/lib/multiplayer/types';
 import { getCurrentPlayer, getEnemyPlayers, isCurrentPlayerTurn } from '@/lib/multiplayer/gameLogic';
-import { zhongLvCards, MAX_HAND_SIZE } from '@/lib/cards';
+import { zhongLvCards } from '@/lib/cards';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,6 @@ export default function MultiplayerBattlePage() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [showHandFullPopup, setShowHandFullPopup] = useState(false);
   const wsRef = useRef<ReturnType<typeof createMultiplayerWsConnection> | null>(null);
 
   useEffect(() => {
@@ -38,12 +37,6 @@ export default function MultiplayerBattlePage() {
       playerId,
       playerName,
       onGameStateUpdate: (state) => {
-        // 检查是否有新的手牌已满日志
-        const lastLog = state.actionLogs[0];
-        if (lastLog?.action === '手牌已满' && lastLog?.playerId === playerId) {
-          setShowHandFullPopup(true);
-          setTimeout(() => setShowHandFullPopup(false), 1500);
-        }
         setGameState(state);
       },
       onOpen: () => {
@@ -351,28 +344,6 @@ export default function MultiplayerBattlePage() {
                 </p>
               </div>
             </div>
-
-            {/* 手牌已满提示 */}
-            <AnimatePresence>
-              {showHandFullPopup && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
-                >
-                  <div className="bg-red-500/90 text-white px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(239,68,68,0.6)] border-2 border-red-400/60">
-                    <div className="flex items-center gap-3">
-                      <Skull className="w-8 h-8" />
-                      <div>
-                        <p className="text-xl font-bold">手牌已满！</p>
-                        <p className="text-red-200 text-sm">多余的卡牌已弃掉</p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* 回合信息 */}
             <div className="text-center">

@@ -1,5 +1,5 @@
 // 多人对战游戏逻辑
-import { zhongLvCards, MAX_HAND_SIZE } from '@/lib/cards';
+import { zhongLvCards } from '@/lib/cards';
 import type { MultiplayerGameState, MultiplayerPlayer, ActionLog } from './types';
 
 // 初始玩家血量
@@ -102,26 +102,7 @@ export function drawCards(
   
   const player = newState.players[playerIndex];
   
-  // 计算可以抽多少张牌
-  const currentHandSize = player.hand.length;
-  const maxCanDraw = Math.max(0, MAX_HAND_SIZE - currentHandSize);
-  const actualDraw = Math.min(count, maxCanDraw);
-  const overflow = count - actualDraw;
-  
-  if (overflow > 0) {
-    // 添加爆牌日志
-    newState = addActionLog(newState, {
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      playerId,
-      playerName: player.name,
-      action: '手牌已满',
-      details: `手牌已满，${overflow}张牌直接弃掉`,
-    });
-  }
-  
-  // 抽取可以抽的牌
-  for (let i = 0; i < actualDraw; i++) {
+  for (let i = 0; i < count; i++) {
     // 检查公共牌库是否为空
     if (newState.sharedDeck.length === 0) {
       // 洗牌：将弃牌堆变为新的抽牌堆
@@ -148,25 +129,6 @@ export function drawCards(
     const card = newState.sharedDeck.pop();
     if (card) {
       player.hand.push(card);
-    }
-  }
-  
-  // 爆掉的牌直接进入弃牌堆
-  for (let i = 0; i < overflow; i++) {
-    // 检查公共牌库是否为空
-    if (newState.sharedDeck.length === 0) {
-      if (newState.sharedDiscard.length > 0) {
-        newState.sharedDeck = shuffleArray(newState.sharedDiscard);
-        newState.sharedDiscard = [];
-      } else {
-        break;
-      }
-    }
-    
-    // 抽一张牌直接弃掉
-    const card = newState.sharedDeck.pop();
-    if (card) {
-      newState.sharedDiscard.push(card);
     }
   }
   
