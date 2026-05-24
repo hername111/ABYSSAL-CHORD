@@ -166,12 +166,20 @@ const DamageNumber = ({
   );
 };
 
+// 飘字类型定义
+type FloatingNumber = {
+  id: string;
+  amount: number;
+  type: 'HP' | 'ARMOR';
+  target: 'ME' | 'ENEMY';
+};
+
 // 全局飘字ID计数器
 let popupIdCounter = 0;
 
 // 独立的浮动文本生成器函数
-const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetStateAction<Array<{ id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER1' | 'PLAYER2' }>>>) => {
-  return (target: 'PLAYER1' | 'PLAYER2', amount: number, type: 'HP' | 'ARMOR') => {
+const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetStateAction<FloatingNumber[]>>) => {
+  return (target: 'ME' | 'ENEMY', amount: number, type: 'HP' | 'ARMOR') => {
     // 生成唯一ID
     const uniqueId = `popup_${Date.now()}_${popupIdCounter++}`;
     
@@ -482,6 +490,10 @@ export default function MultiplayerBattle() {
   const prevMySwordSwingRef = useRef(false);
   const prevEnemySwordSwingRef = useRef(false);
   
+  // 飘字状态 - 单一数据源，统一管理所有飘字
+  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
+  const addFloatingText = createAddFloatingText(setFloatingNumbers);
+  
 
 
   
@@ -633,7 +645,7 @@ export default function MultiplayerBattle() {
       }
     }
     
-    // 检测自己受伤，播放对应音效
+    // 检测自己受伤，播放对应音效和飘字
     if (currentPlayer && prevGameStateRef.current) {
       const prevPlayer = prevGameStateRef.current.players[playerId];
       if (prevPlayer) {
@@ -650,6 +662,7 @@ export default function MultiplayerBattle() {
           const totalDamage = armorLost + hpLost;
           
           if (totalDamage > 0) {
+            // 播放音效
             if (prevArmor >= totalDamage) {
               // 完全抵挡：伤害被护甲全额吸收
               playShieldBlock();
@@ -659,6 +672,42 @@ export default function MultiplayerBattle() {
             } else if (prevArmor === 0) {
               // 直接受损：没有护甲，直接承受伤害
               playEeeee();
+            }
+            
+            // 添加飘字
+            if (armorLost > 0) {
+              addFloatingText('ME', armorLost, 'ARMOR');
+            }
+            if (hpLost > 0) {
+              addFloatingText('ME', hpLost, 'HP');
+            }
+          }
+        }
+      }
+    }
+    
+    // 检测敌人受伤，添加飘字
+    if (enemy && prevGameStateRef.current) {
+      const enemyPlayerId = Object.keys(prevGameStateRef.current.players).find(id => id !== playerId);
+      if (enemyPlayerId) {
+        const prevEnemy = prevGameStateRef.current.players[enemyPlayerId];
+        if (prevEnemy) {
+          const prevHp = prevEnemy.hp;
+          const prevArmor = prevEnemy.armor;
+          const currentHp = enemy.hp;
+          const currentArmor = enemy.armor;
+          
+          // 检测到 hp 或 armor 变化，说明受到了伤害
+          if (prevHp !== currentHp || prevArmor !== currentArmor) {
+            const armorLost = prevArmor - currentArmor;
+            const hpLost = prevHp - currentHp;
+            
+            // 添加飘字
+            if (armorLost > 0) {
+              addFloatingText('ENEMY', armorLost, 'ARMOR');
+            }
+            if (hpLost > 0) {
+              addFloatingText('ENEMY', hpLost, 'HP');
             }
           }
         }
@@ -681,7 +730,7 @@ export default function MultiplayerBattle() {
       setTimeout(() => setShowMySwordSwing(false), 500);
     }
     prevEnemySwordSwingRef.current = enemy?.turnState.isSwordSwinging || false;
-  }, [gameState, getCurrentPlayer, getEnemyPlayer, playShieldBlock, playRealAttack, playEeeee, playVictory, playFail]);
+  }, [gameState, getCurrentPlayer, getEnemyPlayer, playShieldBlock, playRealAttack, playEeeee, playVictory, playFail, addFloatingText]);
 
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
@@ -857,11 +906,27 @@ export default function MultiplayerBattle() {
                 </motion.div>
               </div>
             </div>
-            <EntityStatusPanel 
-              entity={convertToEntityState(enemyPlayer)} 
-              isEnemy={true}
-              playerName={enemyPlayer.name}
-            />
+            <div className="relative">
+              {/* 敌人的飘字 - 在角色上方 */}
+              <div className="absolute -top-20 left-0 right-0 flex justify-center z-50">
+                {floatingNumbers
+                  .filter(fn => fn.target === 'ENEMY')
+                  .map((fn, index) => (
+                    <DamageNumber
+                      key={fn.id}
+                      amount={fn.amount}
+                      type={fn.type}
+                      index={index}
+                    />
+                  ))}
+              </div>
+              
+              <EntityStatusPanel 
+                entity={convertToEntityState(enemyPlayer)} 
+                isEnemy={true}
+                playerName={enemyPlayer.name}
+              />
+            </div>
             {/* 敌方永久属性加成显示 */}
             {enemyPlayer?.permanentAbilities?.length > 0 && (
               <div className="mt-2 w-48 group relative">
@@ -1083,11 +1148,27 @@ export default function MultiplayerBattle() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <EntityStatusPanel 
-                entity={convertToEntityState(currentPlayer)} 
-                isEnemy={false}
-                playerName={currentPlayer.name}
-              />
+              <div className="relative">
+                {/* 玩家自己的飘字 - 在角色上方 */}
+                <div className="absolute -top-20 left-0 right-0 flex justify-center z-50">
+                  {floatingNumbers
+                    .filter(fn => fn.target === 'ME')
+                    .map((fn, index) => (
+                      <DamageNumber
+                        key={fn.id}
+                        amount={fn.amount}
+                        type={fn.type}
+                        index={index}
+                      />
+                    ))}
+                </div>
+                
+                <EntityStatusPanel 
+                  entity={convertToEntityState(currentPlayer)} 
+                  isEnemy={false}
+                  playerName={currentPlayer.name}
+                />
+              </div>
               
               {/* AP条 */}
               <div className="mt-2 w-48">
