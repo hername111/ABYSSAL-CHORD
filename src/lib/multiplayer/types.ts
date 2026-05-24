@@ -49,6 +49,7 @@ export interface MultiplayerPlayer {
     nextAttackDamageBonus: number; // 下一张攻击牌的伤害加成
     harmonicStackArmor: number; // 谐波叠加的护甲加成
     harmonicStackActive: boolean; // 本回合是否已激活谐波叠加
+    freeSecondAttackAvailable: boolean; // 反馈回路：是否可以免费再打一次
   };
   // 移出游戏的卡牌
   exiled: Card[];

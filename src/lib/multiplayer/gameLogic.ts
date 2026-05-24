@@ -41,7 +41,8 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
       hasTakenSelfDamage: false,
       nextAttackDamageBonus: 0,
       harmonicStackArmor: 0,
-      harmonicStackActive: false
+      harmonicStackActive: false,
+      freeSecondAttackAvailable: false
     },
     exiled: [],
     debuffs: []
@@ -138,7 +139,14 @@ export function handlePlayCard(
 
   // 第三步：扣除 AP
   if (card.cost && player.ap >= card.cost) {
-    player.ap -= card.cost;
+    // 检查是否可以免费出牌（反馈回路效果）
+    if (player.turnState.freeSecondAttackAvailable) {
+      // 使用免费出牌，不扣除 AP，并重置免费状态
+      player.turnState.freeSecondAttackAvailable = false;
+    } else {
+      // 正常扣除 AP
+      player.ap -= card.cost;
+    }
   }
 
   // ============================================
@@ -226,13 +234,15 @@ export function handlePlayCard(
       player.turnState.hasTakenSelfDamage = true;
       break;
 
-    // 反馈回路：造成4伤害，若已受自伤则伤害翻倍（8点）
+    // 反馈回路：造成4伤害，若已受自伤则伤害翻倍（8点），并可以免费再打一次
     case 'zl-overload-02':
       if (enemy) {
         let baseDamage = 4 + player.permanentBonuses.damageBonus;
         // 检查本回合是否已受自伤
         if (player.turnState.hasTakenSelfDamage) {
           baseDamage *= 2; // 伤害翻倍
+          // 设置可以免费再打一次
+          player.turnState.freeSecondAttackAvailable = true;
         }
         // 应用伤害
         let damage = baseDamage;
@@ -477,7 +487,8 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
     hasTakenSelfDamage: false,
     nextAttackDamageBonus: 0,
     harmonicStackArmor: 0,
-    harmonicStackActive: false
+    harmonicStackActive: false,
+    freeSecondAttackAvailable: false
   };
 
   // 抽牌（标准3张）
