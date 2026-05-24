@@ -5,10 +5,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 // 全局单例音频实例和状态
 let globalAudio: HTMLAudioElement | null = null;
 let currentTrackName: string | null = null;
-let activeMountCount = 0;
 let isInitialized = false;
 let hasUserInteracted = false;
-let audioRefCount: Record<string, number> = {}; // 每个 track 的引用计数
 
 // 监听用户交互，用于处理浏览器自动播放策略
 function initUserInteractionListener() {
@@ -43,12 +41,13 @@ function ensureAudioInstance() {
     globalAudio = new Audio();
     globalAudio.loop = true;
     globalAudio.volume = 0.7; // 默认音量 70%
+    console.log('[BGM] 音频实例已创建');
   }
   return globalAudio;
 }
 
 // 淡出音频
-function fadeOutAudio(audio: HTMLAudioElement, duration: number = 500): Promise<void> {
+async function fadeOutAudio(audio: HTMLAudioElement, duration: number = 300): Promise<void> {
   return new Promise((resolve) => {
     if (audio.paused) {
       resolve();
@@ -75,14 +74,14 @@ function fadeOutAudio(audio: HTMLAudioElement, duration: number = 500): Promise<
 }
 
 // 淡入音频
-function fadeInAudio(audio: HTMLAudioElement, duration: number = 500): Promise<void> {
-  return new Promise(async (resolve) => {
+async function fadeInAudio(audio: HTMLAudioElement, duration: number = 300): Promise<void> {
+  return new Promise(async (resolve, reject) => {
     audio.volume = 0;
     try {
       await audio.play();
     } catch (error) {
       console.warn('[BGM] 自动播放被拦截:', error);
-      resolve();
+      reject(error);
       return;
     }
     
@@ -107,6 +106,8 @@ function fadeInAudio(audio: HTMLAudioElement, duration: number = 500): Promise<v
 export async function playBGM(trackName: string): Promise<void> {
   if (typeof window === 'undefined') return;
   
+  console.log(`[BGM] 尝试播放: ${trackName}`);
+  
   // 初始化用户交互监听
   initUserInteractionListener();
   
@@ -121,6 +122,7 @@ export async function playBGM(trackName: string): Promise<void> {
   
   // 如果有正在播放的音乐且不是同一首，先淡出
   if (!audio.paused && currentTrackName !== trackName) {
+    console.log(`[BGM] 淡出当前音乐: ${currentTrackName}`);
     await fadeOutAudio(audio);
   }
   
@@ -131,9 +133,9 @@ export async function playBGM(trackName: string): Promise<void> {
   // 淡入播放
   try {
     await fadeInAudio(audio);
-    console.log(`[BGM] 开始播放: ${trackName}`);
+    console.log(`[BGM] 成功开始播放: ${trackName}`);
   } catch (error) {
-    console.warn('[BGM] 自动播放被浏览器策略拦截，请点击页面任意位置开始播放音乐', error);
+    console.warn('[BGM] 自动播放被浏览器策略拦截，请点击页面任意位置开始播放音乐');
   }
 }
 
@@ -141,63 +143,53 @@ export async function playBGM(trackName: string): Promise<void> {
 export async function stopBGM(): Promise<void> {
   if (typeof window === 'undefined' || !globalAudio) return;
   
+  console.log(`[BGM] 尝试停止: ${currentTrackName}`);
+  
   if (!globalAudio.paused) {
     await fadeOutAudio(globalAudio);
   }
   
   currentTrackName = null;
-  console.log('[BGM] 停止播放');
+  console.log('[BGM] 已停止播放');
 }
 
-// 自定义 Hook（引用计数管理）
+// 自定义 Hook（简化版）
 export function useBGM(trackName: string | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const hasMounted = useRef(false);
   
-  // 组件挂载时增加引用计数，卸载时减少引用计数
+  // 组件挂载时播放，卸载时检查是否需要停止
   useEffect(() => {
     if (!trackName) return;
     
-    // 初始化引用计数
-    if (!audioRefCount[trackName]) {
-      audioRefCount[trackName] = 0;
-    }
-    
-    // 增加引用计数
-    audioRefCount[trackName]++;
-    activeMountCount++;
+    console.log(`[BGM] 组件挂载: ${trackName}`);
     hasMounted.current = true;
     
-    console.log(`[BGM] 挂载 ${trackName}, 引用计数: ${audioRefCount[trackName]}`);
+    // 播放音乐
+    playBGM(trackName).then(() => {
+      setIsPlaying(true);
+    }).catch(() => {
+      setIsPlaying(false);
+    });
     
-    // 如果是第一个挂载，播放音乐
-    if (audioRefCount[trackName] === 1) {
-      playBGM(trackName).then(() => {
-        setIsPlaying(true);
-      });
-    } else {
-      // 已经在播放，直接设置状态
-      setIsPlaying(currentTrackName === trackName && !globalAudio?.paused);
-    }
+    // 定期检查播放状态
+    const checkInterval = setInterval(() => {
+      if (globalAudio) {
+        setIsPlaying(!globalAudio.paused);
+      }
+    }, 500);
     
     return () => {
       if (!hasMounted.current || !trackName) return;
       
-      // 减少引用计数
-      audioRefCount[trackName]--;
-      activeMountCount--;
+      console.log(`[BGM] 组件卸载: ${trackName}`);
+      clearInterval(checkInterval);
       
-      console.log(`[BGM] 卸载 ${trackName}, 引用计数: ${audioRefCount[trackName]}`);
-      
-      // 如果引用计数为 0，停止播放
-      if (audioRefCount[trackName] <= 0) {
-        audioRefCount[trackName] = 0;
-        // 只有当前播放的就是这首歌时才停止
-        if (currentTrackName === trackName) {
-          stopBGM().then(() => {
-            setIsPlaying(false);
-          });
-        }
+      // 只有当卸载的 track 就是当前正在播放的，才停止
+      if (currentTrackName === trackName) {
+        stopBGM().then(() => {
+          setIsPlaying(false);
+        });
       }
       
       hasMounted.current = false;
