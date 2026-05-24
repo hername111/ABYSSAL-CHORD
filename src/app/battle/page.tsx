@@ -999,8 +999,8 @@ export default function BattleArena() {
       setEnemyState(prev => ({ ...prev, hp: newHp, armor: newArmor }));
     }
     
-    // 第8步：播放伤害音效
-    if (amount > 0) {
+    // 第8步：播放伤害音效（只有玩家受伤时才播放）
+    if (amount > 0 && target === "player") {
       if (armorBeforeHit >= amount) {
         // 完全抵挡：伤害被护甲全额吸收
         playShieldBlock();
