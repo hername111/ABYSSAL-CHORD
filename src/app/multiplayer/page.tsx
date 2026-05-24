@@ -66,15 +66,6 @@ export default function MultiplayerBattlePage() {
   const handlePlayCard = (cardId: string) => {
     if (!isMyTurn || !wsRef.current || !myPlayer) return;
 
-    // 如果已经在选择目标状态，点击其他手牌则取消选择
-    if (selectedCard) {
-      if (selectedCard !== cardId) {
-        // 点击了不同的牌，取消选择
-        setSelectedCard(null);
-      }
-      return;
-    }
-
     // 检查玩家是否有这张牌
     if (!myPlayer.hand.includes(cardId)) {
       return;
@@ -169,19 +160,8 @@ export default function MultiplayerBattlePage() {
     );
   }
 
-  // 右键点击取消选择
-  const handleRightClick = (e: React.MouseEvent) => {
-    if (selectedCard) {
-      e.preventDefault();
-      setSelectedCard(null);
-    }
-  };
-
   return (
-    <div 
-      className="min-h-screen bg-[#0a0a0f] relative overflow-hidden"
-      onContextMenu={handleRightClick}
-    >
+    <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden">
       {/* 背景声波效果 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-radial from-purple-500/10 to-transparent animate-[pulse_4s_ease-in-out_infinite]" />
@@ -238,19 +218,8 @@ export default function MultiplayerBattlePage() {
                   } ${enemy.isCurrentTurn ? 'shadow-[0_0_30px_rgba(139,92,246,0.5)]' : ''}`}
                   onClick={() => selectedCard && handleSelectTarget(enemy.id)}
                 >
-                  {/* 目标选择高亮边框 */}
-                  {selectedCard && (
-                    <div className="absolute -inset-3 rounded-3xl border-4 border-yellow-500/70 animate-pulse shadow-[0_0_40px_rgba(234,179,8,0.6)]" />
-                  )}
-                  {/* 目标选择准星图标 */}
-                  {selectedCard && (
-                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg z-20">
-                      <Target className="w-5 h-5 text-black" />
-                    </div>
-                  )}
-                  
-                  <div className={`bg-[#13131a] border-2 rounded-2xl p-5 min-w-[220px] relative z-10 ${
-                    selectedCard ? 'border-yellow-500/80' : enemy.isCurrentTurn ? 'border-red-500/60' : 'border-red-500/30'
+                  <div className={`bg-[#13131a] border-2 rounded-2xl p-5 min-w-[220px] ${
+                    enemy.isCurrentTurn ? 'border-red-500/60' : 'border-red-500/30'
                   }`}>
                     {/* 对手头像与名字 */}
                     <div className="flex items-center gap-3 mb-4">
@@ -354,26 +323,30 @@ export default function MultiplayerBattlePage() {
                 </Badge>
               </div>
 
-              {/* 仅在未选择目标时显示回合信息 */}
-              {!selectedCard && (
+              {selectedCard ? (
+                <div className="bg-[#13131a] border-2 border-yellow-500/50 rounded-xl p-6 max-w-md">
+                  <h3 className="text-yellow-400 text-xl mb-2 flex items-center justify-center gap-2">
+                    <Target className="w-6 h-6" />
+                    选择目标
+                  </h3>
+                  <p className="text-slate-400">
+                    点击上方的对手作为目标
+                  </p>
+                  <Button
+                    onClick={() => setSelectedCard(null)}
+                    variant="outline"
+                    className="mt-4"
+                  >
+                    取消
+                  </Button>
+                </div>
+              ) : (
                 <div className="bg-[#13131a] border border-purple-500/30 rounded-xl p-6 max-w-md">
                   <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
                     {isMyTurn ? '你的回合' : `${currentPlayer?.name} 的回合`}
                   </h2>
                   <p className="text-slate-400">
                     {isMyTurn ? '选择下方手牌进行出牌，或点击「结束回合」' : '等待对手...'}
-                  </p>
-                </div>
-              )}
-              {/* 选择目标时显示简洁提示 */}
-              {selectedCard && (
-                <div className="text-center">
-                  <Badge variant="outline" className="text-lg px-4 py-2 bg-yellow-500/20 border-yellow-500/50 text-yellow-300">
-                    <Target className="w-5 h-5 mr-2" />
-                    点击上方高亮的对手头像完成选择
-                  </Badge>
-                  <p className="text-slate-500 text-sm mt-2">
-                    右键点击空白处或点击其他手牌取消
                   </p>
                 </div>
               )}
