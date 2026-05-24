@@ -2,7 +2,7 @@
 import { Card } from '@/lib/cards';
 
 // 能力类型枚举
-export type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_TUNING" | string;
+export type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_NOTE" | string;
 
 // 能力接口
 export interface ActiveAbility {
@@ -36,6 +36,15 @@ export interface MultiplayerPlayer {
     extraDamagePerArmor: number;
     freeSecondAttack: boolean;
   };
+  // 本回合状态 - 用于特殊卡牌效果
+  turnState: {
+    cardsPlayed: number; // 本回合打出的卡牌数量
+    hasTakenSelfDamage: boolean; // 本回合是否已受到自伤
+    nextAttackDamageBonus: number; // 下一张攻击牌的伤害加成
+    harmonicStackArmor: number; // 谐波叠加的护甲加成
+  };
+  // 移出游戏的卡牌
+  exiled: Card[];
 }
 
 export interface ActionLog {
