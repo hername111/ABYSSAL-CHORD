@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -139,6 +139,18 @@ const CardPlayEffect = ({
         <ShieldIcon className="w-24 h-24 text-armor-blue drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]" />
       )}
     </motion.div>
+  );
+}
+
+export default function MultiplayerBattle() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-abyss flex items-center justify-center">
+        <div className="text-slate-400">加载中...</div>
+      </div>
+    }>
+      <MultiplayerBattleContent />
+    </Suspense>
   );
 };
 
@@ -455,7 +467,7 @@ const HandCard = ({
   );
 };
 
-export default function MultiplayerBattle() {
+function MultiplayerBattleContent() {
   // 播放联机模式背景音乐
   useBGM("/sounds/bgm_multi.mp3");
   const { 
