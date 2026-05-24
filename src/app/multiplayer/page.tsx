@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { MultiplayerGameState, AbilityType, ActiveAbility } from "@/lib/multiplayer/types";
 import { createMultiplayerWsConnection } from "@/lib/multiplayer/ws-client";
 import { useBGM } from "@/hooks/useBGM";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 // 带唯一实例 ID 的卡牌类型
 interface CardWithUid extends Card {
@@ -439,6 +440,19 @@ const HandCard = ({
 export default function MultiplayerBattle() {
   // 播放联机模式背景音乐
   useBGM("/sounds/bgm_multi.mp3");
+  const { 
+    playNormalAttack, 
+    playFreezeAbility, 
+    playShieldBlock, 
+    playRealAttack, 
+    playEeeee, 
+    playVictory, 
+    playFail 
+  } = useSoundEffects();
+  
+  // 用于记录上一次的状态，避免重复播放音效
+  const prevGameStateRef = useRef<any>(null);
+  const hasPlayedEndSoundRef = useRef(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -549,13 +563,20 @@ export default function MultiplayerBattle() {
     // 显示打牌图标效果
     const effectType = card.type === "attack" ? "attack" : "skill";
     setShowCardPlayEffect({ show: true, type: effectType });
+    
+    // 播放出牌音效
+    if (card.type === "attack") {
+      playNormalAttack();
+    } else {
+      playFreezeAbility();
+    }
 
 
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
     setSelectedCardUid(null);
-  }, [gameState, getCurrentPlayer, isMyTurn, playerId]);
+  }, [gameState, getCurrentPlayer, isMyTurn, playerId, playNormalAttack, playFreezeAbility]);
 
   // 处理结束回合
   const handleEndTurn = useCallback(() => {
@@ -588,12 +609,23 @@ export default function MultiplayerBattle() {
     return () => clearInterval(interval);
   }, [turn, isMyTurn, handleEndTurn]);
 
-  // 监听游戏状态变化，管理剑挥舞动画
+  // 监听游戏状态变化，管理剑挥舞动画和音效
   useEffect(() => {
     if (!gameState) return;
 
     const currentPlayer = getCurrentPlayer();
     const enemy = getEnemyPlayer();
+    
+    // 检测游戏结束，播放对应音效
+    if (gameState.phase === 'ended' && !hasPlayedEndSoundRef.current) {
+      hasPlayedEndSoundRef.current = true;
+      // 检查当前玩家是否是赢家
+      if (currentPlayer?.isWinner) {
+        playVictory();
+      } else {
+        playFail();
+      }
+    }
 
     // 检查我的剑是否需要挥舞（检测上升沿）
     if (currentPlayer?.turnState.isSwordSwinging && !prevMySwordSwingRef.current) {

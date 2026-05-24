@@ -25,6 +25,7 @@ import { getPollutionLevel, pollutionLevels } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useBGM } from "@/hooks/useBGM";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 // 带唯一实例 ID 的卡牌类型
 interface CardWithUid extends Card {
@@ -706,6 +707,18 @@ const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetState
 export default function BattleArena() {
   // 播放单人模式背景音乐
   useBGM("/sounds/bgm_single.mp3");
+  const { 
+    playNormalAttack, 
+    playFreezeAbility, 
+    playShieldBlock, 
+    playRealAttack, 
+    playEeeee, 
+    playVictory, 
+    playFail 
+  } = useSoundEffects();
+  
+  // 用于避免重复播放游戏结束音效
+  const hasPlayedEndSoundRef = useRef(false);
 
   // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
   const uidCounterRef = useRef(0);
@@ -868,6 +881,18 @@ export default function BattleArena() {
     return () => clearInterval(timer);
   }, [isProcessing, turn]);
   
+  // 监听游戏结束，播放对应音效
+  useEffect(() => {
+    if (gameOver && gameResult && !hasPlayedEndSoundRef.current) {
+      hasPlayedEndSoundRef.current = true;
+      if (gameResult === 'victory') {
+        playVictory();
+      } else {
+        playFail();
+      }
+    }
+  }, [gameOver, gameResult, playVictory, playFail]);
+  
   // 重置倒计时
   const resetTimer = () => {
     setTimeLeft(30);
@@ -936,8 +961,11 @@ export default function BattleArena() {
     // 获取当前状态用于计算
     const currentState = target === "player" ? playerState : enemyState;
     
+    // 记录受击前的护甲值，用于音效判断
+    const armorBeforeHit = isPiercing ? 0 : currentState.armor;
+    
     // 第1步：护甲抵御计算
-    const targetArmor = isPiercing ? 0 : currentState.armor;
+    const targetArmor = armorBeforeHit;
     
     // 第2步：计算穿透护甲后的真实伤害
     const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
@@ -971,7 +999,21 @@ export default function BattleArena() {
       setEnemyState(prev => ({ ...prev, hp: newHp, armor: newArmor }));
     }
     
-    // 第8步：生死判定 - 在同一层级执行，不嵌套
+    // 第8步：播放伤害音效
+    if (amount > 0) {
+      if (armorBeforeHit >= amount) {
+        // 完全抵挡：伤害被护甲全额吸收
+        playShieldBlock();
+      } else if (armorBeforeHit > 0 && armorBeforeHit < amount) {
+        // 破甲重击：击穿护甲并造成生命值伤害
+        playRealAttack();
+      } else if (armorBeforeHit === 0) {
+        // 直接受损：没有护甲，直接承受伤害
+        playEeeee();
+      }
+    }
+    
+    // 第9步：生死判定 - 在同一层级执行，不嵌套
     const isPlayer = target === "player";
     setTimeout(() => {
       if (newHp <= 0) {
@@ -1232,6 +1274,13 @@ export default function BattleArena() {
     // 显示打牌图标效果
     const effectType = selectedCard.type === "attack" ? "attack" : "skill";
     setShowCardPlayEffect({ show: true, type: effectType });
+    
+    // 播放出牌音效
+    if (selectedCard.type === "attack") {
+      playNormalAttack();
+    } else {
+      playFreezeAbility();
+    }
     
     // ========== 结构化卡牌效果路由 ==========
     let aiMessage = "";
