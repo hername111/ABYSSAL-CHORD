@@ -536,8 +536,8 @@ export default function MultiplayerBattle() {
         <div className="absolute inset-0 bg-gradient-radial from-sonic-purple/5 via-transparent to-transparent animate-pulse"></div>
       </div>
 
-      {/* 顶部导航栏 */}
-      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
+      {/* 左上角：退出按钮 */}
+      <div className="absolute top-4 left-4 z-50">
         <Button
           variant="default"
           onClick={() => setShowExitConfirm(true)}
@@ -546,42 +546,34 @@ export default function MultiplayerBattle() {
           <X className="w-4 h-4 mr-2" />
           退出
         </Button>
-        <Button
-          variant="default"
-          onClick={() => router.push('/cards')}
-          className="bg-slate-800/80 hover:bg-slate-700/80 text-slate-200"
-        >
-          <BookOpen className="w-4 h-4 mr-2" />
-          卡牌库
-        </Button>
+      </div>
+
+      {/* 右上角：敌方玩家状态 */}
+      <div className="absolute top-4 right-4 z-50">
+        {enemyPlayer && (
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <h2 className="text-xl font-black text-slate-100">
+                  {enemyPlayer.name}
+                </h2>
+                <p className="text-slate-400 text-sm">调音师</p>
+              </div>
+              <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center">
+                <User className="w-8 h-8 text-slate-400" />
+              </div>
+            </div>
+            <EntityStatusPanel 
+              entity={convertToEntityState(enemyPlayer)} 
+              isEnemy={true}
+              playerName={enemyPlayer.name}
+            />
+          </div>
+        )}
       </div>
 
       {/* 游戏主区域 */}
       <div className="flex-1 flex flex-col items-center justify-between p-4 relative z-10">
-        
-        {/* 上方：敌方玩家状态 */}
-        <div className="w-full flex justify-center pt-8">
-          {enemyPlayer && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center">
-                  <User className="w-10 h-10 text-slate-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-100">
-                    {enemyPlayer.name}
-                  </h2>
-                  <p className="text-slate-400 text-lg">调音师</p>
-                </div>
-              </div>
-              <EntityStatusPanel 
-                entity={convertToEntityState(enemyPlayer)} 
-                isEnemy={true}
-                playerName={enemyPlayer.name}
-              />
-            </div>
-          )}
-        </div>
 
         {/* 中间：回合信息区 - 往上移动一些 */}
         <div className="flex-1 flex items-start justify-center pt-20">
@@ -634,7 +626,7 @@ export default function MultiplayerBattle() {
       </div>
 
       {/* 底部：玩家自己状态 + 操作按钮 - 往上移动一些 */}
-      <div className="absolute bottom-20 left-8 z-20">
+      <div className="absolute bottom-28 left-8 z-20">
         {currentPlayer && (
           <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
             <div className="flex items-center gap-4 mb-3">
