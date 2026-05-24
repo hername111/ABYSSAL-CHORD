@@ -225,7 +225,7 @@ lobbyWss.on('connection', (ws: WebSocket) => {
           
           const players = Array.from(room.players.values());
           
-          // 检查条件：至少2人，且所有人都准备好
+          // 检查条件：至少2人，且所有非房主玩家都准备好
           if (players.length < 2) {
             ws.send(JSON.stringify({
               type: 'error',
@@ -234,10 +234,11 @@ lobbyWss.on('connection', (ws: WebSocket) => {
             break;
           }
           
-          if (!players.every(p => p.isReady)) {
+          const nonHostPlayers = players.filter(p => p.id !== room.hostId);
+          if (nonHostPlayers.length > 0 && !nonHostPlayers.every(p => p.isReady)) {
             ws.send(JSON.stringify({
               type: 'error',
-              payload: { message: '所有玩家必须准备就绪' }
+              payload: { message: '所有非房主玩家必须准备就绪' }
             }));
             break;
           }

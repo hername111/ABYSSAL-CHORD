@@ -166,8 +166,9 @@ export default function LobbyPage() {
 
   // If in a room, show room view
   if (currentRoomId && roomState) {
-    // 计算是否满足开始游戏条件
-    const canStartGame = roomState.players.length >= 2 && roomState.players.every(p => p.isReady);
+    // 计算是否满足开始游戏条件（房主不需要准备）
+    const nonHostPlayers = roomState.players.filter(p => p.id !== roomState.hostId);
+    const canStartGame = roomState.players.length >= 2 && nonHostPlayers.every(p => p.isReady);
     // 检查当前玩家是否是房主
     const isHost = currentPlayerId === roomState.hostId;
     
@@ -270,7 +271,11 @@ export default function LobbyPage() {
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${
-                        player.isReady ? 'bg-purify-green' : 'bg-slate-500'
+                        player.id === roomState.hostId 
+                          ? 'bg-sonic-purple' 
+                          : player.isReady 
+                            ? 'bg-purify-green' 
+                            : 'bg-slate-500'
                       }`} />
                       <span className={`font-medium ${
                         player.id === currentPlayerId ? 'text-sonic-purple' : 'text-slate-300'
@@ -281,9 +286,13 @@ export default function LobbyPage() {
                       </span>
                     </div>
                     <span className={`text-sm font-medium ${
-                      player.isReady ? 'text-purify-green' : 'text-slate-500'
+                      player.id === roomState.hostId 
+                        ? 'text-sonic-purple' 
+                        : player.isReady 
+                          ? 'text-purify-green' 
+                          : 'text-slate-500'
                     }`}>
-                      {player.isReady ? '已准备' : '未准备'}
+                      {player.id === roomState.hostId ? '房主' : player.isReady ? '已准备' : '未准备'}
                     </span>
                   </div>
                 ))}
@@ -307,26 +316,29 @@ export default function LobbyPage() {
               离开房间
             </Button>
             
-            <Button
-              onClick={toggleReady}
-              disabled={isGameStarting}
-              className={`px-12 py-6 text-white text-xl font-bold rounded-xl shadow-[0_0_40px_rgba(139,92,246,0.4)] transition-all duration-300 hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                roomState.players.find(p => p.id === currentPlayerId)?.isReady
-                  ? 'bg-gradient-to-r from-purify-green to-purify-green/70 hover:from-purify-green/90 hover:to-purify-green/60'
-                  : 'bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60'
-              }`}
-            >
-              <Play className="w-8 h-8 mr-3" />
-              {isGameStarting ? (
-                '游戏开始中...'
-              ) : roomState.players.find(p => p.id === currentPlayerId)?.isReady ? (
-                '取消准备'
-              ) : (
-                '准备就绪'
-              )}
-            </Button>
+            {/* 非房主显示准备/取消准备按钮 */}
+            {!isHost && (
+              <Button
+                onClick={toggleReady}
+                disabled={isGameStarting}
+                className={`px-12 py-6 text-white text-xl font-bold rounded-xl shadow-[0_0_40px_rgba(139,92,246,0.4)] transition-all duration-300 hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  roomState.players.find(p => p.id === currentPlayerId)?.isReady
+                    ? 'bg-gradient-to-r from-purify-green to-purify-green/70 hover:from-purify-green/90 hover:to-purify-green/60'
+                    : 'bg-gradient-to-r from-sonic-purple to-sonic-purple/70 hover:from-sonic-purple/90 hover:to-sonic-purple/60'
+                }`}
+              >
+                <Play className="w-8 h-8 mr-3" />
+                {isGameStarting ? (
+                  '游戏开始中...'
+                ) : roomState.players.find(p => p.id === currentPlayerId)?.isReady ? (
+                  '取消准备'
+                ) : (
+                  '准备就绪'
+                )}
+              </Button>
+            )}
             
-            {/* 房主可以看到开始游戏按钮 */}
+            {/* 房主显示开始游戏按钮 */}
             {isHost && (
               <Button
                 onClick={startGame}
@@ -361,18 +373,18 @@ export default function LobbyPage() {
             </motion.div>
           )}
           
-          {roomState.players.length >= 2 && !roomState.players.every(p => p.isReady) && (
+          {roomState.players.length >= 2 && roomState.players.filter(p => p.id !== roomState.hostId).some(p => !p.isReady) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 0.9 }}
               className="text-slate-500 text-center"
             >
-              等待所有玩家准备就绪...
+              等待所有非房主玩家准备就绪...
             </motion.div>
           )}
           
-          {roomState.players.length >= 2 && roomState.players.every(p => p.isReady) && !roomState.isGameStarted && !isHost && (
+          {roomState.players.length >= 2 && roomState.players.filter(p => p.id !== roomState.hostId).every(p => p.isReady) && !roomState.isGameStarted && !isHost && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -383,14 +395,14 @@ export default function LobbyPage() {
             </motion.div>
           )}
           
-          {roomState.players.length >= 2 && roomState.players.every(p => p.isReady) && !roomState.isGameStarted && isHost && (
+          {roomState.players.length >= 2 && roomState.players.filter(p => p.id !== roomState.hostId).every(p => p.isReady) && !roomState.isGameStarted && isHost && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 0.9 }}
               className="text-purify-green text-center"
             >
-              所有玩家已准备就绪！点击「开始游戏」开始！
+              所有非房主玩家已准备就绪！点击「开始游戏」开始！
             </motion.div>
           )}
         </div>
