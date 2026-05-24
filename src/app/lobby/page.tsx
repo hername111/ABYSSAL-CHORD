@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createWsConnection, type WsMessage } from '@/lib/ws-client';
+import { useBGM } from '@/hooks/useBGM';
 
 interface Player {
   id: string;
@@ -23,6 +24,9 @@ interface RoomState {
 }
 
 export default function LobbyPage() {
+  // 播放大厅背景音乐
+  useBGM("/sounds/bgm_menu.mp3");
+  
   const router = useRouter();
   const [playerName, setPlayerName] = useState('');
   const [roomIdInput, setRoomIdInput] = useState('');
