@@ -675,6 +675,30 @@ const CardPlayEffect = ({
   );
 };
 
+// 全局飘字ID计数器
+let popupIdCounter = 0;
+
+// 独立的浮动文本生成器函数
+const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetStateAction<Array<{ id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER' | 'ENEMY' }>>>) => {
+  return (target: 'PLAYER' | 'ENEMY', amount: number, type: 'HP' | 'ARMOR') => {
+    // 生成唯一ID
+    const uniqueId = `popup_${Date.now()}_${popupIdCounter++}`;
+    
+    // 使用函数式更新添加飘字
+    setFloatingNumbers(prev => [...prev, {
+      id: uniqueId,
+      amount,
+      type,
+      target
+    }]);
+    
+    // 1000ms后清理这个飘字
+    setTimeout(() => {
+      setFloatingNumbers(prev => prev.filter(popup => popup.id !== uniqueId));
+    }, 1000);
+  };
+};
+
 export default function BattleArena() {
   // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
   const uidCounterRef = useRef(0);
@@ -741,10 +765,12 @@ export default function BattleArena() {
   const [showRedFlash, setShowRedFlash] = useState(false);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
   
-  // 飘字状态 - 单一数据源，每个实体有自己的飘字
-  type FloatingNumber = { id: number; amount: number; type: 'HP' | 'ARMOR' };
-  const [playerFloatingNumbers, setPlayerFloatingNumbers] = useState<FloatingNumber[]>([]);
-  const [enemyFloatingNumbers, setEnemyFloatingNumbers] = useState<FloatingNumber[]>([]);
+  // 飘字状态 - 单一数据源，统一管理所有飘字
+  type FloatingNumber = { id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER' | 'ENEMY' };
+  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
+  
+  // 创建独立的浮动文本生成器实例
+  const addFloatingText = createAddFloatingText(setFloatingNumbers);
   // 敌人动画状态：idle(待机), attack(攻击), defend(防御), buff(强化), hit(受击)
   const [enemyAnimationState, setEnemyAnimationState] = useState<"idle" | "attack" | "defend" | "buff" | "hit">("idle");
   
@@ -784,21 +810,6 @@ export default function BattleArena() {
   const [nextAttackDamageBonus, setNextAttackDamageBonus] = useState(0);
   
   const router = useRouter();
-  
-  // 定期清理飘字，防止堆积
-  useEffect(() => {
-    const cleanupTimer = setInterval(() => {
-      const now = Date.now();
-      setPlayerFloatingNumbers(prev => 
-        prev.filter(num => now - num.id < 2000)
-      );
-      setEnemyFloatingNumbers(prev => 
-        prev.filter(num => now - num.id < 2000)
-      );
-    }, 500);
-    
-    return () => clearInterval(cleanupTimer);
-  }, []);
   
   // 倒计时逻辑
   useEffect(() => {
@@ -905,28 +916,17 @@ export default function BattleArena() {
       // 第5步：更新目标生命值（在计算出trueDamage之后才扣除）
       const newHp = Math.max(0, prev.hp - trueDamage);
       
-      // 第6步：处理飘字（单一数据源，每个实体有自己的飘字）
-      const baseTime = Date.now();
-      
-      // 获取对应的飘字setter
-      const setFloatingNumbers = target === "player" ? setPlayerFloatingNumbers : setEnemyFloatingNumbers;
+      // 第6步：处理飘字（使用独立的浮动文本生成器）
+      const targetType = target === "player" ? 'PLAYER' : 'ENEMY';
       
       // 如果有护甲消耗，添加ARMOR类型的飘字
       if (armorConsumed > 0) {
-        setFloatingNumbers(prev => [...prev, { 
-          id: baseTime, 
-          amount: armorConsumed, 
-          type: 'ARMOR' 
-        }]);
+        addFloatingText(targetType, armorConsumed, 'ARMOR');
       }
       
       // 如果有真实伤害，添加HP类型的飘字
       if (trueDamage > 0) {
-        setFloatingNumbers(prev => [...prev, { 
-          id: baseTime + 1, 
-          amount: trueDamage, 
-          type: 'HP' 
-        }]);
+        addFloatingText(targetType, trueDamage, 'HP');
       }
       
       // 第7步：生死判定
@@ -1122,8 +1122,7 @@ export default function BattleArena() {
     setGameResult(null);
     setTimeLeft(30);
     setDialogMessages([]);
-    setPlayerFloatingNumbers([]);
-    setEnemyFloatingNumbers([]);
+    setFloatingNumbers([]);
     setShowHint(true);
     setShowEnergyWarning(false);
     setShowTimeoutWarning(false);
@@ -1723,14 +1722,16 @@ export default function BattleArena() {
         >
           {/* 玩家飘字 - 在角色上方 */}
           <div className="absolute -top-20 left-0 right-0 flex justify-center">
-            {playerFloatingNumbers.map((fn, index) => (
-              <DamageNumber
-                key={fn.id}
-                amount={fn.amount}
-                type={fn.type}
-                index={index}
-              />
-            ))}
+            {floatingNumbers
+              .filter(fn => fn.target === 'PLAYER')
+              .map((fn, index) => (
+                <DamageNumber
+                  key={fn.id}
+                  amount={fn.amount}
+                  type={fn.type}
+                  index={index}
+                />
+              ))}
           </div>
           
           {/* 能力牌发光效果 */}
@@ -1874,14 +1875,16 @@ export default function BattleArena() {
         >
           {/* 敌人飘字 - 在角色左上角 */}
           <div className="absolute -top-4 -left-32">
-            {enemyFloatingNumbers.map((fn, index) => (
-              <DamageNumber
-                key={fn.id}
-                amount={fn.amount}
-                type={fn.type}
-                index={index}
-              />
-            ))}
+            {floatingNumbers
+              .filter(fn => fn.target === 'ENEMY')
+              .map((fn, index) => (
+                <DamageNumber
+                  key={fn.id}
+                  amount={fn.amount}
+                  type={fn.type}
+                  index={index}
+                />
+              ))}
           </div>
           
           {/* 敌人身体 */}
