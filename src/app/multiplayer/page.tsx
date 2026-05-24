@@ -668,17 +668,17 @@ export default function MultiplayerBattle() {
     // 保存当前状态为上一次的状态
     prevGameStateRef.current = gameState;
 
-    // 检查我的剑是否需要挥舞（检测上升沿）
+    // 反过来！当我打出攻击牌时，让对方的剑挥动
     if (currentPlayer?.turnState.isSwordSwinging && !prevMySwordSwingRef.current) {
-      setShowMySwordSwing(true);
-      setTimeout(() => setShowMySwordSwing(false), 500);
+      setShowEnemySwordSwing(true);
+      setTimeout(() => setShowEnemySwordSwing(false), 500);
     }
     prevMySwordSwingRef.current = currentPlayer?.turnState.isSwordSwinging || false;
 
-    // 检查敌人的剑是否需要挥舞（检测上升沿）
+    // 反过来！当对方打出攻击牌时，让我的剑挥动
     if (enemy?.turnState.isSwordSwinging && !prevEnemySwordSwingRef.current) {
-      setShowEnemySwordSwing(true);
-      setTimeout(() => setShowEnemySwordSwing(false), 500);
+      setShowMySwordSwing(true);
+      setTimeout(() => setShowMySwordSwing(false), 500);
     }
     prevEnemySwordSwingRef.current = enemy?.turnState.isSwordSwinging || false;
   }, [gameState, getCurrentPlayer, getEnemyPlayer, playShieldBlock, playRealAttack, playEeeee, playVictory, playFail]);
