@@ -461,8 +461,9 @@ export default function MultiplayerBattle() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showEnergyWarning, setShowEnergyWarning] = useState(false);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
-  const [isPlayer1SwordSwinging, setIsPlayer1SwordSwinging] = useState(false);
-  const [isPlayer2SwordSwinging, setIsPlayer2SwordSwinging] = useState(false);
+  // 本地剑动画状态（用于控制动画显示时长）
+  const [showMySwordSwing, setShowMySwordSwing] = useState(false);
+  const [showEnemySwordSwing, setShowEnemySwordSwing] = useState(false);
   
 
 
@@ -546,22 +547,7 @@ export default function MultiplayerBattle() {
     const effectType = card.type === "attack" ? "attack" : "skill";
     setShowCardPlayEffect({ show: true, type: effectType });
 
-    // 如果是攻击牌，触发剑挥舞动画
-    if (card.type === "attack" && gameState) {
-      // 获取所有玩家ID并排序，确定顺序
-      const playerIds = Object.keys(gameState.players).sort();
-      const currentPlayerIndex = playerIds.indexOf(playerId);
-      
-      if (currentPlayerIndex === 0) {
-        // 我是第一个玩家
-        setIsPlayer1SwordSwinging(true);
-        setTimeout(() => setIsPlayer1SwordSwinging(false), 500);
-      } else {
-        // 我是第二个玩家
-        setIsPlayer2SwordSwinging(true);
-        setTimeout(() => setIsPlayer2SwordSwinging(false), 500);
-      }
-    }
+
 
     // 发送出牌消息
     wsRef.current.sendPlayCard(card.id);
@@ -598,6 +584,26 @@ export default function MultiplayerBattle() {
 
     return () => clearInterval(interval);
   }, [turn, isMyTurn, handleEndTurn]);
+
+  // 监听游戏状态变化，管理剑挥舞动画
+  useEffect(() => {
+    if (!gameState) return;
+
+    const currentPlayer = getCurrentPlayer();
+    const enemy = getEnemyPlayer();
+
+    // 检查我的剑是否需要挥舞
+    if (currentPlayer?.turnState.isSwordSwinging && !showMySwordSwing) {
+      setShowMySwordSwing(true);
+      setTimeout(() => setShowMySwordSwing(false), 500);
+    }
+
+    // 检查敌人的剑是否需要挥舞
+    if (enemy?.turnState.isSwordSwinging && !showEnemySwordSwing) {
+      setShowEnemySwordSwing(true);
+      setTimeout(() => setShowEnemySwordSwing(false), 500);
+    }
+  }, [gameState, getCurrentPlayer, getEnemyPlayer, showMySwordSwing, showEnemySwordSwing]);
 
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
@@ -760,10 +766,17 @@ export default function MultiplayerBattle() {
               </div>
               <div className="w-16 h-16 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center relative">
                 <User className="w-8 h-8 text-slate-400" />
-                {/* 剑的图标 - 对手的剑不动 */}
-                <div className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg">
+                {/* 剑的图标 - 对手的剑 */}
+                <motion.div 
+                  className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
+                  animate={showEnemySwordSwing ? {
+                    rotate: [0, 60, -30, 0],
+                    scale: [1, 1.5, 1.2, 1],
+                    transition: { duration: 0.5, times: [0, 0.3, 0.7, 1] }
+                  } : {}}
+                >
                   <Sword className="w-8 h-8" />
-                </div>
+                </motion.div>
               </div>
             </div>
             <EntityStatusPanel 
@@ -975,10 +988,7 @@ export default function MultiplayerBattle() {
                 {/* 剑的图标 */}
                 <motion.div 
                   className="absolute -right-4 -bottom-2 text-sonic-purple drop-shadow-lg"
-                  animate={(gameState && (
-                    (Object.keys(gameState.players).sort()[0] === playerId && isPlayer1SwordSwinging) ||
-                    (Object.keys(gameState.players).sort()[1] === playerId && isPlayer2SwordSwinging)
-                  )) ? {
+                  animate={showMySwordSwing ? {
                     rotate: [0, 60, -30, 0],
                     scale: [1, 1.5, 1.2, 1],
                     transition: { duration: 0.5, times: [0, 0.3, 0.7, 1] }

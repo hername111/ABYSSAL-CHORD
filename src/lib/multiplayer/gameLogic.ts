@@ -42,7 +42,8 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
       nextAttackDamageBonus: 0,
       harmonicStackArmor: 0,
       harmonicStackActive: false,
-      freeSecondAttackAvailable: false
+      freeSecondAttackAvailable: false,
+      isSwordSwinging: false
     },
     exiled: [],
     debuffs: []
@@ -121,6 +122,11 @@ export function handlePlayCard(
   // 获取卡牌对象
   const card = player.hand[cardIndex];
   console.log('找到的卡牌:', card.name);
+
+  // 如果是攻击牌，设置挥剑动画
+  if (card.type === 'attack') {
+    player.turnState.isSwordSwinging = true;
+  }
 
   // 第一步：从手牌移除卡牌
   player.hand.splice(cardIndex, 1);
@@ -488,7 +494,8 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
     nextAttackDamageBonus: 0,
     harmonicStackArmor: 0,
     harmonicStackActive: false,
-    freeSecondAttackAvailable: false
+    freeSecondAttackAvailable: false,
+    isSwordSwinging: false
   };
 
   // 抽牌（标准3张）
