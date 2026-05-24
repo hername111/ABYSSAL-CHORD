@@ -1,526 +1,660 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Skull,
+  BookOpen,
+  X,
   Shield,
   Zap,
-  RotateCcw,
+  Skull,
+  Swords,
+  ChevronRight,
+  Sword,
+  Shield as ShieldIcon,
+  DoorOpen,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  Target,
   User,
-  X,
-  Loader2
-} from 'lucide-react';
-import { Card, zhongLvCards } from '@/lib/cards';
-import { createMultiplayerWsConnection } from '@/lib/multiplayer/ws-client';
-import type { MultiplayerGameState, MultiplayerPlayer } from '@/lib/multiplayer/types';
-import { useSearchParams, useRouter } from 'next/navigation';
+} from "lucide-react";
+import { Card, zhongLvCards } from "@/lib/cards";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { MultiplayerGameState } from "@/lib/multiplayer/types";
+import { createMultiplayerWsConnection } from "@/lib/multiplayer/ws-client";
 
-// 游戏常量
-const INITIAL_HP = 80;
-const INITIAL_AP = 3;
+// 带唯一实例 ID 的卡牌类型
+interface CardWithUid extends Card {
+  uid: string;
+}
+
+// 全局常量
+const MAX_HAND_SIZE = 6;
+const DRAW_PER_TURN = 2;
 const TURN_DURATION = 30;
 
-// 动画常量
-const ANIMATION_DURATION = 0.3;
+// 状态效果类型
+type StatusEffectType = "VULNERABLE" | "WEAK" | "POISON" | "STRENGTH" | "THORN" | "SONIC_BOOM";
 
-export default function MultiplayerBattlePage() {
-  const searchParams = useSearchParams();
+interface StatusEffect {
+  type: StatusEffectType;
+  stacks: number;
+}
+
+// 实体状态类型
+interface EntityState {
+  hp: number;
+  maxHp: number;
+  armor: number;
+  buffs: StatusEffect[];
+  debuffs: StatusEffect[];
+}
+
+// 可复用的属性面板组件
+const StatBox = ({ 
+  name, 
+  current, 
+  max, 
+  color, 
+  icon: Icon, 
+  showIcon = true 
+}: { 
+  name: string;
+  current: number;
+  max?: number;
+  color: string;
+  icon?: React.ElementType;
+  showIcon?: boolean;
+}) => (
+  <div className="bg-black/70 p-2 rounded-lg backdrop-blur border border-slate-700/50">
+    <div className="flex items-center gap-2 mb-1">
+      {showIcon && Icon && <Icon className="w-3 h-3" style={{ color }} />}
+      <span className="text-xs font-bold" style={{ color }}>{name}</span>
+      {max !== undefined && (
+        <span className="text-xs text-slate-300">{current}/{max}</span>
+      )}
+      {max === undefined && (
+        <span className="text-xs" style={{ color }}>{current}</span>
+      )}
+    </div>
+    {max !== undefined && (
+      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full"
+          style={{ 
+            background: `linear-gradient(to right, ${color}, ${color}cc)` 
+          }}
+          initial={{ width: "100%" }}
+          animate={{ width: `${(current / max) * 100}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+    )}
+  </div>
+);
+
+// 通用的实体状态面板组件
+const EntityStatusPanel = ({
+  entity,
+  isEnemy = false,
+  playerName,
+}: {
+  entity: EntityState;
+  isEnemy?: boolean;
+  playerName?: string;
+}) => {
+  const allStatusEffects = [...entity.buffs, ...entity.debuffs];
+
+  return (
+    <div className="w-48 space-y-2">
+      {/* HP条 - 前面叠加护甲 */}
+      <div className="space-y-1">
+        {/* 护甲显示 - 如果有护甲，显示在HP条上方 */}
+        {entity.armor > 0 && (
+          <div className="flex items-center gap-2 bg-blue-500/20 px-2 py-1 rounded-lg border border-blue-500/50">
+            <Shield className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-bold text-blue-400">{entity.armor}</span>
+          </div>
+        )}
+
+        {/* HP条 */}
+        <StatBox 
+          name="HP" 
+          current={entity.hp} 
+          max={entity.maxHp} 
+          color="#ef4444" 
+          showIcon={false}
+        />
+      </div>
+    </div>
+  );
+};
+
+// 手牌组件
+const HandCard = ({ 
+  card, 
+  index, 
+  total, 
+  isSelected, 
+  onSelect, 
+  canPlay,
+}: { 
+  card: CardWithUid; 
+  index: number; 
+  total: number; 
+  isSelected: boolean; 
+  onSelect: (uid: string) => void;
+  canPlay: boolean;
+}) => {
+  const getBorderColor = (type: string) => {
+    switch (type) {
+      case "attack": return "border-danger-red/80";
+      case "skill": return "border-armor-blue/80";
+      case "ability": return "border-gold/80";
+      default: return "border-slate-60";
+    }
+  };
+
+  const getBgColor = (type: string) => {
+    switch (type) {
+      case "attack": return "from-red-950/80 to-red-900/60";
+      case "skill": return "from-blue-950/80 to-blue-900/60";
+      case "ability": return "from-yellow-950/80 to-yellow-900/60";
+      default: return "from-card-darker to-slate-80";
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "attack": return "攻击";
+      case "skill": return "技能";
+      case "ability": return "能力";
+      default: return "基础";
+    }
+  };
+
+  const getTypeLabelColor = (type: string) => {
+    switch (type) {
+      case "attack": return "bg-danger-red text-white";
+      case "skill": return "bg-armor-blue text-white";
+      case "ability": return "bg-gold text-black";
+      default: return "bg-slate-600 text-white";
+    }
+  };
+
+  return (
+    <motion.div
+      className={cn(
+        "relative cursor-pointer",
+        !canPlay && "opacity-50 cursor-not-allowed"
+      )}
+      initial={{ y: 100, opacity: 0 }}
+      animate={{
+        y: isSelected ? -40 : 0,
+        scale: isSelected ? 1.15 : 1,
+        opacity: 1,
+        zIndex: isSelected ? 999 : index,
+      }}
+      whileHover={{
+        y: isSelected ? -40 : -20,
+        scale: isSelected ? 1.15 : 1.08,
+        zIndex: 999,
+      }}
+      onClick={() => onSelect(card.uid)}
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 20,
+        duration: 0.2,
+      }}
+    >
+      <div className={cn(
+        "w-44 h-60 rounded-xl border-3 bg-gradient-to-br shadow-lg",
+        getBgColor(card.type),
+        getBorderColor(card.type),
+        isSelected && "ring-4 ring-sonic-purple/60 shadow-xl shadow-sonic-purple/30"
+      )}>
+        {/* 费用 */}
+        <div className="absolute -top-2 -left-2 w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg border-2 border-sonic-purple/50">
+          {card.cost}
+        </div>
+        
+        {/* 类型标签 */}
+        <div className={cn(
+          "absolute -bottom-2 -left-2 px-3 py-1 rounded-lg text-xs font-bold shadow-lg",
+          getTypeLabelColor(card.type)
+        )}>
+          {getTypeLabel(card.type)}
+        </div>
+        
+        {/* 卡牌内容 */}
+        <div className="p-4 h-full flex flex-col">
+          <h3 className="text-lg font-bold text-slate-100 mb-2 truncate">
+            {card.name}
+          </h3>
+          <p className="text-sm text-slate-400 mb-3">
+            {card.target === "single" ? "单体" : card.target === "aoe" ? "群体" : "自身"}
+          </p>
+          <div className="flex-1 text-sm text-slate-300 leading-relaxed overflow-y-auto">
+            {card.effect}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+export default function MultiplayerBattle() {
   const router = useRouter();
-  
-  // 从URL获取参数
-  const roomId = searchParams?.get('roomId');
-  const playerId = searchParams?.get('playerId');
-  const playerName = searchParams?.get('playerName');
+  const searchParams = useSearchParams();
+  const roomId = searchParams.get('roomId') || '';
+  const playerId = searchParams.get('playerId') || '';
+  const playerName = searchParams.get('playerName') || '玩家';
 
-  // WebSocket状态
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<MultiplayerGameState | null>(null);
+  // WebSocket 连接
   const wsRef = useRef<ReturnType<typeof createMultiplayerWsConnection> | null>(null);
-  
-  // 本地UI状态
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [floatingTexts, setFloatingTexts] = useState<{ id: number; target: 'self' | 'enemy'; amount: number; type: 'damage' | 'heal' | 'armor' | 'contamination' }[]>([]);
-  const floatingIdCounter = useRef(0);
+  const [gameState, setGameState] = useState<MultiplayerGameState | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(true);
 
-  // 连接WebSocket
+  // 使用 useRef 来管理 uid 计数器
+  const uidCounterRef = useRef(0);
+  
+  // UI状态
+  const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  
+  // 倒计时状态
+  const [turnTimeLeft, setTurnTimeLeft] = useState(TURN_DURATION);
+
+  // 连接到游戏服务器
   useEffect(() => {
     if (!roomId || !playerId) {
-      setConnectionError('缺少必要参数，请从房间页面进入');
-      setIsConnecting(false);
+      router.push('/lobby');
       return;
     }
 
     const ws = createMultiplayerWsConnection({
       roomId,
       playerId,
-      playerName: playerName || 'Player',
+      playerName,
       onGameStateUpdate: (state) => {
-        console.log('[Multiplayer] Game state updated:', state);
         setGameState(state);
+        setIsJoining(false);
       },
       onOpen: () => {
-        console.log('[Multiplayer] Connected');
         setIsConnected(true);
-        setIsConnecting(false);
         setConnectionError(null);
       },
       onClose: () => {
-        console.log('[Multiplayer] Disconnected');
         setIsConnected(false);
       },
-      onError: (error: string) => {
-        console.error('[Multiplayer] Error:', error);
-        setConnectionError(error || '连接错误');
-        setIsConnecting(false);
-      }
+      onError: (error) => {
+        setConnectionError(error);
+      },
     });
-
     wsRef.current = ws;
 
     return () => {
       ws.close();
     };
-  }, [roomId, playerId, playerName]);
+  }, [roomId, playerId, playerName, router]);
 
-  // 添加飘字
-  const addFloatingText = useCallback((target: 'self' | 'enemy', amount: number, type: 'damage' | 'heal' | 'armor' | 'contamination') => {
-    const id = floatingIdCounter.current++;
-    setFloatingTexts(prev => [...prev, { id, target, amount, type }]);
-    setTimeout(() => {
-      setFloatingTexts(prev => prev.filter(t => t.id !== id));
-    }, 1500);
-  }, []);
-
-  // 获取当前玩家状态
-  const getMyState = useCallback((): MultiplayerPlayer | null => {
-    if (!gameState || !playerId) return null;
+  // 获取当前玩家
+  const getCurrentPlayer = useCallback(() => {
+    if (!gameState) return null;
     return gameState.players[playerId] || null;
   }, [gameState, playerId]);
 
-  // 获取对手状态
-  const getEnemyState = useCallback((): MultiplayerPlayer | null => {
-    if (!gameState || !playerId) return null;
-    const enemyPlayerId = gameState.playerIds.find((id) => id !== playerId);
-    return enemyPlayerId ? gameState.players[enemyPlayerId] : null;
+  // 获取敌方玩家
+  const getEnemyPlayer = useCallback(() => {
+    if (!gameState) return null;
+    return Object.values(gameState.players).find(p => p.id !== playerId) || null;
   }, [gameState, playerId]);
 
-  // 是否是我的回合
-  const isMyTurn = useMemo(() => {
-    if (!gameState || !playerId) return false;
+  // 检查是否是我的回合
+  const isMyTurn = useCallback(() => {
+    if (!gameState) return false;
     return gameState.currentPlayerId === playerId;
   }, [gameState, playerId]);
 
-  // 获取我的手牌
-  const myHand = useMemo(() => {
-    const myState = getMyState();
-    if (!myState) return [];
-    return myState.hand;
-  }, [getMyState]);
-
   // 处理出牌
-  const handlePlayCard = useCallback((card: Card) => {
-    if (!isMyTurn || !wsRef.current) return;
+  const handlePlayCard = useCallback((cardUid: string) => {
+    if (!gameState || !wsRef.current || !isMyTurn()) return;
+    
+    const currentPlayer = getCurrentPlayer();
+    if (!currentPlayer) return;
 
-    const myState = getMyState();
-    if (!myState || myState.ap < card.cost) return;
+    // 查找卡牌
+    const cardIndex = currentPlayer.hand.findIndex((c, index) => `${c.id}_${index}` === cardUid);
+    if (cardIndex === -1) return;
+    
+    const card = currentPlayer.hand[cardIndex];
+    if (!card) return;
 
-    if (selectedCard?.id === card.id) {
-      // 确认出牌
-      wsRef.current.sendPlayCard(card.id);
-      setSelectedCard(null);
-    } else {
-      // 选中卡牌
-      setSelectedCard(card);
-    }
-  }, [isMyTurn, selectedCard, getMyState]);
+    // 检查AP是否足够
+    if (currentPlayer.ap < card.cost) return;
+
+    // 发送出牌消息
+    wsRef.current.sendPlayCard(card.id);
+    setSelectedCardUid(null);
+  }, [gameState, getCurrentPlayer, isMyTurn]);
 
   // 处理结束回合
   const handleEndTurn = useCallback(() => {
-    if (!isMyTurn || !wsRef.current) return;
-
+    if (!wsRef.current || !isMyTurn()) return;
     wsRef.current.sendEndTurn();
-    setSelectedCard(null);
+    setSelectedCardUid(null);
   }, [isMyTurn]);
 
-  // 重新开始（返回房间）
-  const handleRestart = () => {
-    router.push('/lobby');
+  // 处理卡牌选择
+  const handleCardSelect = useCallback((uid: string) => {
+    if (!isMyTurn()) return;
+
+    if (selectedCardUid === uid) {
+      // 再次点击相同卡牌，则出牌
+      handlePlayCard(uid);
+    } else {
+      // 选择新卡牌
+      setSelectedCardUid(uid);
+    }
+  }, [selectedCardUid, handlePlayCard, isMyTurn]);
+
+  // 转换卡牌数据格式
+  const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
+    if (!player) return [];
+    return player.hand.map((card: Card, index: number) => {
+      return { ...card, uid: `${card.id}_${index}` };
+    });
+  }, []);
+
+  // 转换为实体状态格式
+  const convertToEntityState = (player: any): EntityState => {
+    if (!player) {
+      return { hp: 80, maxHp: 80, armor: 0, buffs: [], debuffs: [] };
+    }
+    return {
+      hp: player.hp,
+      maxHp: player.maxHp,
+      armor: player.armor,
+      buffs: [],
+      debuffs: []
+    };
   };
+
+  // 检查是否可以出牌
+  const canPlayCard = useCallback((card: CardWithUid) => {
+    const currentPlayer = getCurrentPlayer();
+    if (!currentPlayer || !isMyTurn()) return false;
+    return currentPlayer.ap >= card.cost;
+  }, [getCurrentPlayer, isMyTurn]);
 
   // 渲染游戏结束界面
   if (gameState?.phase === 'ended') {
-    const myState = getMyState();
-    const isWinner = myState?.isWinner;
-
+    const winnerId = Object.values(gameState.players).find(p => p.isWinner)?.id;
+    const winner = winnerId ? gameState.players[winnerId] : null;
+    const isWinner = winnerId === playerId;
+    
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center p-8">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
-          <h1 className={`text-6xl font-bold mb-4 font-['Rajdhani'] ${isWinner ? 'text-purple-500' : 'text-red-500'}`}>
-            {isWinner ? '胜利！' : '败北...'}
-          </h1>
-          <p className="text-slate-400 text-xl mb-8">
-            {isWinner ? '你战胜了对手！' : '你被对手击败了...'}
-          </p>
-          <button
-            onClick={handleRestart}
-            className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xl font-bold flex items-center gap-3 mx-auto transition-all hover:scale-105"
+      <div className="min-h-screen bg-abyss flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-radial from-sonic-purple/10 via-transparent to-transparent animate-pulse"></div>
+        </div>
+        
+        <div className="relative z-10 text-center">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
           >
-            <RotateCcw size={24} />
-            返回房间
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // 渲染连接错误
-  if (connectionError) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center p-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-red-500 mb-4 font-['Rajdhani']">连接失败</h1>
-          <p className="text-slate-400 text-xl mb-8">{connectionError}</p>
-          <button
-            onClick={() => router.push('/lobby')}
-            className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xl font-bold flex items-center gap-3 mx-auto transition-all hover:scale-105"
-          >
-            返回房间
-          </button>
+            <h1 className="text-6xl font-black text-slate-100 mb-8">
+              {isWinner ? '胜利！' : '失败...'}
+            </h1>
+            <p className="text-xl text-slate-400 mb-8">
+              {isWinner ? '你击败了对手！' : `${winner?.name || '对手'}获胜了`}
+            </p>
+            <Button
+              onClick={() => router.push('/')}
+              className="bg-sonic-purple hover:bg-sonic-purple/80 text-white px-8 py-4 text-xl"
+            >
+              返回主页
+            </Button>
+          </motion.div>
         </div>
       </div>
     );
   }
 
-  // 渲染加载状态
-  if (isConnecting || !gameState) {
+  // 渲染等待界面
+  if (isJoining || !gameState || !isConnected) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center p-8">
-        <Loader2 className="w-16 h-16 text-purple-500 animate-spin mb-4" />
-        <p className="text-slate-400 text-xl">正在连接...</p>
+      <div className="min-h-screen bg-abyss flex items-center justify-center relative overflow-hidden">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-sonic-purple border-t-transparent mx-auto mb-4"></div>
+          <p className="text-slate-400 text-xl">
+            {connectionError || (isJoining ? '正在加入游戏...' : '连接中...')}
+          </p>
+          {connectionError && (
+            <Button
+              onClick={() => router.push('/lobby')}
+              className="mt-4 bg-sonic-purple hover:bg-sonic-purple/80 text-white"
+            >
+              返回房间
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
 
-  const myState = getMyState();
-  const enemyState = getEnemyState();
-
-  if (!myState || !enemyState) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center p-8">
-        <p className="text-slate-400 text-xl">等待玩家加入...</p>
-      </div>
-    );
-  }
-
-  // 回合倒计时
-  const turnTimeLeft = gameState.turnTimeLeft ?? TURN_DURATION;
+  const currentPlayer = getCurrentPlayer();
+  const enemyPlayer = getEnemyPlayer();
+  const handWithUids = getPlayerHandWithUids(currentPlayer);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden select-none">
-      {/* 声波背景动画 */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-purple-900/10 to-transparent animate-pulse" style={{ animationDuration: '3s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-purple-800/20 animate-ping" style={{ animationDuration: '4s' }} />
+    <div className="min-h-screen bg-abyss flex flex-col relative overflow-hidden">
+      {/* 背景声波脉冲动画 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-radial from-sonic-purple/5 via-transparent to-transparent animate-pulse"></div>
       </div>
 
-      <div className="relative z-10 h-screen flex flex-col">
-        {/* 顶部：敌方状态栏 */}
-        <div className="p-4">
-          <div className="flex justify-center">
-            <div className="relative group">
-              <div className="bg-[#13131a] border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 shadow-xl">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center border-2 border-red-500/50">
-                    <User className="w-8 h-8 text-slate-400" />
-                  </div>
+      {/* 顶部导航栏 */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
+        <Button
+          variant="default"
+          onClick={() => setShowExitConfirm(true)}
+          className="bg-slate-800/80 hover:bg-slate-700/80 text-slate-200"
+        >
+          <X className="w-4 h-4 mr-2" />
+          退出
+        </Button>
+        <Button
+          variant="default"
+          onClick={() => router.push('/cards')}
+          className="bg-slate-800/80 hover:bg-slate-700/80 text-slate-200"
+        >
+          <BookOpen className="w-4 h-4 mr-2" />
+          卡牌库
+        </Button>
+      </div>
+
+      {/* 游戏主区域 */}
+      <div className="flex-1 flex flex-col items-center justify-between p-4 relative z-10">
+        
+        {/* 上方：敌方玩家状态 */}
+        <div className="w-full flex justify-center pt-8">
+          {enemyPlayer && (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-slate-800 border-4 border-sonic-purple/50 flex items-center justify-center">
+                  <User className="w-10 h-10 text-slate-400" />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-slate-200 font-['Rajdhani']">{enemyState.name}</span>
-                    <span className="text-slate-500">调音师</span>
-                  </div>
-                  
-                  {/* HP条 */}
-                  <div className="flex items-center gap-3">
-                    <Skull className="w-5 h-5 text-red-500" />
-                    <div className="w-48 h-5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-red-600 to-red-500"
-                        initial={{ width: '100%' }}
-                        animate={{ width: `${(enemyState.hp / INITIAL_HP) * 100}%` }}
-                        transition={{ duration: ANIMATION_DURATION }}
-                      />
-                    </div>
-                    <span className="text-slate-200 font-bold font-['Rajdhani'] w-16 text-right">{enemyState.hp}/{INITIAL_HP}</span>
-                  </div>
-                  
-                  {/* 护甲显示 */}
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-blue-500" />
-                    <span className="text-blue-500 font-bold text-xl font-['Rajdhani']">{enemyState.armor} 护甲</span>
-                  </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-100">
+                    {enemyPlayer.name}
+                  </h2>
+                  <p className="text-slate-400 text-lg">调音师</p>
                 </div>
               </div>
-              
-              {/* 敌方飘字 */}
-              <AnimatePresence>
-                {floatingTexts.filter(t => t.target === 'enemy').map(t => (
-                  <motion.div
-                    key={t.id}
-                    initial={{ opacity: 1, y: 0, scale: 0.5 }}
-                    animate={{ opacity: 0, y: -60, scale: 1.2 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1 }}
-                    className={`absolute -top-8 left-1/2 -translate-x-1/2 font-['Rajdhani'] font-bold text-2xl ${
-                      t.type === 'damage' ? 'text-red-500' :
-                      t.type === 'armor' ? 'text-blue-500' :
-                      t.type === 'contamination' ? 'text-purple-500' :
-                      'text-green-500'
-                    }`}
-                  >
-                    {t.type === 'damage' ? `-${t.amount}` : `+${t.amount}`}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              <EntityStatusPanel 
+                entity={convertToEntityState(enemyPlayer)} 
+                isEnemy={true}
+                playerName={enemyPlayer.name}
+              />
             </div>
-          </div>
+          )}
         </div>
 
-        {/* 中间：游戏主区域 */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 px-8">
-          {/* 中央提示区域 */}
+        {/* 中间：回合信息区 */}
+        <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <motion.h2
-              key={isMyTurn ? 'my-turn' : 'enemy-turn'}
-              initial={{ scale: 0.9, opacity: 0 }}
+            <motion.div
+              key={gameState.turnNumber}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className={`text-5xl font-bold mb-4 font-['Rajdhani'] ${isMyTurn ? 'text-purple-400' : 'text-slate-500'}`}
+              transition={{ duration: 0.3 }}
             >
-              {isMyTurn ? '你的回合' : `${enemyState.name}的回合`}
-            </motion.h2>
-            
-            {/* 回合计数 */}
-            <p className="text-slate-500 text-2xl font-['Rajdhani'] mb-4">
-              回合 {gameState.turnNumber} · 剩余 {turnTimeLeft} 秒
-            </p>
-            
-            {selectedCard && isMyTurn && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6"
-              >
-                <p className="text-slate-400 text-lg mb-4">再次点击卡牌确认出牌</p>
-                <button
-                  onClick={() => setSelectedCard(null)}
-                  className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
-                >
-                  取消选择
-                </button>
-              </motion.div>
-            )}
-            
-            {!selectedCard && isMyTurn && (
-              <p className="text-slate-500 text-xl">
+              <h1 className="text-4xl md:text-6xl font-black text-slate-200 mb-4">
+                {isMyTurn() ? (
+                  <span className="text-sonic-purple">你的回合</span>
+                ) : (
+                  <span className="text-slate-400">对手的回合</span>
+                )}
+              </h1>
+              <p className="text-xl md:text-2xl text-slate-500 mb-2">
+                回合 {gameState.turnNumber}
+              </p>
+              <p className="text-lg text-slate-600">
                 选择卡牌进行出牌，或点击「结束回合」
               </p>
-            )}
+            </motion.div>
           </div>
         </div>
 
-        {/* 底部：玩家状态栏 + 手牌 */}
-        <div className="p-4 pb-8">
-          {/* 回合倒计时条 */}
-          <div className="max-w-4xl mx-auto mb-4">
-            <div className="flex items-center justify-between mb-2 px-2">
-              <span className="text-slate-400 font-bold font-['Rajdhani'] text-xl">回合时间</span>
-              <span className={`font-bold font-['Rajdhani'] text-2xl ${turnTimeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-purple-500'}`}>
-                {turnTimeLeft}秒
-              </span>
+        {/* 下方：玩家手牌区 */}
+        <div className="w-full pb-4">
+          <div className="flex justify-center items-end gap-2 px-4">
+            {handWithUids.map((card, index) => (
+              <HandCard
+                key={card.uid}
+                card={card}
+                index={index}
+                total={handWithUids.length}
+                isSelected={selectedCardUid === card.uid}
+                onSelect={handleCardSelect}
+                canPlay={canPlayCard(card)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 底部：玩家自己状态 + 操作按钮 */}
+      <div className="absolute bottom-8 left-8 z-20">
+        {currentPlayer && (
+          <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-20 h-20 rounded-full bg-sonic-purple/20 border-4 border-sonic-purple/50 flex items-center justify-center">
+                <User className="w-10 h-10 text-sonic-purple" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-100">
+                  {currentPlayer.name}
+                </h2>
+                <p className="text-slate-400 text-lg">调音师</p>
+              </div>
             </div>
-            <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-              <motion.div
-                className="h-full bg-gradient-to-r from-purple-600 to-purple-500"
-                initial={{ width: '100%' }}
-                animate={{ width: `${(turnTimeLeft / TURN_DURATION) * 100}%` }}
-                transition={{ duration: 1, ease: 'linear' }}
+            <div className="flex flex-col gap-2">
+              <EntityStatusPanel 
+                entity={convertToEntityState(currentPlayer)} 
+                isEnemy={false}
+                playerName={currentPlayer.name}
+              />
+              <StatBox 
+                name="AP" 
+                current={currentPlayer.ap} 
+                max={currentPlayer.maxAp} 
+                color="#8b5cf6" 
+                icon={Zap}
+              />
+              <StatBox 
+                name="护甲" 
+                current={currentPlayer.armor} 
+                color="#3b82f6" 
+                icon={Shield}
               />
             </div>
           </div>
+        )}
+      </div>
 
-          {/* 手牌区域 */}
-          <div className="flex items-end justify-center gap-4 mb-8 min-h-[220px]">
-            {myHand.map((card, index) => {
-              const isSelected = selectedCard?.id === card.id;
-              const borderColor =
-                card.type === 'attack' ? 'border-red-500/60' :
-                card.type === 'skill' ? 'border-blue-500/60' :
-                'border-yellow-500/60';
-              const canPlay = isMyTurn && myState.ap >= card.cost;
-              const rotationAngle = (index - myHand.length / 2) * 2;
-              
-              return (
-                <motion.div
-                  key={card.id}
-                  initial={{ y: 100, opacity: 0, rotate: rotationAngle }}
-                  animate={{
-                    y: isSelected ? -30 : 0,
-                    opacity: 1,
-                    rotate: 0,
-                    scale: isSelected ? 1.1 : 1,
-                    zIndex: isSelected ? 50 : 10
-                  }}
-                  whileHover={!isSelected && canPlay ? { y: -10, scale: 1.05 } : {}}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className={`relative w-40 flex-shrink-0 ${!canPlay ? 'opacity-50 grayscale' : ''}`}
-                >
-                  <div
-                    onClick={() => canPlay && handlePlayCard(card)}
-                    className={`
-                      bg-[#13131a] border-2 ${borderColor} rounded-2xl p-4
-                      cursor-pointer transition-all
-                      ${isSelected ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-[#0a0a0f] shadow-[0_0_30px_rgba(139,92,246,0.3)]' : ''}
-                      ${canPlay && !isSelected ? 'hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]' : ''}
-                    `}
-                  >
-                    {/* 费用 */}
-                    <div className="absolute -top-3 -left-3 w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 border-2 border-slate-200 flex items-center justify-center shadow-lg">
-                      <span className="text-2xl font-bold text-white font-['Rajdhani']">{card.cost}</span>
-                    </div>
-                    
-                    {/* 卡面内容 */}
-                    <div className="pt-6">
-                      <h3 className="text-xl font-bold text-slate-100 mb-2 font-['Rajdhani'] leading-tight">{card.name}</h3>
-                      <p className="text-xs text-slate-400 mb-3 capitalize">{card.type === 'attack' ? '单体' : card.type === 'skill' ? '自身' : '能力'}</p>
-                      <p className="text-sm text-slate-300 leading-relaxed">{card.effect}</p>
-                    </div>
-                    
-                    {/* 类型标签 */}
-                    <div className="mt-4 flex justify-end">
-                      <span className={`
-                        px-3 py-1 rounded-full text-sm font-bold
-                        ${card.type === 'attack' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : ''}
-                        ${card.type === 'skill' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : ''}
-                        ${card.type === 'ability' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : ''}
-                      `}>
-                        {card.type === 'attack' ? '攻击' : card.type === 'skill' ? '技能' : '能力'}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-            
-            {/* 手牌数量提示 */}
-            {myHand.length === 0 && (
-              <div className="text-slate-600 text-xl font-['Rajdhani']">没有手牌</div>
+      {/* 右下角：操作按钮 */}
+      <div className="absolute bottom-8 right-8 z-20">
+        {isMyTurn() && (
+          <div className="flex gap-4">
+            {selectedCardUid ? (
+              <Button
+                variant="default"
+                onClick={() => handlePlayCard(selectedCardUid)}
+                className="bg-sonic-purple hover:bg-sonic-purple/80 text-white px-8 py-6 text-3xl font-black"
+              >
+                <Sword className="w-8 h-8 mr-3" />
+                出牌！
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                onClick={handleEndTurn}
+                className="bg-sonic-purple hover:bg-sonic-purple/80 text-white px-8 py-6 text-3xl font-black"
+              >
+                <ChevronRight className="w-8 h-8 mr-3" />
+                结束回合
+              </Button>
             )}
           </div>
-
-          {/* 底部控制栏 */}
-          <div className="flex justify-between items-end max-w-6xl mx-auto px-4">
-            {/* 左侧：玩家状态栏 */}
-            <div className="relative">
-              <div className="bg-[#13131a] border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 shadow-xl">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-700 to-purple-900 flex items-center justify-center border-2 border-purple-500/50">
-                    <User className="w-8 h-8 text-purple-200" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-slate-200 font-['Rajdhani']">{myState.name}</span>
-                    <span className="text-slate-500">调音师</span>
-                  </div>
-                  
-                  {/* HP条 */}
-                  <div className="flex items-center gap-3">
-                    <Skull className="w-5 h-5 text-red-500" />
-                    <div className="w-48 h-5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-red-600 to-red-500"
-                        initial={{ width: '100%' }}
-                        animate={{ width: `${(myState.hp / INITIAL_HP) * 100}%` }}
-                        transition={{ duration: ANIMATION_DURATION }}
-                      />
-                    </div>
-                    <span className="text-slate-200 font-bold font-['Rajdhani'] w-16 text-right">{myState.hp}/{INITIAL_HP}</span>
-                  </div>
-                  
-                  {/* AP条 */}
-                  <div className="flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-purple-500" />
-                    <div className="w-48 h-5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                      <div className="h-full flex">
-                        {[...Array(INITIAL_AP)].map((_, i) => (
-                          <div key={i} className={`flex-1 ${i < myState.ap ? 'bg-purple-500' : 'bg-slate-700'} ${i > 0 ? 'border-l border-slate-800' : ''}`} />
-                        ))}
-                      </div>
-                    </div>
-                    <span className="text-purple-400 font-bold font-['Rajdhani'] w-16 text-right">{myState.ap}/{INITIAL_AP}</span>
-                  </div>
-                  
-                  {/* 护甲显示 */}
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-blue-500" />
-                    <span className="text-blue-500 font-bold text-xl font-['Rajdhani']">{myState.armor} 护甲</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* 己方飘字 */}
-              <AnimatePresence>
-                {floatingTexts.filter(t => t.target === 'self').map(t => (
-                  <motion.div
-                    key={t.id}
-                    initial={{ opacity: 1, y: 0, scale: 0.5 }}
-                    animate={{ opacity: 0, y: -60, scale: 1.2 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1 }}
-                    className={`absolute -top-8 left-1/2 -translate-x-1/2 font-['Rajdhani'] font-bold text-2xl ${
-                      t.type === 'damage' ? 'text-red-500' :
-                      t.type === 'armor' ? 'text-blue-500' :
-                      t.type === 'contamination' ? 'text-purple-500' :
-                      'text-green-500'
-                    }`}
-                  >
-                    {t.type === 'damage' ? `-${t.amount}` : `+${t.amount}`}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {/* 右侧：操作按钮 */}
-            <div className="flex gap-4">
-              {isMyTurn && (
-                <button
-                  onClick={handleEndTurn}
-                  disabled={!isMyTurn}
-                  className="px-8 py-4 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-2xl text-3xl font-bold flex items-center gap-3 transition-all hover:scale-105 font-['Rajdhani'] shadow-[0_0_30px_rgba(139,92,246,0.4)]"
-                >
-                  <RotateCcw size={32} />
-                  结束回合
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        )}
       </div>
-      
-      {/* 返回按钮 */}
-      <button
-        onClick={() => router.push('/')}
-        className="absolute top-4 left-4 w-12 h-12 rounded-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 flex items-center justify-center transition-all group"
-      >
-        <X className="w-6 h-6 text-slate-400 group-hover:text-white" />
-      </button>
+
+      {/* 退出确认对话框 */}
+      <AnimatePresence>
+        {showExitConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-slate-900 p-8 rounded-2xl border border-sonic-purple/50 shadow-2xl"
+            >
+              <h2 className="text-2xl font-black text-slate-100 mb-4">确认退出？</h2>
+              <p className="text-slate-400 mb-6">退出后将返回大厅，游戏进度将丢失。</p>
+              <div className="flex gap-4">
+                <Button
+                  variant="default"
+                  onClick={() => setShowExitConfirm(false)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white"
+                >
+                  取消
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => router.push('/lobby')}
+                  className="bg-danger-red hover:bg-danger-red/80 text-white"
+                >
+                  确认退出
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
