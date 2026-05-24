@@ -27,7 +27,6 @@ export interface Card {
   // 新的词缀字段
   exhaust?: boolean; // 消耗：打出后移出本局战斗
   retain?: boolean; // 保留：回合结束时不丢入弃牌堆
-  draw?: number; // 抽牌：打出后抽牌的数量
 }
 
 // 钟律（重装和弦师）完整牌库
@@ -137,10 +136,9 @@ export const zhongLvCards: Card[] = [
     archetype: 'basic',
     cost: 1,
     target: 'self',
-    effect: '获得 3 点护甲，抽 1 张牌。',
+    effect: '获得 3 点护甲，降低 10 点污染度。',
     designNote: '3护甲+抽牌=实用的早期节奏调整。',
     baseArmor: 3,
-    draw: 1,
     purification: 10,
     pollutionModifier: -10,
   },

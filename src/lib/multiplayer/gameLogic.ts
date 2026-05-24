@@ -161,6 +161,16 @@ export function handlePlayCard(
       player.turnState.harmonicStackActive = true;
       break;
 
+    // 稳频调谐：获得3护甲，抽1张牌（多人模式版本，不降低污染度）
+    case 'zl-basic-09':
+      player.armor += 3;
+      // 抽一张牌
+      if (player.deck.length > 0) {
+        const drawnCard = player.deck.shift()!;
+        player.hand.push(drawnCard);
+      }
+      break;
+
     // 次声崩塌：造成护甲值50%伤害，失去一半护甲
     case 'zl-fortress-03':
       if (enemy && player.armor > 0) {
@@ -391,17 +401,7 @@ export function handlePlayCard(
     player.turnState.nextAttackDamageBonus = 0;
   }
 
-  // ============================================
-  // 抽牌效果
-  // ============================================
-  if (card.draw && card.draw > 0) {
-    for (let i = 0; i < card.draw && player.deck.length > 0 && player.hand.length < MAX_HAND_SIZE; i++) {
-      const cardToDraw = player.deck.shift();
-      if (cardToDraw) {
-        player.hand.push(cardToDraw);
-      }
-    }
-  }
+
 
   // ============================================
   // 检查游戏结束
