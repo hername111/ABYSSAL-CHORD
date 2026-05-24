@@ -121,18 +121,42 @@ export function drawCards(
   return newState;
 }
 
-// 应用卡牌效果（完全复⽤单人模式逻辑）
-export function applyCardEffect(
+// 处理打出卡牌
+export function handlePlayCard(
   gameState: MultiplayerGameState,
   playerId: string,
-  cardId: string,
-  card: Card
+  cardId: string
 ): MultiplayerGameState {
+  // 先深拷贝整个状态
   let newState = JSON.parse(JSON.stringify(gameState));
   const player = newState.players[playerId];
 
   if (!player) return newState;
 
+  // 第一步：找到卡牌
+  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
+  if (cardIndex === -1) return newState;
+
+  const card = player.hand[cardIndex];
+  if (!card) return newState;
+
+  // 检查AP是否足够
+  if (player.ap < card.cost) return newState;
+
+  // 第二步：从手牌中移除卡牌
+  player.hand.splice(cardIndex, 1);
+
+  // 第三步：根据卡牌词缀决定是弃牌还是移出游戏
+  if (card.exhaust) {
+    player.exiled.push(card);
+  } else {
+    player.discard.push(card);
+  }
+
+  // 第四步：扣除AP
+  player.ap -= card.cost;
+
+  // 第五步：应用卡牌效果（直接在这里处理，避免多次深拷贝问题）
   // 找到对手
   const enemyPlayerId = newState.playerIds.find((id: string) => id !== playerId);
   const enemy = enemyPlayerId ? newState.players[enemyPlayerId] : null;
@@ -140,7 +164,6 @@ export function applyCardEffect(
   // ============================================
   // 特殊卡牌效果处理（按卡牌ID）
   // ============================================
-  let harmonicStackBonus = 0;
   
   switch (card.id) {
     // 共振壁垒：获得14护甲，护甲超过20点时造成溢出伤害
@@ -157,8 +180,6 @@ export function applyCardEffect(
     // 谐波叠加：获得3护甲，本回合每打出一张牌再获得2护甲
     case 'zl-fortress-02':
       player.armor += 3;
-      // 记录本回合已打出的卡牌数量，用于后续加成
-      harmonicStackBonus = 2; // 每打一张牌加2护甲
       break;
 
     // 次声崩塌：造成护甲50%伤害，失去一半护甲
@@ -334,7 +355,6 @@ export function applyCardEffect(
   
   // 如果有谐波叠加，且已经打出过至少2张牌（包括这张），则获得2护甲
   if (player.turnState.cardsPlayed > 1) {
-    // 检查之前是否打过谐波叠加（通过 permanentAbilities 或者其他方式）
     // 简单处理：每次打第二张牌开始都加2护甲
     player.armor += 2;
   }
@@ -352,47 +372,6 @@ export function applyCardEffect(
     player.isWinner = true;
   }
 
-  return newState;
-}
-
-// 处理打出卡牌
-export function handlePlayCard(
-  gameState: MultiplayerGameState,
-  playerId: string,
-  cardId: string
-): MultiplayerGameState {
-  // 先深拷贝整个状态
-  const newState = JSON.parse(JSON.stringify(gameState));
-  const player = newState.players[playerId];
-
-  if (!player) return newState;
-
-  // 第一步：找到卡牌
-  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
-  if (cardIndex === -1) return newState;
-
-  const card = player.hand[cardIndex];
-  if (!card) return newState;
-
-  // 检查AP是否足够
-  if (player.ap < card.cost) return newState;
-
-  // 第二步：从手牌中移除卡牌
-  player.hand.splice(cardIndex, 1);
-
-  // 第三步：根据卡牌词缀决定是弃牌还是移出游戏
-  if (card.exhaust) {
-    player.exiled.push(card);
-  } else {
-    player.discard.push(card);
-  }
-
-  // 第四步：扣除AP
-  player.ap -= card.cost;
-
-  // 第五步：应用卡牌效果
-  const stateAfterEffect = applyCardEffect(newState, playerId, cardId, card);
-
   // 第六步：添加动作日志
   const actionLog: ActionLog = {
     id: Date.now().toString(),
@@ -401,9 +380,9 @@ export function handlePlayCard(
     playerName: player.name,
     action: `打出 ${card.name}`
   };
-  stateAfterEffect.actionLogs.unshift(actionLog);
+  newState.actionLogs.unshift(actionLog);
 
-  return stateAfterEffect;
+  return newState;
 }
 
 // 切换到下一个玩家
