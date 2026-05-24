@@ -593,31 +593,32 @@ export default function MultiplayerBattle() {
       </div>
 
       {/* 右下角：操作按钮 */}
-      <div className="absolute bottom-8 right-8 z-20">
+      <div className="fixed right-8 bottom-32 z-50 flex flex-col gap-3">
         {isMyTurn() && (
-          <div className="flex gap-4">
-            {/* 固定的结束回合按钮 */}
-            <Button
-              variant="default"
-              onClick={handleEndTurn}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-4 text-2xl font-bold"
-            >
-              <ChevronRight className="w-6 h-6 mr-2" />
-              结束回合
-            </Button>
-            
+          <>
             {/* 只有选中牌时才显示出牌按钮 */}
-            {selectedCardUid && (
-              <Button
-                variant="default"
-                onClick={() => handlePlayCard(selectedCardUid)}
-                className="bg-sonic-purple hover:bg-sonic-purple/80 text-white px-8 py-6 text-3xl font-black"
-              >
-                <Sword className="w-8 h-8 mr-3" />
-                出牌！
-              </Button>
-            )}
-          </div>
+            <AnimatePresence>
+              {selectedCardUid && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                  onClick={() => handlePlayCard(selectedCardUid)}
+                  className="px-12 py-6 text-2xl font-extrabold tracking-widest bg-purple-600 hover:bg-purple-500 text-white rounded-xl shadow-[0_0_25px_rgba(147,51,234,0.7)] hover:shadow-[0_0_35px_rgba(147,51,234,0.9)] transition-all transform hover:scale-110 active:scale-95"
+                >
+                  使用卡牌
+                </motion.button>
+              )}
+            </AnimatePresence>
+            
+            {/* 固定的结束回合按钮 */}
+            <button
+              onClick={handleEndTurn}
+              className="px-10 py-4 text-xl font-extrabold tracking-widest bg-sonic-purple hover:bg-sonic-purple/90 text-white rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.6)] hover:shadow-[0_0_30px_rgba(139,92,246,0.8)] transition-all transform hover:scale-105 active:scale-95"
+            >
+              结束回合
+            </button>
+          </>
         )}
       </div>
 
