@@ -121,26 +121,6 @@ export function drawCards(
   return newState;
 }
 
-// 弃牌逻辑
-export function discardCard(
-  gameState: MultiplayerGameState,
-  playerId: string,
-  cardId: string
-): MultiplayerGameState {
-  let newState = JSON.parse(JSON.stringify(gameState));
-  const player = newState.players[playerId];
-
-  if (!player) return newState;
-
-  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
-  if (cardIndex !== -1) {
-    const [card] = player.hand.splice(cardIndex, 1);
-    player.discard.push(card);
-  }
-
-  return newState;
-}
-
 // 应用卡牌效果（完全复⽤单人模式逻辑）
 export function applyCardEffect(
   gameState: MultiplayerGameState,
@@ -381,38 +361,39 @@ export function handlePlayCard(
   playerId: string,
   cardId: string
 ): MultiplayerGameState {
-  let newState = JSON.parse(JSON.stringify(gameState));
+  // 先深拷贝整个状态
+  const newState = JSON.parse(JSON.stringify(gameState));
   const player = newState.players[playerId];
 
   if (!player) return newState;
 
-  const card = player.hand.find((c: Card) => c.id === cardId);
+  // 第一步：找到卡牌
+  const cardIndex = player.hand.findIndex((c: Card) => c.id === cardId);
+  if (cardIndex === -1) return newState;
+
+  const card = player.hand[cardIndex];
   if (!card) return newState;
 
+  // 检查AP是否足够
   if (player.ap < card.cost) return newState;
 
-  // 扣除AP
-  player.ap -= card.cost;
+  // 第二步：从手牌中移除卡牌
+  player.hand.splice(cardIndex, 1);
 
-  // 找到卡牌在手牌中的位置
-  const cardIndexInHand = player.hand.findIndex((c: Card) => c.id === cardId);
-
-  // 先从手牌中移除卡牌
-  if (cardIndexInHand !== -1) {
-    player.hand.splice(cardIndexInHand, 1);
-  }
-
-  // 检查卡牌是否是 exhaust（消耗）词缀，并加入对应堆
+  // 第三步：根据卡牌词缀决定是弃牌还是移出游戏
   if (card.exhaust) {
     player.exiled.push(card);
   } else {
     player.discard.push(card);
   }
 
-  // 应用卡牌效果（传递已获取的 card 对象）
-  newState = applyCardEffect(newState, playerId, cardId, card);
+  // 第四步：扣除AP
+  player.ap -= card.cost;
 
-  // 添加动作日志
+  // 第五步：应用卡牌效果
+  const stateAfterEffect = applyCardEffect(newState, playerId, cardId, card);
+
+  // 第六步：添加动作日志
   const actionLog: ActionLog = {
     id: Date.now().toString(),
     timestamp: Date.now(),
@@ -420,9 +401,9 @@ export function handlePlayCard(
     playerName: player.name,
     action: `打出 ${card.name}`
   };
-  newState.actionLogs.unshift(actionLog);
+  stateAfterEffect.actionLogs.unshift(actionLog);
 
-  return newState;
+  return stateAfterEffect;
 }
 
 // 切换到下一个玩家
