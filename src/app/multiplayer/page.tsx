@@ -376,7 +376,9 @@ export default function MultiplayerBattle() {
   // UI状态
   const [selectedCardUid, setSelectedCardUid] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showEnergyWarning, setShowEnergyWarning] = useState(false);
   
+
 
   
   // 倒计时状态
@@ -490,19 +492,6 @@ export default function MultiplayerBattle() {
     return () => clearInterval(interval);
   }, [turn, isMyTurn, handleEndTurn]);
 
-  // 处理卡牌选择
-  const handleCardSelect = useCallback((uid: string) => {
-    if (!isMyTurn()) return;
-
-    if (selectedCardUid === uid) {
-      // 再次点击相同卡牌，则取消选中
-      setSelectedCardUid(null);
-    } else {
-      // 选择新卡牌
-      setSelectedCardUid(uid);
-    }
-  }, [selectedCardUid, isMyTurn]);
-
   // 转换卡牌数据格式
   const getPlayerHandWithUids = useCallback((player: any): CardWithUid[] => {
     if (!player) return [];
@@ -510,6 +499,38 @@ export default function MultiplayerBattle() {
       return { ...card, uid: `${card.id}_${index}` };
     });
   }, []);
+
+  // 处理卡牌选择
+  const handleCardSelect = useCallback((uid: string) => {
+    if (!isMyTurn()) return;
+
+    if (selectedCardUid === uid) {
+      // 再次点击相同卡牌，则取消选中
+      setSelectedCardUid(null);
+      setShowEnergyWarning(false);
+    } else {
+      // 找到卡牌
+      const hand = getPlayerHandWithUids(getCurrentPlayer());
+      const card = hand.find(c => c.uid === uid);
+      if (!card) return;
+      
+      // 检查是否有足够的 AP
+      const currentPlayer = getCurrentPlayer();
+      if (currentPlayer && card.cost > currentPlayer.ap) {
+        setShowEnergyWarning(true);
+        setSelectedCardUid(null);
+        // 2秒后自动隐藏警告
+        setTimeout(() => {
+          setShowEnergyWarning(false);
+        }, 2000);
+        return;
+      }
+      
+      // 选择新卡牌
+      setSelectedCardUid(uid);
+      setShowEnergyWarning(false);
+    }
+  }, [selectedCardUid, isMyTurn, getCurrentPlayer, getPlayerHandWithUids]);
 
   // 转换为实体状态格式
   const convertToEntityState = (player: any): EntityState => {
@@ -1028,6 +1049,28 @@ export default function MultiplayerBattle() {
                 </Button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 体力不足警告提示 */}
+      <AnimatePresence>
+        {showEnergyWarning && (
+          <motion.div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="bg-black/90 backdrop-blur-md px-8 py-5 rounded-xl border border-danger-red/60 shadow-2xl shadow-danger-red/40">
+              <p className="text-xl font-bold text-danger-red text-center">
+                ⚠️ 体力不足！
+              </p>
+              <p className="text-sm text-slate-300 text-center mt-2">
+                请选择其他卡牌或点击「结束回合」
+              </p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
