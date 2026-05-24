@@ -19,11 +19,17 @@ import {
   TrendingDown,
   Sparkles,
   Target,
+  MessageSquare,
+  Send,
+  Trash2,
 } from "lucide-react";
 import { Card, CardType, CardTarget, INITIAL_HAND_CARDS, zhongLvCards } from "@/lib/cards";
 import { getPollutionLevel, pollutionLevels } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card as UICard, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useBGM } from "@/hooks/useBGM";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
@@ -719,6 +725,108 @@ export default function BattleArena() {
   
   // 用于避免重复播放游戏结束音效
   const hasPlayedEndSoundRef = useRef(false);
+
+  // ========== AI裁判对话框状态 ==========
+  const [showAgentDialog, setShowAgentDialog] = useState(false);
+  const [agentMessages, setAgentMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [agentInput, setAgentInput] = useState('');
+  const [isAgentLoading, setIsAgentLoading] = useState(false);
+  const agentScrollRef = useRef<HTMLDivElement>(null);
+  const agentAbortRef = useRef<AbortController | null>(null);
+
+  // ========== AI裁判发送消息功能 ==========
+  const sendAgentMessage = async (text: string) => {
+    if (!text.trim() || isAgentLoading) return;
+
+    const userMessage = { role: 'user' as const, content: text.trim() };
+    const newMessages = [...agentMessages, userMessage];
+    setAgentMessages(newMessages);
+    setAgentInput('');
+    setIsAgentLoading(true);
+
+    const assistantMessage = { role: 'assistant' as const, content: '' };
+    setAgentMessages([...newMessages, assistantMessage]);
+
+    const abortController = new AbortController();
+    agentAbortRef.current = abortController;
+
+    try {
+      const chatHistory = newMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: chatHistory }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) throw new Error('请求失败');
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('无法读取响应');
+
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                accumulated += parsed.content;
+                setAgentMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'assistant', content: accumulated };
+                  return updated;
+                });
+              }
+            } catch {
+              // skip non-JSON lines
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        setAgentMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: '连接异常，请重新尝试。' };
+          return updated;
+        });
+      }
+    } finally {
+      setIsAgentLoading(false);
+      agentAbortRef.current = null;
+      setTimeout(() => {
+        agentScrollRef.current?.scrollTo({ top: agentScrollRef.current.scrollHeight, behavior: 'smooth' });
+      }, 100);
+    }
+  };
+
+  const clearAgentChat = () => {
+    if (agentAbortRef.current) agentAbortRef.current.abort();
+    setAgentMessages([]);
+    setIsAgentLoading(false);
+  };
+
+  const handleAgentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendAgentMessage(agentInput);
+    }
+  };
 
   // 使用 useRef 来管理 uid 计数器，确保每次组件重新渲染时 uid 都是一致的
   const uidCounterRef = useRef(0);
@@ -2202,13 +2310,161 @@ export default function BattleArena() {
         )}
       </AnimatePresence>
 
-      {/* AI裁判区 - 鼠标悬停展开 */}
+      {/* ========== AI裁判对话框 ========== */}
+      <AnimatePresence>
+        {showAgentDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowAgentDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl mx-4"
+            >
+              <UICard className="border-sonic-purple/20 bg-abyss-light/95">
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-sonic-purple rounded-full flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-lg text-slate-200">
+                        <span className="text-sonic-purple">AI</span> 裁判
+                      </h2>
+                      <p className="text-xs text-muted-foreground">深渊协奏 · AI裁判助手</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs border-white/10 text-muted-foreground hover:text-foreground"
+                      onClick={clearAgentChat}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> 清空对话
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs border-white/10 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowAgentDialog(false)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 对话区域 */}
+                <CardContent className="p-0">
+                  <div
+                    ref={agentScrollRef}
+                    className="h-[400px] overflow-y-auto p-4 space-y-4"
+                  >
+                    {agentMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sonic-purple/10 mb-4">
+                          <Sparkles className="h-8 w-8 text-sonic-purple" />
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          向AI裁判提问规则争议、伤害计算或策略建议
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/50 mt-1">
+                          深渊协奏全规则知识库已加载
+                        </div>
+                      </div>
+                    ) : (
+                      agentMessages.map((msg, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            'flex gap-3',
+                            msg.role === 'user' ? 'justify-end' : 'justify-start'
+                          )}
+                        >
+                          {msg.role === 'assistant' && (
+                            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-sonic-purple/20">
+                              <Sparkles className="h-3.5 w-3.5 text-sonic-purple" />
+                            </div>
+                          )}
+                          <div
+                            className={cn(
+                              'max-w-[80%] rounded-lg px-3 py-2 text-sm leading-relaxed',
+                              msg.role === 'user'
+                                ? 'bg-sonic-purple/20 text-foreground'
+                                : 'bg-abyss/60 border border-white/5 text-muted-foreground'
+                            )}
+                          >
+                            <div className="whitespace-pre-wrap">{msg.content}</div>
+                            {msg.role === 'assistant' && msg.content === '' && isAgentLoading && (
+                              <div className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-sonic-purple animate-pulse" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-sonic-purple animate-pulse delay-100" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-sonic-purple animate-pulse delay-200" />
+                              </div>
+                            )}
+                          </div>
+                          {msg.role === 'user' && (
+                            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* 输入框 */}
+                  <div className="border-t border-white/5 p-3">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={agentInput}
+                        onChange={(e) => setAgentInput(e.target.value)}
+                        onKeyDown={handleAgentKeyDown}
+                        placeholder="输入规则问题或战斗场景..."
+                        disabled={isAgentLoading}
+                        className="bg-abyss border-white/10 text-sm placeholder:text-muted-foreground/40"
+                      />
+                      <Button
+                        onClick={() => sendAgentMessage(agentInput)}
+                        disabled={isAgentLoading || !agentInput.trim()}
+                        className="bg-sonic-purple/20 text-sonic-purple hover:bg-sonic-purple/30 border border-sonic-purple/30"
+                        size="sm"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge className="text-[10px] h-5 bg-sonic-purple/10 text-sonic-purple/60 border-sonic-purple/20">
+                        深渊协奏 v1.0 规则库
+                      </Badge>
+                      <Badge className="text-[10px] h-5 bg-white/5 text-muted-foreground/40 border-white/10">
+                        流式响应
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </UICard>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI裁判区 - 鼠标悬停展开，点击打开对话框 */}
       <div 
         className="fixed left-6 top-24 z-30 group"
       >
-        {/* 提示图标 */}
-        <div className="w-12 h-12 bg-sonic-purple rounded-full flex items-center justify-center mb-2 shadow-lg group-hover:scale-110 transition-transform cursor-pointer">
-          <BookOpen className="w-6 h-6 text-white" />
+        {/* 提示图标 - 点击打开对话框 */}
+        <div 
+          className="w-12 h-12 bg-sonic-purple rounded-full flex items-center justify-center mb-2 shadow-lg group-hover:scale-110 transition-transform cursor-pointer"
+          onClick={() => setShowAgentDialog(true)}
+        >
+          <MessageSquare className="w-6 h-6 text-white" />
         </div>
         
         {/* 展开面板 */}
