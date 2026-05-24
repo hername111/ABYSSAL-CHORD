@@ -131,6 +131,64 @@ const CardPlayEffect = ({
   );
 };
 
+// 伤害数字组件
+const DamageNumber = ({ 
+  amount, 
+  type, 
+  index = 0
+}: { 
+  amount: number; 
+  type: 'HP' | 'ARMOR'; 
+  index?: number;
+}) => {
+  const color = type === 'ARMOR' ? "text-armor-blue" : "text-danger-red";
+  const verticalOffset = index * 35;
+  
+  return (
+    <motion.div
+      className={cn(
+        "absolute font-black text-4xl drop-shadow-lg pointer-events-none z-50 flex items-center gap-2",
+        color
+      )}
+      style={{ top: verticalOffset, left: "50%", transform: "translateX(-50%)" }}
+      initial={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 0, y: -60, scale: 1.3 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+    >
+      {type === 'ARMOR' ? (
+        <Shield className="w-8 h-8" />
+      ) : (
+        <Sword className="w-8 h-8" />
+      )}
+      <span>-{amount}</span>
+    </motion.div>
+  );
+};
+
+// 全局飘字ID计数器
+let popupIdCounter = 0;
+
+// 独立的浮动文本生成器函数
+const createAddFloatingText = (setFloatingNumbers: React.Dispatch<React.SetStateAction<Array<{ id: string; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER1' | 'PLAYER2' }>>>) => {
+  return (target: 'PLAYER1' | 'PLAYER2', amount: number, type: 'HP' | 'ARMOR') => {
+    // 生成唯一ID
+    const uniqueId = `popup_${Date.now()}_${popupIdCounter++}`;
+    
+    // 使用函数式更新添加飘字
+    setFloatingNumbers(prev => [...prev, {
+      id: uniqueId,
+      amount,
+      type,
+      target
+    }]);
+    
+    // 1000ms后清理这个飘字
+    setTimeout(() => {
+      setFloatingNumbers(prev => prev.filter(popup => popup.id !== uniqueId));
+    }, 1000);
+  };
+};
+
 // 可复用的属性面板组件
 const StatBox = ({ 
   name, 
