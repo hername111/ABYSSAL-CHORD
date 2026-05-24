@@ -1872,8 +1872,8 @@ export default function BattleArena() {
               : {}
           }
         >
-          {/* 敌人飘字 - 在角色上方 */}
-          <div className="absolute -top-20 left-0 right-0 flex justify-center">
+          {/* 敌人飘字 - 在角色左上角 */}
+          <div className="absolute -top-4 -left-4">
             {enemyFloatingNumbers.map((fn, index) => (
               <DamageNumber
                 key={fn.id}
