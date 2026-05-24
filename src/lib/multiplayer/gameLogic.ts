@@ -28,13 +28,7 @@ export function createMultiplayerPlayer(id: string, name: string): MultiplayerPl
     hand,
     deck,
     discard: [],
-    permanentAbilities: {
-      damageBonus: 0,
-      armorPerTurn: 0,
-      extraDamagePerArmor: 0,
-      freeSecondAttack: false,
-      extraCardsPerTurn: 0
-    }
+    permanentAbilities: []
   };
 }
 

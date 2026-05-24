@@ -1,6 +1,17 @@
 // 多人对战类型定义 - 完全复⽤单人模式结构
 import { Card } from '@/lib/cards';
 
+// 能力类型枚举
+export type AbilityType = "FREQUENCY_ANCHOR" | "LOW_FREQUENCY_RESONANCE" | "PAIN_ECHO" | "FINAL_TUNING" | string;
+
+// 能力接口
+export interface ActiveAbility {
+  id: AbilityType;
+  cardId: string;
+  name: string;
+  effect: string;
+}
+
 export interface MultiplayerPlayer {
   id: string;
   name: string;
@@ -15,14 +26,8 @@ export interface MultiplayerPlayer {
   deck: Card[];
   discard: Card[];
   isWinner?: boolean;
-  // 永久能力
-  permanentAbilities: {
-    damageBonus: number;
-    armorPerTurn: number;
-    extraDamagePerArmor: number;
-    freeSecondAttack: boolean;
-    extraCardsPerTurn: number;
-  };
+  // 永久能力 - 与单人模式一致
+  permanentAbilities: ActiveAbility[];
 }
 
 export interface ActionLog {

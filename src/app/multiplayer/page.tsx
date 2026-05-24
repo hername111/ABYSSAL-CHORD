@@ -23,7 +23,7 @@ import {
 import { Card, zhongLvCards } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { MultiplayerGameState } from "@/lib/multiplayer/types";
+import { MultiplayerGameState, AbilityType, ActiveAbility } from "@/lib/multiplayer/types";
 import { createMultiplayerWsConnection } from "@/lib/multiplayer/ws-client";
 
 // 带唯一实例 ID 的卡牌类型
@@ -574,19 +574,112 @@ export default function MultiplayerBattle() {
                 isEnemy={false}
                 playerName={currentPlayer.name}
               />
-              <StatBox 
-                name="AP" 
-                current={currentPlayer.ap} 
-                max={currentPlayer.maxAp} 
-                color="#8b5cf6" 
-                icon={Zap}
-              />
-              <StatBox 
-                name="护甲" 
-                current={currentPlayer.armor} 
-                color="#3b82f6" 
-                icon={Shield}
-              />
+              
+              {/* AP条 */}
+              <div className="mt-2 w-48">
+                <StatBox 
+                  name="AP" 
+                  current={currentPlayer.ap} 
+                  max={currentPlayer.maxAp} 
+                  color="#8b5cf6" 
+                  icon={Zap}
+                />
+              </div>
+              
+              {/* 永久属性加成显示 */}
+              {currentPlayer.permanentAbilities.length > 0 && (
+                <div className="mt-3 w-64 group relative">
+                  <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
+                  
+                  {/* 紧凑显示格 */}
+                  <div className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/50 cursor-default">
+                    <div className="flex -space-x-1">
+                      {(() => {
+                        // 统计能力叠加次数
+                        const abilityCounts: Record<string, number> = {};
+                        currentPlayer.permanentAbilities.forEach(a => {
+                          abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
+                        });
+                        
+                        return Object.entries(abilityCounts).map(([id, count]) => {
+                          let iconColor = "";
+                          switch (id) {
+                            case "FREQUENCY_ANCHOR": iconColor = "bg-armor-blue"; break;
+                            case "LOW_FREQUENCY_RESONANCE": iconColor = "bg-sonic-purple"; break;
+                            case "PAIN_ECHO": iconColor = "bg-danger-red"; break;
+                            case "FINAL_NOTE": iconColor = "bg-gold"; break;
+                            default: iconColor = "bg-purify-green";
+                          }
+                          
+                          return (
+                            <div 
+                              key={id}
+                              className={`w-6 h-6 rounded-full ${iconColor} border-2 border-slate-900 flex items-center justify-center text-xs font-bold text-white shadow-md relative`}
+                            >
+                              {count > 1 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-slate-900 rounded-full text-[9px] flex items-center justify-center text-yellow-400 font-black border border-yellow-400/50">
+                                  ×{count}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div className="flex-1 text-xs text-slate-400">
+                      {currentPlayer.permanentAbilities.length} 项能力生效
+                    </div>
+                  </div>
+                  
+                  {/* 悬停展开详情 */}
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="text-sm font-bold text-slate-200 mb-3">当前永久效果</div>
+                    <div className="space-y-2">
+                      {(() => {
+                        const abilityCounts: Record<string, number> = {};
+                        currentPlayer.permanentAbilities.forEach(a => {
+                          abilityCounts[a.id] = (abilityCounts[a.id] || 0) + 1;
+                        });
+                        
+                        return Object.entries(abilityCounts).map(([id, count]) => {
+                          const ability = currentPlayer.permanentAbilities.find(a => a.id === id);
+                          if (!ability) return null;
+                          
+                          let borderColor = "";
+                          switch (id) {
+                            case "FREQUENCY_ANCHOR": borderColor = "border-armor-blue/50 bg-armor-blue/10"; break;
+                            case "LOW_FREQUENCY_RESONANCE": borderColor = "border-sonic-purple/50 bg-sonic-purple/10"; break;
+                            case "PAIN_ECHO": borderColor = "border-danger-red/50 bg-danger-red/10"; break;
+                            case "FINAL_NOTE": borderColor = "border-gold/50 bg-gold/10"; break;
+                            default: borderColor = "border-purify-green/50 bg-purify-green/10";
+                          }
+                          
+                          return (
+                            <div 
+                              key={id}
+                              className={`p-3 rounded-lg border ${borderColor}`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-bold text-slate-100">
+                                  {ability.name}
+                                </span>
+                                {count > 1 && (
+                                  <span className="text-xs font-bold text-yellow-400 bg-yellow-400/20 px-2 py-0.5 rounded-full">
+                                    ×{count}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                {ability.effect}
+                              </p>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
