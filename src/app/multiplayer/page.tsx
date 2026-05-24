@@ -516,10 +516,10 @@ export default function MultiplayerBattlePage() {
       <Button
         onClick={handleBackToLobby}
         variant="outline"
-        className="absolute top-4 left-4 bg-[#13131a] border-slate-600 hover:bg-[#1a1a24] z-20"
+        size="icon"
+        className="absolute top-4 right-4 bg-[#13131a] border-slate-600 hover:bg-[#1a1a24] z-20"
       >
-        <RotateCcw className="w-4 h-4 mr-2" />
-        返回
+        <RotateCcw className="w-5 h-5" />
       </Button>
     </div>
   );

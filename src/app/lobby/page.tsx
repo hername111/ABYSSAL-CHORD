@@ -190,10 +190,10 @@ export default function LobbyPage() {
           <Link href="/">
             <Button
               variant="ghost"
-              className="absolute top-6 left-6 text-slate-400 hover:text-white"
+              size="icon"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white z-20"
             >
-              <ArrowLeft className="w-6 h-6 mr-2" />
-              返回
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
 
@@ -375,10 +375,10 @@ export default function LobbyPage() {
         <Link href="/">
           <Button
             variant="ghost"
-            className="absolute top-6 left-6 text-slate-400 hover:text-white"
+            size="icon"
+            className="absolute top-4 right-4 text-slate-400 hover:text-white z-20"
           >
-            <ArrowLeft className="w-6 h-6 mr-2" />
-            返回
+            <ArrowLeft className="w-6 h-6" />
           </Button>
         </Link>
 
