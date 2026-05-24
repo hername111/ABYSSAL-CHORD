@@ -1380,9 +1380,9 @@ export default function BattleArena() {
     
     // ========== 谐波叠加：后续打出卡牌时加护甲 ==========
     // 如果谐波叠加已激活，且当前打出的不是谐波叠加本身，则获得2点护甲
+    let harmonicBonusArmor = 0;
     if (harmonicStackActive && !isHarmonicStack) {
-      const harmonicBonusArmor = 2;
-      armorGain += harmonicBonusArmor;
+      harmonicBonusArmor = 2;
       
       // 添加AI裁判说明
       aiMessage += `【谐波叠加】触发！额外获得 ${harmonicBonusArmor} 点护甲！`;
@@ -1495,6 +1495,12 @@ export default function BattleArena() {
       }
       
       setTimeout(() => setIsUsingAbility(false), 600);
+    }
+    
+    // ========== 应用谐波叠加护甲 ==========
+    // 无论什么类型的牌，只要谐波叠加激活就加护甲
+    if (harmonicBonusArmor > 0) {
+      gainArmor(harmonicBonusArmor);
     }
     
     // 移除打出的手牌，并加入弃牌堆（除非是消耗牌或能力牌）
