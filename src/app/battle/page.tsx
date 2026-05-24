@@ -1815,6 +1815,57 @@ export default function BattleArena() {
               icon={Zap}
             />
           </div>
+          
+          {/* 永久属性加成显示 */}
+          {activeAbilities.length > 0 && (
+            <div className="mt-3 w-64">
+              <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">永久能力</div>
+              <div className="space-y-1">
+                {activeAbilities.map((ability) => {
+                  const config = abilityConfig[ability.id];
+                  let displayName = "";
+                  let displayDesc = "";
+                  let iconColor = "";
+                  
+                  switch (ability.id) {
+                    case "FREQUENCY_ANCHOR":
+                      displayName = "频率锚定";
+                      displayDesc = `每回合+${config.armorPerTurn}护甲`;
+                      iconColor = "text-armor-blue";
+                      break;
+                    case "LOW_FREQUENCY_RESONANCE":
+                      displayName = "低频共振";
+                      displayDesc = `每${config.armorThreshold}护甲→${config.damagePerThreshold}伤害`;
+                      iconColor = "text-sonic-purple";
+                      break;
+                    case "PAIN_ECHO":
+                      displayName = "痛觉回响";
+                      displayDesc = `自伤1→+${config.selfDamageBonusPerPoint}伤害(最多+${config.maxBonus})`;
+                      iconColor = "text-danger-red";
+                      break;
+                    case "FINAL_TUNING":
+                      displayName = "终末定音";
+                      displayDesc = `≤${config.lowHpThreshold}HP时+${config.lowHpDamageBonus}伤害/${config.lowHpDotDamage}DOT`;
+                      iconColor = "text-gold";
+                      break;
+                  }
+                  
+                  return (
+                    <div 
+                      key={ability.id}
+                      className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/50"
+                    >
+                      <div className={cn("w-2 h-2 rounded-full bg-current", iconColor)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-slate-200 truncate">{displayName}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{displayDesc}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
