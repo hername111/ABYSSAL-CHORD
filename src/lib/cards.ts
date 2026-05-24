@@ -1,3 +1,6 @@
+// 游戏常量
+export const MAX_HAND_SIZE = 10;
+
 // 卡牌类型
 export type CardType = 'attack' | 'skill' | 'ability';
 // 卡牌流派
