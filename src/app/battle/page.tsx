@@ -725,7 +725,7 @@ export default function BattleArena() {
   const [isEnemyCharging, setIsEnemyCharging] = useState(false);
   const [showSonicWave, setShowSonicWave] = useState(false);
   const [showRedFlash, setShowRedFlash] = useState(false);
-  const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; damage: number; x: number; y: number; color: string }>>([]);
+  const [damageNumbers, setDamageNumbers] = useState<Array<{ id: number; amount: number; type: 'HP' | 'ARMOR'; target: 'PLAYER' | 'ENEMY'; x: number; y: number; color: string }>>([]);
   const [showCardPlayEffect, setShowCardPlayEffect] = useState<{ show: boolean; type: "attack" | "skill" }>({ show: false, type: "attack" });
   // 敌人动画状态：idle(待机), attack(攻击), defend(防御), buff(强化), hit(受击)
   const [enemyAnimationState, setEnemyAnimationState] = useState<"idle" | "attack" | "defend" | "buff" | "hit">("idle");
@@ -863,11 +863,45 @@ export default function BattleArena() {
         // 第2步：计算穿透护甲后的实际伤害
         const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
         
-        // 第3步：更新目标护甲值（穿透伤害不消耗护甲）
+        // 第3步：计算消耗的护甲值
+        const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
+        
+        // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
         const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
         
-        // 第4步：更新目标生命值
+        // 第5步：更新目标生命值
         const newHp = Math.max(0, prev.hp - trueDamage);
+        
+        // ========== 添加飘字事件 ==========
+        const baseTime = Date.now();
+        const baseX = target === "player" ? 100 : 300;
+        const baseY = 350;
+        
+        // 如果有护甲消耗，添加ARMOR类型的飘字
+        if (armorConsumed > 0) {
+          setDamageNumbers(prev => [...prev, { 
+            id: baseTime, 
+            amount: armorConsumed, 
+            type: 'ARMOR', 
+            target: 'PLAYER', 
+            x: baseX, 
+            y: baseY, 
+            color: "text-armor-blue" 
+          }]);
+        }
+        
+        // 如果有真实伤害，添加HP类型的飘字
+        if (trueDamage > 0) {
+          setDamageNumbers(prev => [...prev, { 
+            id: baseTime + 1, 
+            amount: trueDamage, 
+            type: 'HP', 
+            target: 'PLAYER', 
+            x: baseX, 
+            y: baseY + 30, 
+            color: "text-danger-red" 
+          }]);
+        }
         
         // 生死判定
         setTimeout(() => {
@@ -887,11 +921,45 @@ export default function BattleArena() {
         // 第2步：计算穿透护甲后的实际伤害
         const trueDamage = isPiercing ? amount : Math.max(0, amount - targetArmor);
         
-        // 第3步：更新目标护甲值（穿透伤害不消耗护甲）
+        // 第3步：计算消耗的护甲值
+        const armorConsumed = isPiercing ? 0 : Math.min(targetArmor, amount);
+        
+        // 第4步：更新目标护甲值（穿透伤害不消耗护甲）
         const newArmor = isPiercing ? prev.armor : Math.max(0, targetArmor - amount);
         
-        // 第4步：更新目标生命值
+        // 第5步：更新目标生命值
         const newHp = Math.max(0, prev.hp - trueDamage);
+        
+        // ========== 添加飘字事件 ==========
+        const baseTime = Date.now();
+        const baseX = target === "player" ? 100 : 300;
+        const baseY = 350;
+        
+        // 如果有护甲消耗，添加ARMOR类型的飘字
+        if (armorConsumed > 0) {
+          setDamageNumbers(prev => [...prev, { 
+            id: baseTime, 
+            amount: armorConsumed, 
+            type: 'ARMOR', 
+            target: 'ENEMY', 
+            x: baseX, 
+            y: baseY, 
+            color: "text-armor-blue" 
+          }]);
+        }
+        
+        // 如果有真实伤害，添加HP类型的飘字
+        if (trueDamage > 0) {
+          setDamageNumbers(prev => [...prev, { 
+            id: baseTime + 1, 
+            amount: trueDamage, 
+            type: 'HP', 
+            target: 'ENEMY', 
+            x: baseX, 
+            y: baseY + 30, 
+            color: "text-danger-red" 
+          }]);
+        }
         
         // 生死判定
         setTimeout(() => {
