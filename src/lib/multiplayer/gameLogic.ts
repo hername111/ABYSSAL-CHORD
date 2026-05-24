@@ -165,9 +165,18 @@ export function handlePlayCard(
     case 'zl-basic-09':
       player.armor += 3;
       // 抽一张牌
-      if (player.deck.length > 0) {
-        const drawnCard = player.deck.shift()!;
-        player.hand.push(drawnCard);
+      if (player.hand.length < MAX_HAND_SIZE) {
+        // 如果牌库空了，将弃牌堆洗入抽牌堆
+        if (player.deck.length === 0) {
+          if (player.discard.length > 0) {
+            player.deck = [...player.discard].sort(() => Math.random() - 0.5);
+            player.discard = [];
+          }
+        }
+        if (player.deck.length > 0) {
+          const drawnCard = player.deck.shift()!;
+          player.hand.push(drawnCard);
+        }
       }
       break;
 
@@ -473,7 +482,17 @@ export function nextPlayer(gameState: MultiplayerGameState): MultiplayerGameStat
 
   // 抽牌（标准3张）
   const drawCount = 3 + player.permanentBonuses.extraCardsPerTurn;
-  for (let i = 0; i < drawCount && player.deck.length > 0 && player.hand.length < MAX_HAND_SIZE; i++) {
+  for (let i = 0; i < drawCount && player.hand.length < MAX_HAND_SIZE; i++) {
+    // 如果牌库空了，将弃牌堆洗入抽牌堆
+    if (player.deck.length === 0) {
+      if (player.discard.length === 0) {
+        // 牌库和弃牌堆都空了，无法继续抽牌
+        break;
+      }
+      // 将弃牌堆洗入抽牌堆
+      player.deck = [...player.discard].sort(() => Math.random() - 0.5);
+      player.discard = [];
+    }
     const card = player.deck.shift();
     if (card) {
       player.hand.push(card);
