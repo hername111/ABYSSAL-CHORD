@@ -205,120 +205,120 @@ export default function MultiplayerBattlePage() {
           </Card>
         </div>
 
-        {/* 中间：主游戏区域 */}
-        <div className="flex-1 flex flex-col">
-          {/* 顶部：敌人玩家 */}
-          <div className="p-4">
-            <div className="flex justify-center gap-4 flex-wrap">
+        {/* 右侧：主战斗区域（经典1v1对战视角） */}
+        <div className="flex-1 flex flex-col relative">
+          {/* 顶部：对手区域 */}
+          <div className="p-6 flex justify-center">
+            <div className="flex gap-6 flex-wrap justify-center">
               {enemyPlayers.map((enemy) => (
-                <Card
+                <div
                   key={enemy.id}
-                  className={`bg-[#13131a] border-2 transition-all duration-300 w-48 ${
-                    selectedCard ? 'cursor-pointer hover:border-yellow-500 hover:scale-105' : ''
-                  } ${enemy.isCurrentTurn ? 'border-purple-500/50 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'border-slate-700/50'}`}
+                  className={`relative transition-all duration-300 ${
+                    selectedCard ? 'cursor-pointer hover:scale-105' : ''
+                  } ${enemy.isCurrentTurn ? 'shadow-[0_0_30px_rgba(139,92,246,0.5)]' : ''}`}
                   onClick={() => selectedCard && handleSelectTarget(enemy.id)}
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        {enemy.name}
-                      </CardTitle>
-                      {enemy.isCurrentTurn && (
-                        <Badge className="bg-purple-600 text-xs">
-                          当前回合
-                        </Badge>
-                      )}
+                  <div className={`bg-[#13131a] border-2 rounded-2xl p-5 min-w-[220px] ${
+                    enemy.isCurrentTurn ? 'border-red-500/60' : 'border-red-500/30'
+                  }`}>
+                    {/* 对手头像与名字 */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-900 to-red-800 flex items-center justify-center border-2 border-red-500/50">
+                        <User className="w-6 h-6 text-red-300" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-red-300">{enemy.name}</h3>
+                          {enemy.isCurrentTurn && (
+                            <Badge className="bg-red-600 text-xs">对手回合</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">手牌: {enemy.hand.length}张</p>
+                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {/* 生命值 */}
-                    <div className="space-y-1">
+
+                    {/* 血条 */}
+                    <div className="space-y-3">
+                      {/* 生命值 */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-red-400 flex items-center gap-1">
+                            <Skull className="w-4 h-4" />
+                            生命值
+                          </span>
+                          <span className="text-red-200 font-bold">
+                            {enemy.hp}/{enemy.maxHp}
+                          </span>
+                        </div>
+                        <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                          <div
+                            className="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-300"
+                            style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 护甲 */}
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-red-400 flex items-center gap-1">
-                          <Skull className="w-4 h-4" />
-                          HP
+                        <span className="text-blue-400 flex items-center gap-1">
+                          <Shield className="w-4 h-4" />
+                          护甲
                         </span>
-                        <span className="text-slate-200 font-bold">
-                          {enemy.hp}/{enemy.maxHp}
-                        </span>
+                        <span className="text-blue-200 font-bold text-lg">{enemy.armor}</span>
                       </div>
-                      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
-                          style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}
-                        />
-                      </div>
-                    </div>
 
-                    {/* 护甲 */}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-blue-400 flex items-center gap-1">
-                        <Shield className="w-4 h-4" />
-                        护甲
-                      </span>
-                      <span className="text-slate-200 font-bold">{enemy.armor}</span>
-                    </div>
-
-                    {/* 污染度 */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-purple-400 flex items-center gap-1">
-                          <Skull className="w-4 h-4" />
-                          污染度
-                        </span>
-                        <span className="text-slate-200 font-bold">{enemy.pollutionLevel}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300"
-                          style={{ width: `${enemy.pollutionLevel}%` }}
-                        />
+                      {/* 污染度 */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-purple-400 flex items-center gap-1">
+                            <Skull className="w-4 h-4" />
+                            污染度
+                          </span>
+                          <span className="text-purple-200 font-bold">{enemy.pollutionLevel}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300"
+                            style={{ width: `${enemy.pollutionLevel}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-
-                    {/* 手牌数量 */}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400 flex items-center gap-1">
-                        <Layers className="w-4 h-4" />
-                        手牌
-                      </span>
-                      <span className="text-slate-200 font-bold">{enemy.hand.length}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* 中间：游戏信息和牌库状态 */}
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              {/* 牌库状态 */}
-              <div className="mb-6 flex justify-center gap-4">
-                <div className="bg-[#13131a] border border-slate-700/50 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Layers className="w-4 h-4 text-purple-400" />
-                    <span className="text-slate-400">抽牌堆</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-200">
-                    {gameState.sharedDeck.length}
-                  </p>
+          {/* 中部：公共区域 */}
+          <div className="flex-1 flex items-center justify-center relative">
+            {/* 中央牌库 */}
+            <div className="absolute right-12 top-1/2 -translate-y-1/2 flex flex-col gap-4">
+              <div className="bg-[#13131a] border border-purple-500/40 rounded-xl p-4 shadow-[0_0_20px_rgba(139,92,246,0.2)]">
+                <div className="flex items-center gap-2 text-sm mb-1">
+                  <Layers className="w-4 h-4 text-purple-400" />
+                  <span className="text-slate-400">抽牌堆</span>
                 </div>
-                <div className="bg-[#13131a] border border-slate-700/50 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <RotateCcw className="w-4 h-4 text-slate-400" />
-                    <span className="text-slate-400">弃牌堆</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-200">
-                    {gameState.sharedDiscard.length}
-                  </p>
-                </div>
+                <p className="text-3xl font-bold text-purple-300">
+                  {gameState.sharedDeck.length}
+                </p>
               </div>
+              <div className="bg-[#13131a] border border-slate-600/50 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-sm mb-1">
+                  <RotateCcw className="w-4 h-4 text-slate-400" />
+                  <span className="text-slate-400">弃牌堆</span>
+                </div>
+                <p className="text-3xl font-bold text-slate-300">
+                  {gameState.sharedDiscard.length}
+                </p>
+              </div>
+            </div>
 
-              <div className="mb-4">
-                <Badge variant="outline" className="text-lg px-4 py-2 bg-[#13131a] border-purple-500/50">
-                  <Gamepad2 className="w-5 h-5 mr-2 text-purple-400" />
+            {/* 回合信息 */}
+            <div className="text-center">
+              <div className="mb-6">
+                <Badge variant="outline" className="text-xl px-6 py-3 bg-[#13131a] border-purple-500/50">
+                  <Gamepad2 className="w-6 h-6 mr-2 text-purple-400" />
                   回合 {gameState.turnCount}
                 </Badge>
               </div>
@@ -330,7 +330,7 @@ export default function MultiplayerBattlePage() {
                     选择目标
                   </h3>
                   <p className="text-slate-400">
-                    点击一个敌对玩家作为目标
+                    点击上方的对手作为目标
                   </p>
                   <Button
                     onClick={() => setSelectedCard(null)}
@@ -346,46 +346,52 @@ export default function MultiplayerBattlePage() {
                     {isMyTurn ? '你的回合' : `${currentPlayer?.name} 的回合`}
                   </h2>
                   <p className="text-slate-400">
-                    {isMyTurn ? '选择卡牌进行出牌，或点击「结束回合」' : '等待其他玩家...'}
+                    {isMyTurn ? '选择下方手牌进行出牌，或点击「结束回合」' : '等待对手...'}
                   </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* 底部：我的状态和手牌 */}
-          <div className="p-4">
+          {/* 底部：玩家区域 */}
+          <div className="p-6">
+            {/* 玩家状态 */}
             {myPlayer && (
-              <div className="mb-4">
-                <Card className="bg-[#13131a] border-2 border-blue-500/50 max-w-xs mx-auto">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <User className="w-4 h-4 text-blue-400" />
-                        {myPlayer.name}
-                      </CardTitle>
-                      {myPlayer.isCurrentTurn && (
-                        <Badge className="bg-purple-600 text-xs">
-                          当前回合
-                        </Badge>
-                      )}
+              <div className="mb-6 flex justify-center">
+                <div className={`bg-[#13131a] border-2 border-blue-500/60 rounded-2xl p-5 min-w-[220px] shadow-[0_0_30px_rgba(59,130,246,0.3)] ${
+                  myPlayer.isCurrentTurn ? 'ring-2 ring-blue-500/40' : ''
+                }`}>
+                  {/* 玩家头像与名字 */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-900 to-blue-800 flex items-center justify-center border-2 border-blue-500/50">
+                      <User className="w-6 h-6 text-blue-300" />
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-blue-300">{myPlayer.name}</h3>
+                        {myPlayer.isCurrentTurn && (
+                          <Badge className="bg-blue-600 text-xs">你的回合</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 血条 */}
+                  <div className="space-y-3">
                     {/* 生命值 */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-red-400 flex items-center gap-1">
                           <Skull className="w-4 h-4" />
-                          HP
+                          生命值
                         </span>
-                        <span className="text-slate-200 font-bold">
+                        <span className="text-red-200 font-bold">
                           {myPlayer.hp}/{myPlayer.maxHp}
                         </span>
                       </div>
-                      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
                         <div
-                          className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-300"
                           style={{ width: `${(myPlayer.hp / myPlayer.maxHp) * 100}%` }}
                         />
                       </div>
@@ -397,7 +403,7 @@ export default function MultiplayerBattlePage() {
                         <Shield className="w-4 h-4" />
                         护甲
                       </span>
-                      <span className="text-slate-200 font-bold">{myPlayer.armor}</span>
+                      <span className="text-blue-200 font-bold text-lg">{myPlayer.armor}</span>
                     </div>
 
                     {/* 污染度 */}
@@ -407,7 +413,7 @@ export default function MultiplayerBattlePage() {
                           <Skull className="w-4 h-4" />
                           污染度
                         </span>
-                        <span className="text-slate-200 font-bold">{myPlayer.pollutionLevel}%</span>
+                        <span className="text-purple-200 font-bold">{myPlayer.pollutionLevel}%</span>
                       </div>
                       <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                         <div
@@ -416,13 +422,13 @@ export default function MultiplayerBattlePage() {
                         />
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* 手牌 */}
-            <div className="flex justify-center items-end gap-[-24px] flex-wrap pb-4">
+            {/* 手牌区 */}
+            <div className="flex justify-center items-end gap-[-20px] flex-wrap">
               {myPlayer && myPlayer.hand.map((cardId, index) => {
                 const card = zhongLvCards.find(c => c.id === cardId);
                 if (!card) return null;
@@ -434,12 +440,12 @@ export default function MultiplayerBattlePage() {
                   <div
                     key={`${cardId}-${index}`}
                     className={`relative transition-all duration-300 ${
-                      isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-2'
-                    } ${isSelected ? 'scale-110 -translate-y-4' : ''}`}
+                      isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-3'
+                    } ${isSelected ? 'scale-110 -translate-y-6' : ''}`}
                     style={{ zIndex: index }}
                   >
                     <div
-                      className={`relative w-36 h-48 rounded-xl border-3 overflow-hidden ${
+                      className={`relative w-40 h-52 rounded-xl border-3 overflow-hidden ${
                         card.type === 'attack'
                           ? 'bg-gradient-to-br from-red-950/80 to-red-900/60 border-red-500/80 hover:border-red-400 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)]'
                           : card.type === 'skill'
@@ -449,12 +455,12 @@ export default function MultiplayerBattlePage() {
                       onClick={() => !isDisabled && handlePlayCard(card.id)}
                     >
                       {/* 费用图标 */}
-                      <div className="absolute -top-2 -left-2 w-10 h-10 rounded-full bg-purple-600 border-4 border-[#13131a] flex items-center justify-center z-10 shadow-lg">
+                      <div className="absolute -top-2 -left-2 w-11 h-11 rounded-full bg-purple-600 border-4 border-[#13131a] flex items-center justify-center z-10 shadow-lg">
                         <span className="text-white font-bold text-xl">{card.cost}</span>
                       </div>
 
                       {/* 卡牌内容 */}
-                      <div className="p-4 pt-8 h-full flex flex-col">
+                      <div className="p-4 pt-9 h-full flex flex-col">
                         {/* 卡牌名称 */}
                         <h3 className="text-lg font-bold mb-1 text-slate-100 leading-tight">
                           {card.name}
@@ -497,14 +503,14 @@ export default function MultiplayerBattlePage() {
 
             {/* 结束回合按钮 */}
             {isMyTurn && (
-              <div className="flex justify-center">
+              <div className="flex justify-center mt-6">
                 <Button
                   onClick={handleEndTurn}
                   size="lg"
-                  className="bg-purple-600 hover:bg-purple-500 text-xl px-12 py-8 rounded-2xl shadow-[0_0_30px_rgba(139,92,246,0.4)]"
+                  className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-xl px-14 py-9 rounded-2xl shadow-[0_0_40px_rgba(139,92,246,0.5)]"
                 >
                   结束回合
-                  <ChevronRight className="w-6 h-6 ml-2" />
+                  <ChevronRight className="w-7 h-7 ml-2" />
                 </Button>
               </div>
             )}
