@@ -361,3 +361,200 @@ export const useStore = create<Store>((set) => ({
 3. **遵循 Next.js App Router 规范**，正确区分服务端/客户端组件
 4. **使用 TypeScript** 进行类型安全开发
 5. **使用 `@/` 路径别名** 导入模块（已配置）
+
+## Linux 服务器部署指南
+
+### 前置要求
+
+确保服务器已安装：
+- **Node.js 20+** 
+- **pnpm 9+**
+- **Git**
+
+### 部署步骤
+
+#### 1. 克隆项目
+
+```bash
+# 克隆仓库
+git clone https://github.com/hername111/ABYSSAL-CHORD.git
+cd ABYSSAL-CHORD
+```
+
+#### 2. 安装依赖
+
+```bash
+# 使用 pnpm 安装依赖
+pnpm install
+```
+
+#### 3. 配置环境变量（如需要）
+
+如果项目需要环境变量，创建 `.env` 文件：
+
+```bash
+# 复制示例环境变量文件（如果有）
+cp .env.example .env
+
+# 编辑环境变量
+nano .env
+```
+
+#### 4. 构建生产版本
+
+```bash
+# 构建项目
+pnpm run build
+```
+
+#### 5. 启动生产服务器
+
+**方式一：直接启动（不推荐用于生产）**
+
+```bash
+pnpm run start
+```
+
+**方式二：使用 PM2 进程管理（推荐）**
+
+```bash
+# 安装 PM2
+npm install -g pm2
+
+# 使用 PM2 启动应用
+pm2 start npm --name "abyssal-chord" -- run start
+
+# 查看应用状态
+pm2 status
+
+# 查看日志
+pm2 logs abyssal-chord
+
+# 设置开机自启
+pm2 startup
+pm2 save
+```
+
+#### 6. 使用 Nginx 反向代理（推荐）
+
+安装 Nginx：
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install nginx
+
+# CentOS/RHEL
+sudo yum install nginx
+```
+
+创建 Nginx 配置文件：
+
+```bash
+sudo nano /etc/nginx/sites-available/abyssal-chord
+```
+
+添加以下配置：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;  # 替换为你的域名或服务器IP
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+启用配置：
+
+```bash
+# 创建软链接
+sudo ln -s /etc/nginx/sites-available/abyssal-chord /etc/nginx/sites-enabled/
+
+# 测试配置
+sudo nginx -t
+
+# 重启 Nginx
+sudo systemctl restart nginx
+```
+
+#### 7. 配置 SSL 证书（使用 Let's Encrypt）
+
+```bash
+# 安装 Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# 获取并安装证书
+sudo certbot --nginx -d your-domain.com
+
+# 证书会自动续期
+```
+
+### 防火墙配置
+
+如果使用 UFW 防火墙：
+
+```bash
+# 允许 HTTP 和 HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+### 常用 PM2 命令
+
+```bash
+# 启动应用
+pm2 start npm --name "abyssal-chord" -- run start
+
+# 停止应用
+pm2 stop abyssal-chord
+
+# 重启应用
+pm2 restart abyssal-chord
+
+# 删除应用
+pm2 delete abyssal-chord
+
+# 查看所有应用
+pm2 list
+
+# 查看日志
+pm2 logs abyssal-chord
+
+# 监控应用
+pm2 monit
+```
+
+### 故障排查
+
+**查看应用日志：**
+```bash
+pm2 logs abyssal-chord
+```
+
+**检查端口占用：**
+```bash
+sudo netstat -tlnp | grep 5000
+```
+
+**重启应用：**
+```bash
+pm2 restart abyssal-chord
+```
+
+### 端口说明
+
+- 应用默认运行在 **5000 端口**
+- 确保防火墙允许 5000 端口（如果不使用 Nginx）
+- 使用 Nginx 时，外部访问 80/443 端口，内部转发到 5000 端口
